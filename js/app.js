@@ -12,9 +12,9 @@
     format:'A4P', tool:'select', objects:[], selectedIds:[], points:[], zoom:1.8, grid:false, snap:false,
     objectSnap:true, ortho:false, template:true, space:false, pan:null, viewPan:{x:0,y:0}, drag:null, selectionRect:null,
     history:[], redo:[], clipboard:[], ruler:null, rulerMode:'off', rulerVisible:true, freehandDraft:null,
-    gost:{profile:'eskd-study',mainLine:.5,thinLine:.18,textHeight:3.5,arrowLength:3.5,precision:1,fontFamily:'GOST type A,Arial,sans-serif'},
-    title:{title:'Наименование детали',code:'ЧЕРТЁЖ.001',material:'Материал не указан',scale:'1:1',sheet:'1',sheets:'1',company:'Учебный чертёж',liter:'У',mass:'—',developer:'',checker:'',technical:'',normative:'',approved:''},
-    fileName:'Чертёж_1', dirty:false
+    gost:{profile:'dstu-gost-ua',mainLine:.5,thinLine:.18,textHeight:3.5,arrowLength:3.5,precision:1,fontFamily:'GOST type A,Arial,sans-serif'},
+    title:{title:'Найменування деталі',code:'КРЕСЛЕННЯ.001',material:'Матеріал не зазначено',scale:'1:1',sheet:'1',sheets:'1',company:'Навчальний кресленик',liter:'У',mass:'—',developer:'',checker:'',technical:'',normative:'',approved:''},
+    titleForm:'form1', projectId:null, fileName:'Кресленик_1', dirty:false
   };
   const visible = {geometry:true,dimensions:true,construction:true,template:true,reference:true};
   const deep = o => JSON.parse(JSON.stringify(o));
@@ -36,7 +36,8 @@
     const d=dimensions(); svg.setAttribute('viewBox',`0 0 ${d.w} ${d.h}`);
     $('paperRect').setAttribute('width',d.w); $('paperRect').setAttribute('height',d.h);
     $('gridRect').setAttribute('width',d.w); $('gridRect').setAttribute('height',d.h);
-    window.KompasTemplate.render(templateLayer,state.format,templateData());
+    window.KompasTemplate.render(templateLayer,state.format,templateData(),state.titleForm||'form1');
+    if($('titleFormSelect'))$('titleFormSelect').value=state.titleForm||'form1';
     templateLayer.style.display=(state.template&&visible.template)?'':'none';
     $('docName').textContent=state.fileName.replaceAll('_',' ');
     const formatLabel=state.format.replace(/[PL]$/,'');
@@ -200,10 +201,10 @@
     else $('noSelection').textContent='Объект не выбран';
     $('editTextFormatBtn').classList.toggle('hidden',!(o&&['text','techReq'].includes(o.type)));$('referenceSelectionFields').classList.toggle('hidden',!(o&&o.type==='reference'));if(o){$('objectColor').value=o.color||'#20252a';$('objectWidth').value=o.width||.35;$('objectDash').value=o.dash||'';$('objectLayer').value=layerFor(o)==='reference'?'geometry':layerFor(o);$('objectName').value=o.name||'';$('objectTextSize').value=o.size||o.textSize||3;if(o.type==='reference'){$('referenceOpacity').value=Math.round((o.opacity??.35)*100);$('referenceOpacityValue').textContent=$('referenceOpacity').value+'%';$('referenceWidth').value=o.w||100;$('referenceX').value=o.x||0;$('referenceY').value=o.y||0;$('referenceRotation').value=o.rotation||0;$('referenceLocked').checked=!!o.locked;$('referenceExportable').checked=!!o.exportable;}}
   }
-  function snapshot(){return{format:state.format,objects:deep(state.objects),title:deep(state.title),fileName:state.fileName,ruler:deep(state.ruler),rulerMode:state.rulerMode,rulerVisible:state.rulerVisible,gost:deep(state.gost),viewPan:deep(state.viewPan)};}
+  function snapshot(){return{format:state.format,objects:deep(state.objects),title:deep(state.title),titleForm:state.titleForm,fileName:state.fileName,projectId:state.projectId,ruler:deep(state.ruler),rulerMode:state.rulerMode,rulerVisible:state.rulerVisible,gost:deep(state.gost),viewPan:deep(state.viewPan)};}
   function persistAutosave(){try{localStorage.setItem('kompasOnlineAutosave',JSON.stringify(snapshot()));}catch(e){setMessage('Автосохранение недоступно: память браузера заполнена или отключена');}}
   function commit(){state.history.push(snapshot());if(state.history.length>100)state.history.shift();state.redo=[];state.dirty=true;$('saveState').textContent='Есть несохранённые изменения';Promise.resolve().then(persistAutosave);}
-  function restore(s){state.format=s.format;state.objects=deep(s.objects);state.title=deep(s.title);state.fileName=s.fileName;state.ruler=deep(s.ruler||null);state.rulerMode=s.rulerMode||'off';state.rulerVisible=s.rulerVisible!==false;state.gost=Object.assign({},state.gost,s.gost||{});state.viewPan=deep(s.viewPan||{x:0,y:0});applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.selectedIds=[];syncTitleInputs();$('paperFormat').value=state.format;renderTemplate();renderAll();}
+  function restore(s){state.format=s.format;state.objects=deep(s.objects);state.title=deep(s.title);state.titleForm=s.titleForm||'form1';state.projectId=s.projectId??state.projectId;state.fileName=s.fileName;state.ruler=deep(s.ruler||null);state.rulerMode=s.rulerMode||'off';state.rulerVisible=s.rulerVisible!==false;state.gost=Object.assign({},state.gost,s.gost||{});state.viewPan=deep(s.viewPan||{x:0,y:0});applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.selectedIds=[];syncTitleInputs();$('paperFormat').value=state.format;renderTemplate();renderAll();}
   function undo(){if(!state.history.length){setMessage('Нет действий для отмены');return;}state.redo.push(snapshot());restore(state.history.pop());state.dirty=true;persistAutosave();setMessage('Действие отменено');}
   function redo(){if(!state.redo.length){setMessage('Нет действий для повтора');return;}state.history.push(snapshot());restore(state.redo.pop());state.dirty=true;persistAutosave();setMessage('Действие повторено');}
   function addObject(o){o.id=`obj_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;o.name=o.name||'';o.color=o.color||(o.type==='construction'?'#8c969d':'#20252a');o.width=o.width??(annotationTypes.has(o.type)||constructionTypes.has(o.type)?state.gost.thinLine:state.gost.mainLine);o.layer=o.layer|| (annotationTypes.has(o.type)?'annotation':constructionTypes.has(o.type)?'construction':'geometry');state.objects.push(o);state.selectedIds=[o.id];commit();renderAll();setMessage('Объект добавлен');}
@@ -229,7 +230,7 @@
   const GOST_TEXT_HEIGHTS=[2.5,3.5,5,7,10,14,20,28,40];
   const GOST_SCALES=['1:1','1:2','1:2.5','1:4','1:5','1:10','1:15','1:20','1:25','1:40','1:50','1:75','1:100','1:200','1:400','1:500','1:800','1:1000','2:1','2.5:1','4:1','5:1','10:1','20:1','40:1','50:1','100:1'];
   function applyGostControls(){
-    if($('standardProfile'))$('standardProfile').value=state.gost.profile||'eskd-study';
+    if($('standardProfile'))$('standardProfile').value=state.gost.profile||'dstu-gost-ua';
     if($('gostMainLine'))$('gostMainLine').value=state.gost.mainLine;
     if($('gostThinLine'))$('gostThinLine').value=state.gost.thinLine;
     if($('gostTextHeight'))$('gostTextHeight').value=state.gost.textHeight;
@@ -240,10 +241,11 @@
   }
   function applyGostProfile(quiet=false){
     commit();
-    state.gost={profile:'eskd-study',mainLine:.5,thinLine:.18,textHeight:3.5,arrowLength:3.5,precision:1,fontFamily:'GOST type A,Arial,sans-serif'};
-    applyGostControls();$('standardCustomFields').classList.add('hidden');
+    const selected=$('standardProfile').value;
+    state.gost={profile:selected==='custom'?'custom':(selected==='dstu-gost-ua'?'dstu-gost-ua':'eskd-study'),mainLine:.5,thinLine:.18,textHeight:3.5,arrowLength:3.5,precision:1,fontFamily:'GOST type A,Arial,sans-serif'};
+    applyGostControls();$('standardCustomFields').classList.toggle('hidden',selected!=='custom');
     $('dimensionOffset').value='5';
-    if(!quiet)setMessage('Учебный профиль ЕСКД применён для новых объектов; существующие объекты не изменены');
+    if(!quiet)setMessage(selected==='dstu-gost-ua'?'Профіль ДСТУ ГОСТ 2.104:2006 застосовано до нових об’єктів (межі чинності див. у довідці)':'Навчальний профіль ЄСКД застосовано до нових об’єктів');
   }
   function readGostSettings(){
     commit();state.gost={profile:$('standardProfile').value,mainLine:clamp(Number($('gostMainLine').value)||.5,.5,1.4),thinLine:clamp(Number($('gostThinLine').value)||.18,.13,.7),textHeight:GOST_TEXT_HEIGHTS.includes(Number($('gostTextHeight').value))?Number($('gostTextHeight').value):3.5,arrowLength:clamp(Number($('gostArrowLength').value)||3.5,2,10),precision:clamp(Number.isFinite(Number($('gostPrecision').value))?Number($('gostPrecision').value):1,0,3),fontFamily:'GOST type A,Arial,sans-serif'};
@@ -415,8 +417,109 @@
     if(action==='split'||action==='trim'){selectTool(action);setMessage(`Укажите на выбранном отрезке место операции «${action==='split'?'Разбить':'Усечь'}»`);}
   }
   function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1200);}
-  function saveProject(){const doc={app:'Kompas Online',version:4,format:state.format,fileName:state.fileName,title:state.title,objects:state.objects,ruler:state.ruler,rulerMode:state.rulerMode,rulerVisible:state.rulerVisible,gost:state.gost,viewPan:state.viewPan};downloadBlob(new Blob([JSON.stringify(doc,null,2)],{type:'application/json'}),`${state.fileName||'drawing'}.json`);state.dirty=false;$('saveState').textContent='Сохранено';setMessage('Проект сохранён в JSON');}
-  function loadProject(file){const reader=new FileReader();reader.onload=()=>{try{const doc=JSON.parse(reader.result);if(!doc||!Array.isArray(doc.objects)||!window.KompasTemplate.dimensions(doc.format))throw new Error('Неверный формат проекта');commit();state.format=doc.format;$('paperFormat').value=doc.format;state.fileName=doc.fileName||'Импортированный_чертёж';state.title=Object.assign({},state.title,doc.title||{});state.ruler=doc.ruler||null;state.rulerMode=doc.rulerMode||'off';state.rulerVisible=doc.rulerVisible!==false;state.gost=Object.assign({},state.gost,doc.gost||{});state.viewPan=deep(doc.viewPan||{x:0,y:0});applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.objects=doc.objects.filter(o=>o&&supportedTypes.has(o.type));state.selectedIds=[];syncTitleInputs();renderTemplate();renderAll();state.dirty=false;$('saveState').textContent='Проект открыт';setMessage('Проект успешно открыт');}catch(err){alert(`Не удалось открыть проект: ${err.message}`);}};reader.readAsText(file);}
+  // Local project library: IndexedDB is used for larger drawings and embedded image references.
+  const PROJECT_DB_NAME='KompasOnlineProjectLibrary';
+  const PROJECT_DB_VERSION=1;
+  let projectDbPromise=null;
+  let preferFallbackStorage=false;
+  let volatileProjects=new Map();
+  let storageMode='indexeddb';
+  function openProjectDb(){
+    if(!('indexedDB' in window))return Promise.reject(new Error('IndexedDB недоступен'));
+    if(projectDbPromise)return projectDbPromise;
+    projectDbPromise=new Promise((resolve,reject)=>{
+      let request;
+      try{request=indexedDB.open(PROJECT_DB_NAME,PROJECT_DB_VERSION);}catch(e){reject(e);return;}
+      request.onupgradeneeded=()=>{const db=request.result;if(!db.objectStoreNames.contains('projects')){const store=db.createObjectStore('projects',{keyPath:'id'});store.createIndex('updatedAt','updatedAt',{unique:false});}};
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error||new Error('Не удалось открыть базу файлов'));
+      request.onblocked=()=>reject(new Error('База файлов заблокирована другой вкладкой'));
+    });
+    return projectDbPromise;
+  }
+  function fallbackProjects(){
+    try{return Object.assign(Object.fromEntries(volatileProjects),JSON.parse(localStorage.getItem('kompasOnlineProjectLibraryFallback')||'{}'));}
+    catch(e){return Object.fromEntries(volatileProjects);}
+  }
+  function writeFallbackProjects(all){
+    try{localStorage.setItem('kompasOnlineProjectLibraryFallback',JSON.stringify(all));storageMode='localStorage';volatileProjects.clear();return true;}
+    catch(e){volatileProjects=new Map(Object.entries(all));storageMode='memory';return false;}
+  }
+  async function libraryCall(mode,method,value){
+    try{
+      if(preferFallbackStorage)throw new Error('Используется резервное хранилище');
+      const db=await openProjectDb();
+      return await new Promise((resolve,reject)=>{
+        const tx=db.transaction('projects',mode),store=tx.objectStore('projects');
+        let req;
+        if(method==='put')req=store.put(value);else if(method==='get')req=store.get(value);else if(method==='delete')req=store.delete(value);else req=store.getAll();
+        let result;
+        req.onsuccess=()=>{result=req.result;};req.onerror=()=>reject(req.error||new Error('Ошибка базы файлов'));
+        tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error||new Error('Транзакция не выполнена'));tx.onabort=()=>reject(tx.error||new Error('Транзакция отменена'));
+      });
+    }catch(err){
+      preferFallbackStorage=true;
+      const all=fallbackProjects();
+      if(method==='put'){all[value.id]=value;writeFallbackProjects(all);return value;}
+      if(method==='get')return all[value]||null;
+      if(method==='delete'){delete all[value];writeFallbackProjects(all);return true;}
+      return Object.values(all);
+    }
+  }
+  function makeDocument(){return{app:'Kompas Online',version:5,format:state.format,fileName:state.fileName,title:deep(state.title),titleForm:state.titleForm||'form1',objects:deep(state.objects),ruler:deep(state.ruler),rulerMode:state.rulerMode,rulerVisible:state.rulerVisible,gost:deep(state.gost),viewPan:deep(state.viewPan)};}
+  function fileStamp(ms){try{return new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(new Date(ms));}catch(e){return new Date(ms).toLocaleString();}}
+  async function saveProject(options={}){
+    let name=String(options.name||$('filenameField')?.value||state.fileName||'Кресленик_1').trim();
+    if(options.saveAs){const asked=prompt('Название нового файла:',name+' — копия');if(asked===null)return;name=asked.trim();}
+    if(!name){alert('Укажите название файла.');return;}
+    state.title=readTitleValues();
+    state.fileName=name;
+    renderTemplate();
+    const now=Date.now(),id=(options.saveAs||!state.projectId)?`drawing_${now}_${Math.random().toString(36).slice(2,8)}`:state.projectId;
+    let previous=null;if(!options.saveAs&&id){try{previous=await libraryCall('readonly','get',id);}catch(e){}}
+    const doc=makeDocument();doc.fileName=name;
+    const record={id,name,createdAt:previous?.createdAt||now,updatedAt:now,format:state.format,objectCount:state.objects.length,data:doc};
+    try{
+      await libraryCall('readwrite','put',record);
+      state.projectId=id;state.fileName=name;state.dirty=false;$('filenameField').value=name;renderTemplate();
+      $('saveState').textContent=storageMode==='memory'?'Временно збережено':'Збережено в браузері';
+      setMessage(storageMode==='memory'?`Файл «${name}» тимчасово збережено в пам’яті вкладки. Завантажте JSON-копію.`:`Файл «${name}» збережено у списку`);
+      persistAutosave();
+      if(!$('filesModal').classList.contains('hidden'))await renderProjectLibrary();
+    }catch(err){alert('Не удалось сохранить файл: '+err.message);setMessage('Помилка збереження');}
+  }
+  function exportProjectJson(doc,name){const payload=doc||makeDocument();downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),`${(name||state.fileName||'drawing').replace(/[\\/:*?"<>|]/g,'_')}.json`);setMessage('Резервная копия JSON скачана');}
+  async function exportSavedProject(id){const rec=await libraryCall('readonly','get',id);if(rec)exportProjectJson(rec.data,rec.name);}
+  async function applyLoadedDocument(doc,projectId=null,nameOverride=null){
+    if(!doc||!Array.isArray(doc.objects)||!window.KompasTemplate.dimensions(doc.format||'A4P'))throw new Error('Неверный формат проекта');
+    if(state.dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл и заменить текущий чертёж?'))return false;
+    state.format=doc.format||'A4P';$('paperFormat').value=state.format;state.fileName=nameOverride||doc.fileName||'Імпортований_кресленик';state.projectId=projectId;state.title=Object.assign({},state.title,doc.title||{});state.titleForm=doc.titleForm||'form1';
+    state.ruler=doc.ruler||null;state.rulerMode=doc.rulerMode||'off';state.rulerVisible=doc.rulerVisible!==false;state.gost=Object.assign({},state.gost,doc.gost||{});state.viewPan=deep(doc.viewPan||{x:0,y:0});
+    state.objects=doc.objects.filter(o=>o&&supportedTypes.has(o.type));state.selectedIds=[];state.history=[];state.redo=[];
+    applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;syncTitleInputs();renderTemplate();renderAll();state.dirty=false;$('saveState').textContent=projectId?'Файл відкрито':'Импортированный файл';setMessage('Кресленик відкрито');return true;
+  }
+  function loadProject(file){const reader=new FileReader();reader.onload=async()=>{try{const doc=JSON.parse(reader.result);const ok=await applyLoadedDocument(doc,null,doc.fileName||file.name.replace(/\.json$/i,''));if(ok)setMessage('JSON-файл успешно импортирован');}catch(err){alert(`Не удалось открыть проект: ${err.message}`);}};reader.readAsText(file);}
+  async function renderProjectLibrary(){
+    const list=$('savedProjectsList'),query=($('fileSearch').value||'').trim().toLocaleLowerCase();list.innerHTML='';
+    try{
+      const records=await libraryCall('readonly','getAll');records.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+      const filtered=records.filter(r=>(r.name||'').toLocaleLowerCase().includes(query));$('fileCount').textContent=`${filtered.length} из ${records.length} файлов`;
+      if(!filtered.length){const empty=document.createElement('div');empty.className='file-empty';empty.textContent=records.length?'По запросу ничего не найдено.':'Пока нет сохранённых чертежей. Нажмите «Сохранить в список файлов».';list.appendChild(empty);return;}
+      filtered.forEach(rec=>{
+        const card=document.createElement('article');card.className='file-card';
+        const info=document.createElement('div');const name=document.createElement('div');name.className='file-card-name';name.textContent=rec.name||'Без названия';
+        const meta=document.createElement('div');meta.className='file-card-meta';const fmt=(rec.format||rec.data?.format||'A4P').replace(/[PL]$/,'');meta.textContent=`${fmt} · объектов: ${rec.objectCount??rec.data?.objects?.length??0} · изменён: ${fileStamp(rec.updatedAt||rec.createdAt||Date.now())}`;info.append(name,meta);
+        const actions=document.createElement('div');actions.className='file-card-actions';
+        const mk=(label,cls,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;if(cls)b.className=cls;b.addEventListener('click',fn);return b;};
+        actions.append(mk('Відкрити','primary',async()=>{try{const ok=await applyLoadedDocument(rec.data,rec.id,rec.name);if(ok)$('filesModal').classList.add('hidden');}catch(e){alert('Не удалось открыть файл: '+e.message);}}));
+        actions.append(mk('Перейменувати','',async()=>{const n=prompt('Нова назва файлу:',rec.name||'');if(n===null)return;if(!n.trim()){alert('Назва не може бути порожньою.');return;}rec.name=n.trim();rec.data.fileName=rec.name;rec.updatedAt=Date.now();await libraryCall('readwrite','put',rec);if(state.projectId===rec.id){state.fileName=rec.name;$('filenameField').value=rec.name;renderTemplate();}await renderProjectLibrary();}));
+        actions.append(mk('Експорт','',()=>exportSavedProject(rec.id)));
+        actions.append(mk('Видалити','danger',async()=>{if(!confirm(`Видалити файл «${rec.name}» зі списку збережених? Цю дію не можна скасувати.`))return;await libraryCall('readwrite','delete',rec.id);if(state.projectId===rec.id){state.projectId=null;state.dirty=true;$('saveState').textContent='Файл удалён из списка';}await renderProjectLibrary();setMessage(`Файл «${rec.name}» видалено`);}));
+        card.append(info,actions);list.appendChild(card);
+      });
+    }catch(err){$('fileCount').textContent='Ошибка чтения';const empty=document.createElement('div');empty.className='file-empty';empty.textContent='Не удалось прочитать список файлов: '+err.message;list.appendChild(empty);}
+  }
+  async function openProjectLibrary(){ $('filesModal').classList.remove('hidden');$('fileSearch').value='';await renderProjectLibrary(); }
   function removePrivateReferences(clone){clone.querySelectorAll('[data-reference-exportable="false"]').forEach(n=>n.remove());}
   function exportSvg(){const clone=svg.cloneNode(true);clone.querySelector('#previewLayer')?.remove();clone.querySelector('#rulerLayer')?.remove();removePrivateReferences(clone);clone.querySelector('#gridRect')?.setAttribute('visibility','hidden');clone.setAttribute('xmlns',NS);const d=dimensions();clone.setAttribute('width',d.w+'mm');clone.setAttribute('height',d.h+'mm');const source='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(clone);downloadBlob(new Blob([source],{type:'image/svg+xml;charset=utf-8'}),`${state.fileName||'drawing'}.svg`);setMessage('SVG экспортирован');}
   function exportPng(){const clone=svg.cloneNode(true);clone.querySelector('#previewLayer')?.remove();clone.querySelector('#rulerLayer')?.remove();removePrivateReferences(clone);clone.querySelector('#gridRect')?.setAttribute('visibility','hidden');clone.setAttribute('xmlns',NS);const source=new XMLSerializer().serializeToString(clone),blob=new Blob([source],{type:'image/svg+xml;charset=utf-8'}),url=URL.createObjectURL(blob),img=new Image();img.onload=()=>{const c=document.createElement('canvas'),d=dimensions();c.width=Math.round(d.w*10);c.height=Math.round(d.h*10);const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>{downloadBlob(b,`${state.fileName||'drawing'}.png`);URL.revokeObjectURL(url);setMessage('PNG экспортирован');},'image/png');};img.onerror=()=>{URL.revokeObjectURL(url);alert('Не удалось создать PNG. Попробуйте экспорт SVG.');};img.src=url;}
@@ -476,10 +579,11 @@
       else if(type==='LWPOLYLINE'){const xs=p.filter(x=>x[0]===10).map(x=>Number(x[1])),ys=p.filter(x=>x[0]===20).map(x=>-Number(x[1])),pts=xs.map((x,k)=>({x,y:ys[k]??0}));out.push({...base,type:'polyline',points:pts,closed:(get(70)&1)===1});}
     }return out;}
   function importDxf(file){const reader=new FileReader();reader.onload=()=>{try{const imported=parseDxf(reader.result);if(!imported.length)throw new Error('Поддерживаемых сущностей не найдено');commit();imported.forEach(o=>{o.id=newId();state.objects.push(o);});state.selectedIds=[];renderAll();setMessage(`Импортировано объектов DXF: ${imported.length}`);}catch(e){alert('Ошибка импорта DXF: '+e.message);}};reader.readAsText(file);}
-  function syncTitleInputs(){const t=state.title;$('titleField').value=t.title||'';$('codeField').value=t.code||'';$('materialField').value=t.material||'';$('scaleField').value=t.scale||'1:1';$('sheetField').value=t.sheet||'1';$('sheetsField').value=t.sheets||'1';$('companyField').value=t.company||'';$('literField').value=t.liter||'У';$('massField').value=t.mass||'—';$('developerField').value=t.developer||'';$('checkerField').value=t.checker||'';$('technicalField').value=t.technical||'';$('normativeField').value=t.normative||'';$('approvedField').value=t.approved||'';$('filenameField').value=state.fileName||'Чертёж_1';}
-  function applyTitle(){commit();state.title={title:$('titleField').value,code:$('codeField').value,material:$('materialField').value,scale:$('scaleField').value,sheet:$('sheetField').value,sheets:$('sheetsField').value,company:$('companyField').value,liter:$('literField').value,mass:$('massField').value,developer:$('developerField').value,checker:$('checkerField').value,technical:$('technicalField').value,normative:$('normativeField').value,approved:$('approvedField').value};state.fileName=$('filenameField').value.trim()||'Чертёж_1';renderTemplate();renderAll();setMessage('Основная надпись обновлена');}
+  function syncTitleInputs(){const t=state.title;$('titleField').value=t.title||'';$('codeField').value=t.code||'';$('materialField').value=t.material||'';$('scaleField').value=t.scale||'1:1';$('sheetField').value=t.sheet||'1';$('sheetsField').value=t.sheets||'1';$('companyField').value=t.company||'';$('literField').value=t.liter||'У';$('massField').value=t.mass||'—';$('developerField').value=t.developer||'';$('checkerField').value=t.checker||'';$('technicalField').value=t.technical||'';$('normativeField').value=t.normative||'';$('approvedField').value=t.approved||'';$('filenameField').value=state.fileName||'Кресленик_1';if($('titleFormSelect'))$('titleFormSelect').value=state.titleForm||'form1';}
+  function readTitleValues(){return{title:$('titleField').value,code:$('codeField').value,material:$('materialField').value,scale:$('scaleField').value,sheet:$('sheetField').value,sheets:$('sheetsField').value,company:$('companyField').value,liter:$('literField').value,mass:$('massField').value,developer:$('developerField').value,checker:$('checkerField').value,technical:$('technicalField').value,normative:$('normativeField').value,approved:$('approvedField').value};}
+  function applyTitle(){commit();state.title=readTitleValues();state.fileName=$('filenameField').value.trim()||'Кресленик_1';renderTemplate();renderAll();setMessage('Основний напис оновлено');}
   function setFormat(fmt){commit();state.format=fmt;renderTemplate();setZoom(Math.min(state.zoom,2.5));$('paperFormat').value=fmt;setMessage(`Формат листа: ${fmt}`);}
-  function newDocument(){if((state.objects.length||state.dirty)&&!confirm('Создать новый чертёж? Несохранённые изменения будут потеряны.'))return;commit();state.objects=[];state.selectedIds=[];state.ruler=null;state.rulerMode='off';state.viewPan={x:0,y:0};$('rulerMode').value='off';state.format='A4P';state.fileName='Чертёж_1';$('paperFormat').value='A4P';state.title={title:'Наименование детали',code:'ЧЕРТЁЖ.001',material:'Материал не указан',scale:'1:1',sheet:'1',sheets:'1',company:'Учебный чертёж',liter:'У',mass:'—',developer:'',checker:'',technical:'',normative:'',approved:''};syncTitleInputs();renderTemplate();renderAll();state.dirty=false;$('saveState').textContent='Новый чертёж';setMessage('Создан новый чертёж');}
+  function newDocument(){if((state.objects.length||state.dirty)&&!confirm('Создать новый чертёж? Несохранённые изменения будут потеряны.'))return;state.objects=[];state.selectedIds=[];state.ruler=null;state.rulerMode='off';state.viewPan={x:0,y:0};state.projectId=null;state.titleForm='form1';$('rulerMode').value='off';state.format='A4P';state.fileName='Кресленик_1';$('paperFormat').value='A4P';state.title={title:'Найменування деталі',code:'КРЕСЛЕННЯ.001',material:'Матеріал не зазначено',scale:'1:1',sheet:'1',sheets:'1',company:'Навчальний кресленик',liter:'У',mass:'—',developer:'',checker:'',technical:'',normative:'',approved:''};state.history=[];state.redo=[];syncTitleInputs();renderTemplate();renderAll();state.dirty=false;$('saveState').textContent='Новий кресленик';setMessage('Створено новий кресленик');}
 
   function applyNumericCoordinate(){
     if(state.tool==='select'){setMessage('Сначала выберите инструмент построения');return;}
@@ -492,19 +596,20 @@
     setMessage(`Принята точка X ${mm(x)} · Y ${mm(y)} мм`);
   }
   function restoreAutosave(){
-    try{const raw=localStorage.getItem('kompasOnlineAutosave');if(!raw){setMessage('Автосохранение не найдено');return;}const doc=JSON.parse(raw);if(!doc||!Array.isArray(doc.objects))throw new Error('Повреждённый файл автосохранения');commit();state.format=doc.format||'A4P';state.fileName=doc.fileName||'Автовосстановление';state.title=Object.assign({},state.title,doc.title||{});state.ruler=doc.ruler||null;state.rulerMode=doc.rulerMode||'off';state.rulerVisible=doc.rulerVisible!==false;state.gost=Object.assign({},state.gost,doc.gost||{});state.viewPan=deep(doc.viewPan||{x:0,y:0});applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.objects=doc.objects.filter(o=>o&&supportedTypes.has(o.type));state.selectedIds=[];$('paperFormat').value=state.format;syncTitleInputs();renderTemplate();renderAll();setMessage('Автосохранение восстановлено');}catch(e){alert('Не удалось восстановить автосохранение: '+e.message);}
+    try{const raw=localStorage.getItem('kompasOnlineAutosave');if(!raw){setMessage('Автосохранение не найдено');return;}const doc=JSON.parse(raw);if(!doc||!Array.isArray(doc.objects))throw new Error('Повреждённый файл автосохранения');commit();state.format=doc.format||'A4P';state.fileName=doc.fileName||'Автовідновлення';state.projectId=doc.projectId||null;state.titleForm=doc.titleForm||'form1';state.title=Object.assign({},state.title,doc.title||{});state.ruler=doc.ruler||null;state.rulerMode=doc.rulerMode||'off';state.rulerVisible=doc.rulerVisible!==false;state.gost=Object.assign({},state.gost,doc.gost||{});state.viewPan=deep(doc.viewPan||{x:0,y:0});applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.objects=doc.objects.filter(o=>o&&supportedTypes.has(o.type));state.selectedIds=[];$('paperFormat').value=state.format;syncTitleInputs();renderTemplate();renderAll();setMessage('Автосохранение восстановлено');}catch(e){alert('Не удалось восстановить автосохранение: '+e.message);}
   }
   function copySelected(){const objs=getSelected();if(!objs.length){setMessage('Сначала выберите объекты для копирования');return;}state.clipboard=deep(objs);setMessage(`Скопировано объектов: ${objs.length}`);}
   function pasteClipboard(){if(!state.clipboard.length){setMessage('Буфер обмена пуст');return;}commit();const clones=state.clipboard.map(o=>({...deep(o),id:newId()}));clones.forEach(o=>translateObject(o,5,5));state.objects.push(...clones);state.selectedIds=clones.map(o=>o.id);renderAll();setMessage(`Вставлено объектов: ${clones.length}`);}
   document.querySelectorAll('[data-tool]').forEach(b=>b.addEventListener('click',()=>selectTool(b.dataset.tool)));
   document.querySelectorAll('[data-action]').forEach(b=>b.addEventListener('click',()=>applyAction(b.dataset.action)));
-  $('newBtn').addEventListener('click',newDocument);$('coordinateApplyBtn').addEventListener('click',applyNumericCoordinate);$('restoreAutosaveBtn').addEventListener('click',restoreAutosave);$('saveBtn').addEventListener('click',saveProject);$('saveJsonBtn').addEventListener('click',saveProject);$('openBtn').addEventListener('click',()=>$('fileInput').click());$('loadJsonBtn').addEventListener('click',()=>$('fileInput').click());$('fileInput').addEventListener('change',e=>{if(e.target.files[0])loadProject(e.target.files[0]);e.target.value='';});
+  $('newBtn').addEventListener('click',newDocument);$('coordinateApplyBtn').addEventListener('click',applyNumericCoordinate);$('restoreAutosaveBtn').addEventListener('click',restoreAutosave);$('saveBtn').addEventListener('click',()=>saveProject());$('saveToLibraryBtn').addEventListener('click',()=>saveProject());$('saveAsLibraryBtn').addEventListener('click',()=>saveProject({saveAs:true}));$('saveJsonBtn').addEventListener('click',()=>exportProjectJson());$('openBtn').addEventListener('click',openProjectLibrary);$('openLibraryBtn').addEventListener('click',openProjectLibrary);$('loadJsonBtn').addEventListener('click',()=>$('fileInput').click());$('importJsonFromLibraryBtn').addEventListener('click',()=>$('fileInput').click());$('fileInput').addEventListener('change',e=>{if(e.target.files[0])loadProject(e.target.files[0]);e.target.value='';});$('closeFilesModal').addEventListener('click',()=>$('filesModal').classList.add('hidden'));$('filesModal').addEventListener('click',e=>{if(e.target===$('filesModal'))$('filesModal').classList.add('hidden');});$('fileSearch').addEventListener('input',renderProjectLibrary);$('newFromLibraryBtn').addEventListener('click',()=>{$('filesModal').classList.add('hidden');newDocument();});$('titleFormSelect').addEventListener('change',e=>{commit();state.titleForm=e.target.value;renderTemplate();setMessage(e.target.value==='form2a'?'Обрано форму 2а для наступних аркушів':'Обрано форму 1 для першого аркуша');});
   $('undoBtn').addEventListener('click',undo);$('redoBtn').addEventListener('click',redo);$('deleteBtn').addEventListener('click',deleteSelected);$('deleteSelectedBtn').addEventListener('click',deleteSelected);
   $('gridBtn').addEventListener('click',()=>{$('gridToggle').checked=!$('gridToggle').checked;$('gridToggle').dispatchEvent(new Event('change'));});$('snapBtn').addEventListener('click',()=>{$('objectSnapToggle').checked=!$('objectSnapToggle').checked;state.objectSnap=$('objectSnapToggle').checked;setMessage(`Привязки к объектам ${state.objectSnap?'включены':'выключены'}`);});$('orthoBtn').addEventListener('click',()=>{$('orthoToggle').checked=!$('orthoToggle').checked;state.ortho=$('orthoToggle').checked;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';});
   $('rulerVisible').addEventListener('change',e=>{state.rulerVisible=e.target.checked;renderRuler();});$('rulerMode').addEventListener('change',e=>{state.rulerMode=e.target.value;setMessage(state.rulerMode==='off'?'Привязка к линейке выключена':state.ruler?'Режим линейки: '+(state.rulerMode==='parallel'?'параллельно':'перпендикулярно'):'Сначала поставьте линейку инструментом «Линейка»');});$('clearRulerBtn').addEventListener('click',()=>{commit();state.ruler=null;state.rulerMode='off';$('rulerMode').value='off';renderRuler();setMessage('Линейка убрана');});
   $('gridToggle').addEventListener('change',e=>{state.grid=e.target.checked;$('gridRect').setAttribute('visibility',state.grid?'visible':'hidden');});$('gridStep').addEventListener('change',()=>{const pattern=svg.querySelector('#gridPattern');const step=gridStep();pattern.setAttribute('width',step);pattern.setAttribute('height',step);pattern.querySelector('path').setAttribute('d',`M ${step} 0 L 0 0 0 ${step}`);});$('snapToggle').addEventListener('change',e=>state.snap=e.target.checked);$('objectSnapToggle').addEventListener('change',e=>state.objectSnap=e.target.checked);$('orthoToggle').addEventListener('change',e=>{state.ortho=e.target.checked;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';});
   $('templateToggle').addEventListener('change',e=>{state.template=e.target.checked;renderTemplate();});$('geometryVisible').addEventListener('change',e=>{visible.geometry=e.target.checked;renderAll();});$('dimensionsVisible').addEventListener('change',e=>{visible.dimensions=e.target.checked;renderAll();});$('constructionVisible').addEventListener('change',e=>{visible.construction=e.target.checked;renderAll();});$('templateVisible').addEventListener('change',e=>{visible.template=e.target.checked;renderTemplate();});
   $('paperFormat').addEventListener('change',e=>setFormat(e.target.value));$('fitBtn').addEventListener('click',()=>{resetViewPan();const d=dimensions(),w=drawingArea.clientWidth-70,h=drawingArea.clientHeight-70;setZoom(Math.min(w/d.w,h/d.h));});$('zoomIn').addEventListener('click',()=>setZoom(state.zoom*1.15));$('zoomOut').addEventListener('click',()=>setZoom(state.zoom/1.15));
+  ['titleField','codeField','materialField','scaleField','sheetField','sheetsField','companyField','literField','massField','developerField','checkerField','technicalField','normativeField','approvedField','filenameField'].forEach(id=>$(id).addEventListener('input',()=>{state.dirty=true;$('saveState').textContent='Є незбережені зміни';}));
   $('applyTitleBtn').addEventListener('click',applyTitle);$('svgBtn').addEventListener('click',exportSvg);$('dxfBtn').addEventListener('click',exportDxf);$('exportDxfBtn').addEventListener('click',exportDxf);$('importDxfBtn').addEventListener('click',()=>$('dxfInput').click());$('dxfInput').addEventListener('change',e=>{if(e.target.files[0])importDxf(e.target.files[0]);e.target.value='';});$('pngBtn').addEventListener('click',exportPng);$('printBtn').addEventListener('click',printDocument);$('addTextBtn').addEventListener('click',()=>selectTool('text'));
   $('objectColor').addEventListener('change',e=>{const o=getSelected()[0];if(o){commit();getSelected().forEach(x=>x.color=e.target.value);renderAll();}});
   $('objectTextSize').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>{o.size=clamp(Number(e.target.value)||3,.5,50);o.textSize=o.size;});renderAll();}});
@@ -529,7 +634,7 @@
   $('referenceLocked').addEventListener('change',e=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;commit();o.locked=e.target.checked;renderAll();});
   $('referenceExportable').addEventListener('change',e=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;commit();o.exportable=e.target.checked;renderAll();});
   $('fitReferenceBtn').addEventListener('click',()=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;const d=dimensions();commit();o.w=d.w-40;o.h=o.w/(o.aspect||1);o.x=(d.w-o.w)/2;o.y=(d.h-o.h)/2;o.rotation=0;renderAll();setMessage('Референс вписан в лист');});
-  $('standardProfile').addEventListener('change',e=>{if(e.target.value==='eskd-study')applyGostProfile(true);else $('standardCustomFields').classList.remove('hidden');});
+  $('standardProfile').addEventListener('change',e=>{if(e.target.value==='eskd-study'||e.target.value==='dstu-gost-ua')applyGostProfile(true);else $('standardCustomFields').classList.remove('hidden');});
   $('applyGostBtn').addEventListener('click',()=>applyGostProfile(false));
   $('saveGostSettingsBtn').addEventListener('click',readGostSettings);
   $('checkGostBtn').addEventListener('click',checkGost);$('normalizeGostBtn').addEventListener('click',normalizeSelectedToGost);
@@ -540,10 +645,10 @@
   $('objectWidth').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.width=clamp(Number(e.target.value)||.35,.05,3));renderAll();}});$('objectDash').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.dash=e.target.value);renderAll();}});$('objectLayer').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.layer=e.target.value);renderAll();}});$('objectName').addEventListener('change',e=>{if(getSelected().length===1){commit();getSelected()[0].name=e.target.value;renderAll();}});
   svg.addEventListener('pointerdown',e=>{if(e.button!==1&&!state.space)onCanvasPointerDown(e);});svg.addEventListener('dblclick',e=>{e.preventDefault();finishPath();});svg.addEventListener('contextmenu',e=>{if(state.tool==='polyline'||state.tool==='spline'){e.preventDefault();finishPath();}else e.preventDefault();});window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);
   drawingArea.addEventListener('wheel',e=>{e.preventDefault();if(e.shiftKey){state.viewPan.x-=e.deltaY||e.deltaX;updateZoom();persistAutosave();return;}if(e.altKey){state.viewPan.y-=e.deltaY;updateZoom();persistAutosave();return;}setZoomAt(state.zoom*(e.deltaY<0?1.1:.9),e.clientX,e.clientY);},{passive:false});
-  window.addEventListener('keydown',e=>{const tag=document.activeElement.tagName;if(e.code==='Space'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){state.space=true;e.preventDefault();}if(e.key==='Enter'&&(state.tool==='polyline'||state.tool==='spline'))finishPath();if(e.key==='F8'){state.ortho=!state.ortho;$('orthoToggle').checked=state.ortho;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if((e.key==='Delete'||e.key==='Backspace')&&!['INPUT','TEXTAREA','SELECT'].includes(tag))deleteSelected();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('openBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();newDocument();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();pasteClipboard();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();applyAction('duplicate');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&!['INPUT','TEXTAREA'].includes(tag)){e.preventDefault();state.selectedIds=state.objects.map(o=>o.id);renderAll();}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA','SELECT'].includes(tag)&&state.selectedIds.length&&!e.repeat){e.preventDefault();const step=e.shiftKey?10:1,dx=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,dy=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;commit();getSelected().forEach(o=>translateObject(o,dx,dy));renderAll();}if(e.key==='Escape'){if(state.referenceCalibration){state.referenceCalibration=null;setMessage('Калибровка референса отменена');}if(!$('textModal').classList.contains('hidden')){closeTextDialog();return;}state.freehandDraft=null;state.points=[];state.selectionRect=null;previewLayer.innerHTML='';selectTool('select');}});
+  window.addEventListener('keydown',e=>{const tag=document.activeElement.tagName;if(e.code==='Space'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){state.space=true;e.preventDefault();}if(e.key==='Enter'&&(state.tool==='polyline'||state.tool==='spline'))finishPath();if(e.key==='F8'){state.ortho=!state.ortho;$('orthoToggle').checked=state.ortho;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if((e.key==='Delete'||e.key==='Backspace')&&!['INPUT','TEXTAREA','SELECT'].includes(tag))deleteSelected();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('openBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();newDocument();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();pasteClipboard();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();applyAction('duplicate');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&!['INPUT','TEXTAREA'].includes(tag)){e.preventDefault();state.selectedIds=state.objects.map(o=>o.id);renderAll();}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA','SELECT'].includes(tag)&&state.selectedIds.length&&!e.repeat){e.preventDefault();const step=e.shiftKey?10:1,dx=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,dy=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;commit();getSelected().forEach(o=>translateObject(o,dx,dy));renderAll();}if(e.key==='Escape'){if(!$('filesModal').classList.contains('hidden'))$('filesModal').classList.add('hidden');if(state.referenceCalibration){state.referenceCalibration=null;setMessage('Калибровка референса отменена');}if(!$('textModal').classList.contains('hidden')){closeTextDialog();return;}state.freehandDraft=null;state.points=[];state.selectionRect=null;previewLayer.innerHTML='';selectTool('select');}});
   window.addEventListener('keyup',e=>{if(e.code==='Space')state.space=false;});window.addEventListener('blur',()=>{state.space=false;if(state.pan){state.pan=null;drawingArea.classList.remove('dragging');persistAutosave();}});
   document.querySelectorAll('.panel-tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.panel-tab').forEach(t=>t.classList.toggle('active',t===tab));$('toolsPanel').classList.toggle('hidden',tab.dataset.panel!=='tools');$('treePanel').classList.toggle('hidden',tab.dataset.panel!=='tree');}));
   $('helpBtn').addEventListener('click',()=>$('helpModal').classList.remove('hidden'));$('closeHelp').addEventListener('click',()=>$('helpModal').classList.add('hidden'));$('helpModal').addEventListener('click',e=>{if(e.target===$('helpModal'))$('helpModal').classList.add('hidden');});
-  document.querySelectorAll('[data-menu]').forEach(btn=>btn.addEventListener('click',()=>{const menu=btn.dataset.menu;if(menu==='file')saveProject();else if(menu==='edit')undo();else if(menu==='view')$('fitBtn').click();else if(menu==='insert')selectTool('text');else if(menu==='draw')selectTool('line');else if(menu==='format')$('applyTitleBtn').click();else $('helpBtn').click();}));
-  applyGostControls();syncTitleInputs();renderTemplate();renderAll();updateZoom();selectTool('select');
+  document.querySelectorAll('[data-menu]').forEach(btn=>btn.addEventListener('click',()=>{const menu=btn.dataset.menu;if(menu==='file')openProjectLibrary();else if(menu==='edit')undo();else if(menu==='view')$('fitBtn').click();else if(menu==='insert')selectTool('text');else if(menu==='draw')selectTool('line');else if(menu==='format')$('applyTitleBtn').click();else $('helpBtn').click();}));
+  applyGostControls();syncTitleInputs();renderTemplate();renderAll();updateZoom();selectTool('select');openProjectDb().catch(()=>{});
 })();

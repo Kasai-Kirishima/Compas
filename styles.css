@@ -38,3 +38,23 @@
 .drawing-area{cursor:default;} .drawing-area.dragging{cursor:grabbing!important;user-select:none;} .drawing-area svg{will-change:transform;} #referenceLayer image{cursor:move;} #referenceLayer [data-reference-locked="true"] image{cursor:default;} @media print{#rulerLayer,g[data-reference-exportable="false"]{display:none!important;}}
 
 .drawing-area.drag-over{outline:2px dashed var(--accent);outline-offset:-8px;background:#38464d;}
+
+/* Saved drawing library */
+.files-modal{width:min(760px,94vw);max-height:88vh;display:flex;flex-direction:column;}
+.files-modal .modal-body{overflow:auto;}
+.file-library-toolbar{display:flex;align-items:center;gap:12px;margin:4px 0 12px;}
+.file-library-toolbar input{flex:1;min-width:100px;height:34px;background:#24292d;border:1px solid #515960;border-radius:3px;padding:6px 9px;color:#e8edf0;}
+.saved-projects-list{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;padding-right:2px;}
+.file-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;background:#272d31;border:1px solid #49535a;border-radius:4px;padding:10px 11px;}
+.file-card:hover{border-color:#168eaa;}
+.file-card-name{font-weight:bold;color:#eef5f8;overflow-wrap:anywhere;}
+.file-card-meta{font-size:11px;color:#9eaab2;margin-top:4px;line-height:1.45;}
+.file-card-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
+.file-card-actions button{border:1px solid #55616a;background:#3b444b;color:#e7eef2;border-radius:3px;padding:6px 8px;font-size:11px;}
+.file-card-actions button.primary{background:#087f9d;border-color:#149bbd;}
+.file-card-actions button.danger{color:#ffc5c5;border-color:#825454;}
+.file-empty{padding:24px 12px;text-align:center;color:#a8b3ba;border:1px dashed #58636b;border-radius:4px;}
+.file-library-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid #49525a;}
+.file-footer-actions{display:flex;gap:7px;}
+.file-footer-actions button{width:auto;white-space:nowrap;padding:0 12px;}
+@media(max-width:650px){.file-card{grid-template-columns:1fr;}.file-card-actions{justify-content:flex-start;}.file-library-footer{align-items:flex-start;flex-direction:column;}.file-footer-actions{width:100%;}.file-footer-actions button{flex:1;}}

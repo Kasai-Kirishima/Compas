@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>КОМПАС Онлайн — черчение</title>
+  <title>КОМПАС Онлайн 0.8 — креслення</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -12,14 +12,14 @@
     <nav class="menubar" aria-label="Главное меню">
       <button data-menu="file">Файл</button><button data-menu="edit">Правка</button><button data-menu="view">Вид</button><button data-menu="insert">Вставка</button><button data-menu="draw">Черчение</button><button data-menu="format">Оформление</button><button data-menu="help">Справка</button>
     </nav>
-    <div class="top-actions"><span class="save-state" id="saveState">Новый чертёж</span><button class="icon-btn" id="helpBtn" title="Справка">?</button></div>
+    <div class="top-actions"><span class="save-state" id="saveState">Новий кресленик</span><button class="icon-btn" id="helpBtn" title="Справка">?</button></div>
   </header>
 
   <section class="ribbon">
     <div class="ribbon-group file-group">
-      <button class="ribbon-btn" id="newBtn"><span>＋</span>Создать</button>
-      <button class="ribbon-btn" id="openBtn"><span>▱</span>Открыть</button>
-      <button class="ribbon-btn" id="saveBtn"><span>▣</span>Сохранить</button>
+      <button class="ribbon-btn" id="newBtn"><span>＋</span>Створити</button>
+      <button class="ribbon-btn" id="openBtn"><span>▱</span>Файли</button>
+      <button class="ribbon-btn" id="saveBtn"><span>▣</span>Зберегти</button>
       <button class="ribbon-btn" id="undoBtn"><span>↶</span>Отменить</button>
       <button class="ribbon-btn" id="redoBtn"><span>↷</span>Повторить</button>
     </div>
@@ -135,7 +135,7 @@
         <label class="check-row"><input type="checkbox" id="referenceVisibleToggle" checked> Показывать референсы</label>
         <div class="muted-hint">Добавь файл кнопкой или перетащи изображение на лист. Для привязки масштаба можно откалибровать по известной длине. Прозрачность, размер, координаты и поворот — в свойствах объекта.</div>
         <div class="panel-heading spaced">ЕСКД / ГОСТ — НАСТРОЙКИ</div>
-        <label class="field-label">Профиль оформления<select id="standardProfile"><option value="eskd-study">ЕСКД — учебный базовый профиль</option><option value="custom">Пользовательские настройки</option></select></label>
+        <label class="field-label">Профиль оформления<select id="standardProfile"><option value="dstu-gost-ua">ДСТУ ГОСТ 2.104:2006 — українські написи*</option><option value="eskd-study">ЄСКД — навчальний профіль</option><option value="custom">Пользовательские настройки</option></select></label>
         <div id="standardCustomFields" class="hidden">
           <div class="two-fields"><label class="field-label">Основная линия, мм<input id="gostMainLine" type="number" min="0.5" max="1.4" step="0.1" value="0.5"></label><label class="field-label">Тонкая линия, мм<input id="gostThinLine" type="number" min="0.13" max="0.7" step="0.01" value="0.18"></label></div>
           <div class="two-fields"><label class="field-label">Высота текста, мм<input id="gostTextHeight" type="number" list="gostTextHeights" value="3.5" step="0.5"><datalist id="gostTextHeights"><option value="2.5"><option value="3.5"><option value="5"><option value="7"><option value="10"><option value="14"><option value="20"><option value="28"><option value="40"></datalist></label><label class="field-label">Длина стрелки, мм<input id="gostArrowLength" type="number" min="2" max="10" step="0.5" value="3.5"></label></div>
@@ -159,7 +159,7 @@
         <label class="check-row"><input type="checkbox" id="objectSnapToggle" checked> Привязка к объектам</label>
         <label class="check-row"><input type="checkbox" id="gridToggle"> Сетка</label>
         <label class="check-row"><input type="checkbox" id="snapToggle"> Привязка к сетке</label>
-        <label class="field-label">Формат листа<select id="paperFormat"><option value="A4P">A4 · книжный</option><option value="A4L">A4 · альбомный</option><option value="A3L">A3 · альбомный</option><option value="A3P">A3 · книжный</option><option value="A2L">A2 · альбомный</option><option value="A2P">A2 · книжный</option><option value="A1L">A1 · альбомный</option><option value="A1P">A1 · книжный</option><option value="A0L">A0 · альбомный</option><option value="A0P">A0 · книжный</option></select></label>
+        <label class="field-label">Формат аркуша<select id="paperFormat"><option value="A4P">A4 · книжный</option><option value="A4L">A4 · альбомный</option><option value="A3L">A3 · альбомный</option><option value="A3P">A3 · книжный</option><option value="A2L">A2 · альбомный</option><option value="A2P">A2 · книжный</option><option value="A1L">A1 · альбомный</option><option value="A1P">A1 · книжный</option><option value="A0L">A0 · альбомный</option><option value="A0P">A0 · книжный</option></select></label>
         <label class="check-row"><input type="checkbox" id="templateToggle" checked> Показывать шаблон</label>
         <div class="panel-heading">СЛОИ</div>
         <div class="layer-row"><label><input type="checkbox" id="geometryVisible" checked> Геометрия</label><span class="layer-dot blue"></span></div>
@@ -220,26 +220,30 @@
 
     <aside class="right-panel">
       <div class="right-panel-title">ОФОРМЛЕНИЕ ЛИСТА</div>
-      <p class="right-desc">Поля основной надписи и подписей по форме 1</p>
-      <label class="field-label">Наименование изделия / документа<input id="titleField" value="Наименование детали"></label>
-      <label class="field-label">Обозначение документа<input id="codeField" value="ЧЕРТЁЖ.001"></label>
-      <label class="field-label">Материал детали<input id="materialField" value="Материал не указан"></label>
-      <div class="two-fields"><label class="field-label">Литера<input id="literField" value="У"></label><label class="field-label">Масса<input id="massField" value="—"></label></div>
-      <div class="two-fields"><label class="field-label">Масштаб<input id="scaleField" value="1:1" list="scaleSuggestions"><datalist id="scaleSuggestions"><option value="1:1"><option value="1:2"><option value="1:2.5"><option value="1:4"><option value="1:5"><option value="1:10"><option value="1:20"><option value="1:25"><option value="1:50"><option value="1:100"><option value="2:1"><option value="2.5:1"><option value="4:1"><option value="5:1"><option value="10:1"></datalist></label><label class="field-label">Лист<input id="sheetField" value="1"></label></div>
-      <label class="field-label">Всего листов<input id="sheetsField" value="1"></label>
-      <label class="field-label">Организация<input id="companyField" value="Учебный чертёж"></label>
-      <div class="panel-heading spaced">ПОДПИСИ</div>
-      <label class="field-label">Разработал<input id="developerField" placeholder="Фамилия"></label>
-      <label class="field-label">Проверил<input id="checkerField" placeholder="Фамилия"></label>
-      <label class="field-label">Технический контроль<input id="technicalField" placeholder="Фамилия"></label>
-      <label class="field-label">Нормоконтроль<input id="normativeField" placeholder="Фамилия"></label>
-      <label class="field-label">Утвердил<input id="approvedField" placeholder="Фамилия"></label>
-      <button class="primary-btn" id="applyTitleBtn">Применить данные</button>
+      <p class="right-desc">Український основний напис за ДСТУ ГОСТ 2.104:2006</p>
+      <label class="field-label">Форма основного напису<select id="titleFormSelect"><option value="form1">Форма 1 — перший аркуш кресленика</option><option value="form2a">Форма 2а — наступні аркуші</option></select></label>
+      <label class="field-label">Найменування виробу / документа<input id="titleField" value="Найменування деталі"></label>
+      <label class="field-label">Позначення документа<input id="codeField" value="КРЕСЛЕННЯ.001"></label>
+      <label class="field-label">Матеріал деталі<input id="materialField" value="Матеріал не зазначено"></label>
+      <div class="two-fields"><label class="field-label">Літера<input id="literField" value="У"></label><label class="field-label">Маса<input id="massField" value="—"></label></div>
+      <div class="two-fields"><label class="field-label">Масштаб<input id="scaleField" value="1:1" list="scaleSuggestions"><datalist id="scaleSuggestions"><option value="1:1"><option value="1:2"><option value="1:2.5"><option value="1:4"><option value="1:5"><option value="1:10"><option value="1:20"><option value="1:25"><option value="1:50"><option value="1:100"><option value="2:1"><option value="2.5:1"><option value="4:1"><option value="5:1"><option value="10:1"></datalist></label><label class="field-label">Аркуш<input id="sheetField" value="1"></label></div>
+      <label class="field-label">Усього аркушів<input id="sheetsField" value="1"></label>
+      <label class="field-label">Організація<input id="companyField" value="Навчальний кресленик"></label>
+      <div class="panel-heading spaced">ПІДПИСИ</div>
+      <label class="field-label">Розробив<input id="developerField" placeholder="Прізвище"></label>
+      <label class="field-label">Перевірив<input id="checkerField" placeholder="Прізвище"></label>
+      <label class="field-label">Технічний контроль<input id="technicalField" placeholder="Прізвище"></label>
+      <label class="field-label">Нормоконтроль<input id="normativeField" placeholder="Прізвище"></label>
+      <label class="field-label">Затвердив<input id="approvedField" placeholder="Прізвище"></label>
+      <button class="primary-btn" id="applyTitleBtn">Застосувати дані</button>
       <div class="panel-heading spaced">ДОКУМЕНТ</div>
-      <label class="field-label">Название файла<input id="filenameField" value="Чертёж_1"></label>
-      <button class="secondary-btn" id="saveJsonBtn">Скачать проект (.json)</button>
-      <button class="secondary-btn" id="restoreAutosaveBtn">Восстановить автосохранение</button>
-      <button class="secondary-btn" id="loadJsonBtn">Открыть проект (.json)</button>
+      <label class="field-label">Назва файла<input id="filenameField" value="Кресленик_1"></label>
+      <button class="primary-btn" id="saveToLibraryBtn">Зберегти до списку файлів</button>
+      <button class="secondary-btn" id="saveAsLibraryBtn">Зберегти як новий файл</button>
+      <button class="secondary-btn" id="openLibraryBtn">Список збережених файлів</button>
+      <button class="secondary-btn" id="saveJsonBtn">Завантажити резервну копію (.json)</button>
+      <button class="secondary-btn" id="restoreAutosaveBtn">Відновити автозбереження</button>
+      <button class="secondary-btn" id="loadJsonBtn">Імпортувати JSON-файл</button>
       <button class="secondary-btn" id="importDxfBtn">Импорт DXF</button>
       <button class="secondary-btn" id="exportDxfBtn">Экспорт DXF</button>
       <input type="file" id="fileInput" accept=".json,application/json" hidden><input type="file" id="dxfInput" accept=".dxf,.txt" hidden>
@@ -249,6 +253,12 @@ Ctrl + C / Ctrl + V — копировать / вставить.
     </aside>
   </main>
 
+
+  <div class="modal-backdrop hidden" id="filesModal"><div class="modal files-modal"><div class="modal-head"><b>Збережені кресленики</b><button id="closeFilesModal" type="button">✕</button></div><div class="modal-body">
+    <div class="file-library-toolbar"><input id="fileSearch" type="search" placeholder="Пошук за назвою..." aria-label="Поиск файлов"><span id="fileCount" class="muted-hint">0 файлів</span></div>
+    <div id="savedProjectsList" class="saved-projects-list"><div class="file-empty">Загружается список...</div></div>
+    <div class="file-library-footer"><span class="muted-hint">Файли зберігаються локально в цьому браузері на цьому пристрої.</span><div class="file-footer-actions"><button class="secondary-btn" id="importJsonFromLibraryBtn" type="button">Імпорт JSON</button><button class="primary-btn" id="newFromLibraryBtn" type="button">Новий кресленик</button></div></div>
+  </div></div></div>
   <div class="modal-backdrop hidden" id="textModal"><div class="modal text-modal"><div class="modal-head"><b id="textModalTitle">Параметры текста</b><button id="closeTextModal" type="button">✕</button></div><div class="modal-body text-form">
     <label class="field-label text-wide">Содержимое надписи<textarea id="textContent" rows="5" placeholder="Введите текст. Перенос строки — новая строка на чертеже."></textarea></label>
     <label class="field-label">Шрифт<select id="textFont"><option value="Arial,sans-serif">Arial</option><option value="GOST type A,Arial,sans-serif">ГОСТ тип А (если установлен)</option><option value="Times New Roman,serif">Times New Roman</option><option value="Verdana,sans-serif">Verdana</option><option value="Courier New,monospace">Courier New</option><option value="Georgia,serif">Georgia</option></select></label>
@@ -266,7 +276,7 @@ Ctrl + C / Ctrl + V — копировать / вставить.
     <div class="text-wide modal-actions"><button class="secondary-btn" id="cancelTextBtn" type="button">Отмена</button><button class="primary-btn" id="applyTextBtn" type="button">Применить текст</button></div>
   </div></div></div>
 
-  <div class="modal-backdrop hidden" id="gostModal"><div class="modal gost-modal"><div class="modal-head"><b>Проверка оформления ЕСКД / ГОСТ</b><button id="closeGostModal" type="button">✕</button></div><div class="modal-body"><p id="gostSummary" class="gost-summary">Предварительная проверка параметров чертежа.</p><div id="gostCheckResults" class="gost-results"></div><div class="gost-refs"><b>Основные стандарты профиля</b><ul><li>ГОСТ 2.301 — форматы листов.</li><li>ГОСТ 2.302 — масштабы.</li><li>ГОСТ 2.303 — линии.</li><li>ГОСТ 2.304 — чертёжные шрифты.</li><li>ГОСТ 2.305 — виды, разрезы и сечения.</li><li>ГОСТ 2.306 — графические обозначения материалов.</li><li>ГОСТ 2.307 — нанесение размеров и предельных отклонений.</li><li>ГОСТ 2.104 / применимый национальный стандарт — основные надписи.</li></ul><p class="muted-hint">Профиль — учебная настройка по традиционному комплекту ЕСКД. По данным реестров, отдельные ДСТУ ГОСТ в Украине восстановлены с 01.03.2026 до 25.11.2027 только для ограниченных заказов государственных заказчиков в сферах безопасности/обороны и топливно-энергетического комплекса. В РФ действует ГОСТ Р 2.104-2023 для основных надписей; новый комплект ГОСТ Р 2.301–2.307-2026 вводится с 01.10.2027 с возможностью досрочного применения. Проверка не выдаёт сертификат соответствия и не заменяет нормоконтроль.</p></div><div class="modal-actions"><button class="secondary-btn" id="closeGostModalBottom" type="button">Закрыть</button></div></div></div></div>
+  <div class="modal-backdrop hidden" id="gostModal"><div class="modal gost-modal"><div class="modal-head"><b>Проверка оформления ЕСКД / ГОСТ</b><button id="closeGostModal" type="button">✕</button></div><div class="modal-body"><p id="gostSummary" class="gost-summary">Предварительная проверка параметров чертежа.</p><div id="gostCheckResults" class="gost-results"></div><div class="gost-refs"><b>Основные стандарты профиля</b><ul><li>ГОСТ 2.301 — форматы листов.</li><li>ГОСТ 2.302 — масштабы.</li><li>ГОСТ 2.303 — линии.</li><li>ГОСТ 2.304 — чертёжные шрифты.</li><li>ГОСТ 2.305 — виды, разрезы и сечения.</li><li>ГОСТ 2.306 — графические обозначения материалов.</li><li>ГОСТ 2.307 — нанесение размеров и предельных отклонений.</li><li>ГОСТ 2.104 / применимый национальный стандарт — основные надписи.</li></ul><p class="muted-hint">Профиль — учебная настройка по традиционному комплекту ЕСКД. По данным реестров, отдельные ДСТУ ГОСТ в Украине восстановлены с 01.03.2026 до 25.11.2027 только для ограниченных заказов государственных заказчиков в сферах безопасности/обороны и топливно-энергетического комплекса. В РФ действует ГОСТ Р 2.104-2023 для основных надписей; новый комплект ГОСТ Р 2.301–2.307-2026 вводится с 01.10.2027 с возможностью досрочного применения. В Україні чинність ДСТУ ГОСТ 2.104:2006 відновлено з 01.03.2026 до 25.11.2027 лише для виробництва та/або постачання за замовленнями державних замовників у сферах безпеки й оборони та паливно-енергетичного комплексу. Для інших завдань застосовуйте стандарт, указаний викладачем або замовником. Перевірка не є сертифікатом відповідності.</p></div><div class="modal-actions"><button class="secondary-btn" id="closeGostModalBottom" type="button">Закрыть</button></div></div></div></div>
   <div class="modal-backdrop hidden" id="helpModal"><div class="modal"><div class="modal-head"><b>Справка — КОМПАС Онлайн</b><button id="closeHelp">✕</button></div><div class="modal-body"><h3>Инструменты 2D-черчения</h3><p>Геометрия: отрезок, свободная линия (рисование удержанием левой кнопки), ломаная, прямоугольник, окружность, дуга, эллипс, многоугольник, сплайн, вспомогательная и осевая линии. Для свободной линии настраиваются толщина и сглаживание.</p><p>Размеры: авторазмер, линейный, горизонтальный, вертикальный, радиальный, диаметральный и угловой. Обозначения: выноска, центровые, шероховатость, допуск, сварка, штриховка, таблица.</p><p>Редактирование: копирование, перемещение мышью, поворот, симметрия, масштабирование, эквидистанта, скругление, фаска, массивы, усечение и разбиение отрезка. Средняя кнопка (нажатое колесо) + перетаскивание двигает лист; Space + левая кнопка также двигает лист. Колёсико приближает/отдаляет, Shift+колёсико двигает по горизонтали, Alt+колёсико — по вертикали. Линейка задаётся двумя точками; можно привязывать отрезки параллельно или перпендикулярно её кромке. Shift фиксирует угол с заданным шагом.</p><p>Референс: добавление PNG/JPG/WEBP/BMP в качестве подложки, перемещение, точное положение X/Y, масштабирование, поворот, прозрачность, блокировка, исключение из печати и экспорта. Калибровка по известному расстоянию: отметить две точки на изображении, ввести фактическую длину в мм — редактор пересчитает ширину подложки. Текст имеет отдельный редактор: содержимое и переносы строк, шрифт, высота и ширина букв, угол, горизонтальное/вертикальное выравнивание, интервалы, цвет, жирность, курсив, подчёркивание, надчёркивание, зачёркивание и рамка. DXF поддерживает базовый импорт/экспорт линий, окружностей, дуг, полилиний и текста. Родные CDW и DWG, параметрические ограничения и 3D-моделирование пока не поддерживаются.</p></div></div></div>
   <script src="js/template.js"></script><script src="js/app.js"></script>
 </body>
