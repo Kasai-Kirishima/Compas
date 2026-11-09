@@ -23,22 +23,29 @@
       <button class="ribbon-btn" id="undoBtn"><span>↶</span>Отменить</button>
       <button class="ribbon-btn" id="redoBtn"><span>↷</span>Повторить</button>
     </div>
-    <div class="ribbon-group geometry-group">
+    <div class="ribbon-group">
       <button class="ribbon-btn" data-tool="select"><span>↖</span>Выбор</button>
       <button class="ribbon-btn" data-tool="line"><span>／</span>Отрезок</button>
-      <button class="ribbon-btn" data-tool="rect"><span>□</span>Прямоугольник</button>
+      <button class="ribbon-btn" data-tool="polyline"><span>⌁</span>Ломаная</button>
       <button class="ribbon-btn" data-tool="circle"><span>◯</span>Окружность</button>
-      <button class="ribbon-btn" data-tool="text"><span>Т</span>Текст</button>
       <button class="ribbon-btn" data-tool="dimension"><span>↔</span>Размер</button>
+      <button class="ribbon-btn" data-tool="text"><span>Т</span>Текст</button>
     </div>
-    <div class="ribbon-group modify-group">
-      <button class="ribbon-btn" id="deleteBtn"><span>⌫</span>Удалить</button>
+    <div class="ribbon-group">
+      <button class="ribbon-btn" data-action="duplicate"><span>▣</span>Копия</button>
+      <button class="ribbon-btn" data-action="rotate"><span>⟳</span>Поворот</button>
+      <button class="ribbon-btn" data-action="mirror"><span>⇋</span>Симметрия</button>
+      <button class="ribbon-btn" data-action="arrayRect"><span>▦</span>Массив</button>
+    </div>
+    <div class="ribbon-group">
       <button class="ribbon-btn" id="gridBtn"><span>▦</span>Сетка</button>
-      <button class="ribbon-btn" id="snapBtn"><span>⌖</span>Привязка</button>
+      <button class="ribbon-btn" id="snapBtn"><span>⌖</span>Привязки</button>
+      <button class="ribbon-btn" id="orthoBtn"><span>⊥</span>Ортогонально</button>
       <button class="ribbon-btn" id="fitBtn"><span>⤢</span>Вписать</button>
     </div>
     <div class="ribbon-group export-group">
-      <button class="ribbon-btn" id="svgBtn"><span>⇩</span>Экспорт SVG</button>
+      <button class="ribbon-btn" id="svgBtn"><span>⇩</span>SVG</button>
+      <button class="ribbon-btn" id="dxfBtn"><span>⇩</span>DXF</button>
       <button class="ribbon-btn" id="pngBtn"><span>▧</span>PNG</button>
       <button class="ribbon-btn" id="printBtn"><span>▤</span>Печать / PDF</button>
     </div>
@@ -48,32 +55,99 @@
     <aside class="left-panel">
       <div class="panel-tabs"><button class="panel-tab active" data-panel="tools">Инструменты</button><button class="panel-tab" data-panel="tree">Документ</button></div>
       <section class="panel-content" id="toolsPanel">
-        <div class="panel-heading">ГЕОМЕТРИЯ</div>
+        <div class="panel-heading">ВЫБОР И ГЕОМЕТРИЯ</div>
         <div class="tool-grid">
           <button class="tool-tile active" data-tool="select"><span>↖</span>Выбор</button>
+          <button class="tool-tile" data-tool="point"><span>·</span>Точка</button>
           <button class="tool-tile" data-tool="line"><span>／</span>Отрезок</button>
-          <button class="tool-tile" data-tool="rect"><span>□</span>Прямоугольник</button>
+          <button class="tool-tile" data-tool="construction"><span>┄</span>Всп. линия</button>
+          <button class="tool-tile" data-tool="centerline"><span>┄·</span>Осевая</button>
+          <button class="tool-tile" data-tool="polyline"><span>⌁</span>Ломаная</button>
+          <button class="tool-tile" data-tool="rect"><span>□</span>Прямоуг.</button>
+          <button class="tool-tile" data-tool="roundRect"><span>▢</span>Скругл. прямоуг.</button>
           <button class="tool-tile" data-tool="circle"><span>◯</span>Окружность</button>
-          <button class="tool-tile" data-tool="text"><span>Т</span>Текст</button>
-          <button class="tool-tile" data-tool="dimension"><span>↔</span>Размер</button>
+          <button class="tool-tile" data-tool="arc"><span>◜</span>Дуга</button>
+          <button class="tool-tile" data-tool="ellipse"><span>⬭</span>Эллипс</button>
+          <button class="tool-tile" data-tool="polygon"><span>⬡</span>Многоуг.</button>
+          <button class="tool-tile" data-tool="spline"><span>∿</span>Сплайн</button>
+          <button class="tool-tile" data-tool="breakline"><span>⌁</span>Линия обрыва</button>
+          <button class="tool-tile" data-tool="section"><span>А—А</span>Разрез</button>
         </div>
-        <div class="panel-heading">ПАРАМЕТРЫ ЛИСТА</div>
-        <label class="field-label">Формат
-          <select id="paperFormat"><option value="A4P">A4 · книжный</option><option value="A4L">A4 · альбомный</option><option value="A3L">A3 · альбомный</option></select>
-        </label>
-        <label class="check-row"><input type="checkbox" id="templateToggle" checked> Показывать шаблон</label>
+
+        <div class="panel-heading">РАЗМЕРЫ</div>
+        <div class="tool-grid">
+          <button class="tool-tile" data-tool="dimAuto"><span>↔</span>Авторазмер</button>
+          <button class="tool-tile" data-tool="dimension"><span>↔</span>Линейный</button>
+          <button class="tool-tile" data-tool="dimH"><span>↔</span>Горизонт.</button>
+          <button class="tool-tile" data-tool="dimV"><span>↕</span>Вертикал.</button>
+          <button class="tool-tile" data-tool="dimRad"><span>R</span>Радиус</button>
+          <button class="tool-tile" data-tool="dimDia"><span>Ø</span>Диаметр</button>
+          <button class="tool-tile" data-tool="dimAngle"><span>∠</span>Угловой</button>
+          <button class="tool-tile" data-tool="measure"><span>⌁</span>Измерить</button>
+        </div>
+
+        <div class="panel-heading">ОБОЗНАЧЕНИЯ И ОФОРМЛЕНИЕ</div>
+        <div class="tool-grid">
+          <button class="tool-tile" data-tool="text"><span>Т</span>Текст</button>
+          <button class="tool-tile" data-tool="leader"><span>↗</span>Выноска</button>
+          <button class="tool-tile" data-tool="centerMark"><span>⊕</span>Центр</button>
+          <button class="tool-tile" data-tool="hatch"><span>▨</span>Штриховка</button>
+          <button class="tool-tile" data-tool="roughness"><span>▽</span>Шероховат.</button>
+          <button class="tool-tile" data-tool="tolerance"><span>▤</span>Допуск</button>
+          <button class="tool-tile" data-tool="weld"><span>△</span>Сварка</button>
+          <button class="tool-tile" data-tool="table"><span>▦</span>Таблица</button>
+          <button class="tool-tile" data-tool="techReq"><span>≡</span>Требования</button>
+        </div>
+
+        <div class="panel-heading">РЕДАКТИРОВАНИЕ</div>
+        <div class="action-grid">
+          <button class="secondary-btn" data-action="duplicate">Копировать</button>
+          <button class="secondary-btn" data-action="moveBy">Сдвиг по X/Y</button>
+          <button class="secondary-btn" data-action="zoomSelected">Показать выбранное</button>
+          <button class="secondary-btn" data-action="rotate">Повернуть</button>
+          <button class="secondary-btn" data-action="mirror">Зеркально</button>
+          <button class="secondary-btn" data-action="scale">Масштабировать</button>
+          <button class="secondary-btn" data-action="offset">Эквидистанта</button>
+          <button class="secondary-btn" data-action="fillet">Скруглить</button>
+          <button class="secondary-btn" data-action="chamfer">Фаска</button>
+          <button class="secondary-btn" data-action="arrayRect">Массив по сетке</button>
+          <button class="secondary-btn" data-action="arrayPolar">Круговой массив</button>
+          <button class="secondary-btn" data-action="split">Разбить линию</button>
+          <button class="secondary-btn" data-action="trim">Усечь линию</button>
+          <button class="secondary-btn danger" id="deleteBtn">Удалить</button>
+        </div>
+
+        <div class="panel-heading">ТОЧНЫЙ ВВОД КООРДИНАТ</div>
+        <div class="two-fields"><label class="field-label">X, мм<input id="coordinateX" type="number" step="0.01" value="50"></label><label class="field-label">Y, мм<input id="coordinateY" type="number" step="0.01" value="50"></label></div>
+        <button class="secondary-btn" id="coordinateApplyBtn">＋ Использовать точку X/Y</button>
+        <div class="panel-heading spaced">ПАРАМЕТРЫ ПОСТРОЕНИЯ</div>
+        <label class="field-label">Сторон многоугольника<input id="polygonSides" type="number" min="3" max="24" value="6"></label>
+        <label class="field-label">Радиус скругления, мм<input id="roundingRadius" type="number" min="0" max="50" step="0.5" value="3"></label>
+        <label class="field-label">Шаг сетки, мм<input id="gridStep" type="number" min="0.1" max="100" step="0.5" value="5"></label>
+        <div class="two-fields"><label class="field-label">Отступ размера, мм<input id="dimensionOffset" type="number" step="0.5" value="5"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="3"></label></div>
+        <div class="panel-heading">ШТРИХОВКА</div>
+        <label class="field-label">Тип штриховки<select id="hatchPattern"><option value="single">Одинарная</option><option value="cross">Перекрёстная</option><option value="solid">Заливка</option></select></label>
+        <div class="two-fields"><label class="field-label">Угол, °<input id="hatchAngle" type="number" value="45" step="5"></label><label class="field-label">Шаг, мм<input id="hatchSpacing" type="number" min="0.5" value="4" step="0.5"></label></div>
+        <label class="check-row"><input type="checkbox" id="orthoToggle"> Ортогональное черчение (F8)</label>
+        <label class="check-row"><input type="checkbox" id="objectSnapToggle" checked> Привязка к объектам</label>
         <label class="check-row"><input type="checkbox" id="gridToggle"> Сетка</label>
         <label class="check-row"><input type="checkbox" id="snapToggle"> Привязка к сетке</label>
+        <label class="field-label">Формат листа<select id="paperFormat"><option value="A4P">A4 · книжный</option><option value="A4L">A4 · альбомный</option><option value="A3L">A3 · альбомный</option><option value="A3P">A3 · книжный</option><option value="A2L">A2 · альбомный</option><option value="A2P">A2 · книжный</option><option value="A1L">A1 · альбомный</option><option value="A1P">A1 · книжный</option><option value="A0L">A0 · альбомный</option><option value="A0P">A0 · книжный</option></select></label>
+        <label class="check-row"><input type="checkbox" id="templateToggle" checked> Показывать шаблон</label>
         <div class="panel-heading">СЛОИ</div>
         <div class="layer-row"><label><input type="checkbox" id="geometryVisible" checked> Геометрия</label><span class="layer-dot blue"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="dimensionsVisible" checked> Размеры и текст</label><span class="layer-dot amber"></span></div>
+        <div class="layer-row"><label><input type="checkbox" id="constructionVisible" checked> Вспомогательные</label><span class="layer-dot green"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="templateVisible" checked> Шаблон листа</label><span class="layer-dot gray"></span></div>
         <button class="secondary-btn" id="addTextBtn">＋ Добавить надпись</button>
       </section>
+
       <section class="panel-content hidden" id="treePanel">
         <div class="panel-heading">ДЕРЕВО ЧЕРТЕЖА</div>
-        <div class="tree-item">▾ Чертёж</div><div class="tree-item child">▣ Лист 1</div><div class="tree-item child">▾ Шаблон A4</div><div class="tree-item child deeper">Геометрические объекты <b id="geometryCount">0</b></div><div class="tree-item child deeper">Размеры и надписи <b id="annotationCount">0</b></div>
-        <div class="tree-note">Выберите объект на листе, чтобы увидеть его параметры.</div>
+        <div class="tree-item">▾ Чертёж</div><div class="tree-item child">▣ Лист 1</div><div class="tree-item child">▾ Шаблон A4</div>
+        <div class="tree-item child deeper">Геометрия <b id="geometryCount">0</b></div><div class="tree-item child deeper">Размеры и надписи <b id="annotationCount">0</b></div><div class="tree-item child deeper">Вспомогательные <b id="constructionCount">0</b></div>
+        <div id="objectTree" class="object-tree"></div>
+        <div class="tree-note">Выберите объект на листе, чтобы увидеть его параметры. Shift + щелчок или рамка выделяют несколько объектов. Стрелки — сдвиг на 1 мм, Shift + стрелка — 10 мм.</div>
       </section>
       <div class="selection-box" id="selectionPanel">
         <div class="panel-heading">СВОЙСТВА ОБЪЕКТА</div>
@@ -81,7 +155,11 @@
         <div id="selectionFields" class="hidden">
           <label class="field-label">Цвет линии<input type="color" id="objectColor" value="#20252b"></label>
           <label class="field-label">Толщина, мм<input type="number" id="objectWidth" value="0.35" min="0.05" max="3" step="0.05"></label>
-          <label class="field-label">Тип линии<select id="objectDash"><option value="">Сплошная</option><option value="5 2">Штриховая</option><option value="10 2 2 2">Штрихпунктирная</option></select></label>
+          <label class="field-label">Тип линии<select id="objectDash"><option value="">Сплошная</option><option value="5 2">Штриховая</option><option value="10 2 2 2">Штрихпунктирная</option><option value="1 1.5">Штриховая тонкая</option></select></label>
+          <label class="field-label">Слой<select id="objectLayer"><option value="geometry">Геометрия</option><option value="annotation">Размеры и текст</option><option value="construction">Вспомогательные</option></select></label>
+          <label class="field-label">Имя объекта<input id="objectName" placeholder="Объект"></label>
+          <label class="field-label">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="3"></label>
+          <button class="secondary-btn" id="editContentBtn">Изменить текст / значение</button>
           <button class="secondary-btn danger" id="deleteSelectedBtn">Удалить выбранное</button>
         </div>
       </div>
@@ -91,41 +169,48 @@
       <div class="document-bar"><span class="doc-icon">▤</span><span id="docName">Чертёж БЕЗ ИМЕНИ1</span><span class="doc-dot"></span><span class="doc-meta">A4 · 1:1 · мм</span><div class="workspace-spacer"></div><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">＋</button></div>
       <div class="drawing-area" id="drawingArea">
         <div class="canvas-hint" id="canvasHint">Выберите инструмент и начните построение</div>
-        <svg id="sheetSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" role="img" aria-label="Лист чертежа A4">
+        <svg id="sheetSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" role="img" aria-label="Лист чертежа">
           <defs><pattern id="gridPattern" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 L 0 0 0 5" fill="none" stroke="#dfe4e8" stroke-width="0.12"/></pattern></defs>
           <rect id="paperRect" x="0" y="0" width="210" height="297" fill="#fff"/>
           <rect id="gridRect" x="0" y="0" width="210" height="297" fill="url(#gridPattern)" visibility="hidden"/>
-          <g id="templateLayer"></g>
-          <g id="geometryLayer"></g>
-          <g id="annotationLayer"></g>
-          <g id="previewLayer" pointer-events="none"></g>
+          <g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="previewLayer" pointer-events="none"></g>
         </svg>
       </div>
-      <div class="statusbar"><span id="statusMessage">Готово</span><span class="coordinates" id="coordinates">X: 0.00 · Y: 0.00 мм</span><span class="status-spacer"></span><span>Ортогональный режим: <b id="orthoStatus">Выкл.</b></span></div>
+      <div class="statusbar"><span id="statusMessage">Готово</span><span class="coordinates" id="coordinates">X: 0.00 · Y: 0.00 мм</span><span class="status-spacer"></span><span>Ортогонально: <b id="orthoStatus">Выкл.</b></span><span>Выбрано: <b id="selectedStatus">0</b></span></div>
     </section>
 
     <aside class="right-panel">
       <div class="right-panel-title">ОФОРМЛЕНИЕ ЛИСТА</div>
-      <p class="right-desc">Данные основной надписи шаблона</p>
-      <label class="field-label">Наименование<input id="titleField" value="Наименование детали"></label>
-      <label class="field-label">Обозначение<input id="codeField" value="ЧЕРТЁЖ.001"></label>
-      <label class="field-label">Материал<input id="materialField" value="Материал не указан"></label>
+      <p class="right-desc">Поля основной надписи и подписей по форме 1</p>
+      <label class="field-label">Наименование изделия / документа<input id="titleField" value="Наименование детали"></label>
+      <label class="field-label">Обозначение документа<input id="codeField" value="ЧЕРТЁЖ.001"></label>
+      <label class="field-label">Материал детали<input id="materialField" value="Материал не указан"></label>
+      <div class="two-fields"><label class="field-label">Литера<input id="literField" value="У"></label><label class="field-label">Масса<input id="massField" value="—"></label></div>
       <div class="two-fields"><label class="field-label">Масштаб<input id="scaleField" value="1:1"></label><label class="field-label">Лист<input id="sheetField" value="1"></label></div>
+      <label class="field-label">Всего листов<input id="sheetsField" value="1"></label>
       <label class="field-label">Организация<input id="companyField" value="Учебный чертёж"></label>
+      <div class="panel-heading spaced">ПОДПИСИ</div>
+      <label class="field-label">Разработал<input id="developerField" placeholder="Фамилия"></label>
+      <label class="field-label">Проверил<input id="checkerField" placeholder="Фамилия"></label>
+      <label class="field-label">Технический контроль<input id="technicalField" placeholder="Фамилия"></label>
+      <label class="field-label">Нормоконтроль<input id="normativeField" placeholder="Фамилия"></label>
+      <label class="field-label">Утвердил<input id="approvedField" placeholder="Фамилия"></label>
       <button class="primary-btn" id="applyTitleBtn">Применить данные</button>
       <div class="panel-heading spaced">ДОКУМЕНТ</div>
       <label class="field-label">Название файла<input id="filenameField" value="Чертёж_1"></label>
       <button class="secondary-btn" id="saveJsonBtn">Скачать проект (.json)</button>
+      <button class="secondary-btn" id="restoreAutosaveBtn">Восстановить автосохранение</button>
       <button class="secondary-btn" id="loadJsonBtn">Открыть проект (.json)</button>
-      <input type="file" id="fileInput" accept=".json,application/json" hidden>
-      <div class="right-tip"><b>Подсказка</b><br>Колёсико мыши — масштаб. Средняя кнопка мыши или Space + перетаскивание — перемещение рабочего поля. Delete — удалить выбранный объект.</div>
+      <button class="secondary-btn" id="importDxfBtn">Импорт DXF</button>
+      <button class="secondary-btn" id="exportDxfBtn">Экспорт DXF</button>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden><input type="file" id="dxfInput" accept=".dxf,.txt" hidden>
+      <div class="right-tip"><b>Подсказка</b><br>Колёсико — масштаб. Средняя кнопка или Space + перетаскивание — перемещение листа. Shift + щелчок — множественный выбор.
+Ctrl + C / Ctrl + V — копировать / вставить.
+Стрелки — сдвиг на 1 мм, Shift + стрелки — 10 мм. Enter / двойной щелчок — завершить ломаную.</div>
     </aside>
   </main>
 
-  <div class="modal-backdrop hidden" id="helpModal">
-    <div class="modal"><div class="modal-head"><b>Справка — КОМПАС Онлайн</b><button id="closeHelp">✕</button></div><div class="modal-body"><h3>Быстрый старт</h3><p>Выберите «Отрезок», «Прямоугольник» или «Окружность» и поставьте две точки на листе. Для текста выберите инструмент «Текст» и щёлкните в нужном месте.</p><p>Инструмент «Размер»: укажите две точки измерения. Значение рассчитывается автоматически в миллиметрах.</p><p>Сохраняйте работу в JSON, чтобы позже продолжить редактирование. SVG подходит для передачи векторного чертежа, печать позволяет сохранить лист в PDF.</p><p><b>Важно:</b> это автономный учебный браузерный редактор 2D-чертежей, а не полная замена профессиональной САПР. Он не открывает DWG/CDW и не выполняет полноценное 3D-моделирование.</p></div></div>
-  </div>
-  <script src="js/template.js"></script>
-  <script src="js/app.js"></script>
+  <div class="modal-backdrop hidden" id="helpModal"><div class="modal"><div class="modal-head"><b>Справка — КОМПАС Онлайн</b><button id="closeHelp">✕</button></div><div class="modal-body"><h3>Инструменты 2D-черчения</h3><p>Геометрия: отрезок, ломаная, прямоугольник, окружность, дуга, эллипс, многоугольник, сплайн, вспомогательная и осевая линии.</p><p>Размеры: авторазмер, линейный, горизонтальный, вертикальный, радиальный, диаметральный и угловой. Обозначения: выноска, центровые, шероховатость, допуск, сварка, штриховка, таблица.</p><p>Редактирование: копирование, перемещение мышью, поворот, симметрия, масштабирование, эквидистанта, скругление, фаска, массивы, усечение и разбиение отрезка.</p><p>DXF поддерживает базовый импорт/экспорт линий, окружностей, дуг, полилиний и текста. Родные CDW и DWG, параметрические ограничения и 3D-моделирование пока не поддерживаются.</p></div></div></div>
+  <script src="js/template.js"></script><script src="js/app.js"></script>
 </body>
 </html>

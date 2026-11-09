@@ -1,73 +1,191 @@
-/* Editable vector sheet template inspired by the supplied KOMPAS screenshot. */
+/* Vector A4 drawing-sheet template reconstructed from the user's reference.
+   The layout follows the visible geometry of the supplied sheet and includes
+   the standard title-block labels commonly used with GOST 2.104 Form 1.
+   All dimensions are expressed in millimetres. */
 (function () {
-  const NS = 'http://www.w3.org/2000/svg';
-  function esc(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c])); }
-  function line(x1,y1,x2,y2,w=.25, color='#20252a') { return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${w}" vector-effect="non-scaling-stroke"/>`; }
-  function rect(x,y,w,h,sw=.3) { return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#20252a" stroke-width="${sw}" vector-effect="non-scaling-stroke"/>`; }
-  function txt(x,y,s,size=2.3,anchor='start',rotate='') { const tr=rotate?` transform="rotate(${rotate} ${x} ${y})"`:''; return `<text x="${x}" y="${y}" font-family="Arial,sans-serif" font-size="${size}" fill="#24292e" text-anchor="${anchor}"${tr}>${esc(s)}</text>`; }
+  const BLUE = '#12b9df';
+  const TEXT = '#075d76';
 
-  function portrait(w,h,d) {
-    let a = '';
-    // Outer sheet and the offset drawing frame (left margin 20 mm, other margins 5 mm).
-    a += rect(0,0,w,h,.22);
-    a += rect(8,5,w-13,h-10,.25);
-    a += rect(20,5,w-25,h-10,.35);
-    // Narrow registration fields in the left strip, matching the supplied template.
-    a += rect(8,10,12,70,.25); a += line(14,10,14,80,.2); a += line(8,45,20,45,.2);
-    a += rect(8,92,12,58,.25); a += line(14,92,14,150,.2);
-    a += rect(8,172,12,62,.25); a += line(14,172,14,234,.2);
-    a += line(8,112,20,112,.18); a += line(8,192,20,192,.18); a += line(8,212,20,212,.18);
-    // Top identification cell resembling the narrow upper field in the reference.
-    a += rect(32,5,78,14,.25); a += line(32,19,110,19,.18);
-    a += txt(34,11,'ЛИСТ КОНСТРУКТОРСКОЙ ДОКУМЕНТАЦИИ',1.8);
-    // Main title block at the bottom, retained as editable vector elements.
-    const x=20, y=h-55, tw=w-25, th=50;
-    a += rect(x,y,tw,th,.35);
-    [x+10,x+22,x+36,x+100,x+132,x+156].forEach(v=>a+=line(v,y,v,y+th,.22));
-    [y+7,y+14,y+23,y+34,y+42].forEach(v=>a+=line(x,v,x+tw,v,.22));
-    // Smaller cells and labels.
-    a += txt(x+1.5,y+4,'Изм.',1.8); a += txt(x+11.5,y+4,'Лист',1.8); a += txt(x+24,y+4,'№ докум.',1.8); a += txt(x+38,y+4,'Подп.',1.8); a += txt(x+102,y+4,'Дата',1.8);
-    a += txt(x+1.5,y+11,'Разраб.',1.8); a += txt(x+1.5,y+20,'Пров.',1.8); a += txt(x+1.5,y+31,'Т.контр.',1.8); a += txt(x+1.5,y+39,'Н.контр.',1.8); a += txt(x+1.5,y+47,'Утв.',1.8);
-    a += txt(x+38,y+19,'Наименование изделия',1.9);
-    a += txt(x+38,y+31,d.title || 'Наименование детали',2.7);
-    a += txt(x+38,y+40,`Материал: ${d.material || 'не указан'}`,2.1);
-    a += txt(x+38,y+48, d.company || 'Учебный чертёж',2.0);
-    a += txt(x+102,y+19,'Обозначение',1.8);
-    a += txt(x+102,y+31,d.code || 'ЧЕРТЁЖ.001',2.5);
-    a += txt(x+102,y+40,`Масштаб: ${d.scale || '1:1'}`,2.1);
-    a += txt(x+133,y+19,'Лист',1.8); a += txt(x+144,y+31,d.sheet || '1',3.2,'middle');
-    a += txt(x+158,y+19,'Листов',1.8); a += txt(x+tw-5,y+31,'1',3.2,'middle');
-    a += txt(x+tw-3,y+47,'Формат A4',1.8,'end');
-    // Side labels set vertically, like on the source screenshot.
-    a += txt(11.5,34,'УЧЕБНЫЙ ЧЕРТЁЖ',1.8,'middle','-90');
-    a += txt(17.5,120,'РЕГИСТРАЦИЯ',1.7,'middle','-90');
-    a += txt(11.5,204,'СОГЛАСОВАНО',1.7,'middle','-90');
-    return a;
+  function esc(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;'
+    }[c]));
+  }
+  function line(x1, y1, x2, y2, width = 0.22, color = BLUE) {
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" fill="none" vector-effect="non-scaling-stroke"/>`;
+  }
+  function rect(x, y, w, h, width = 0.25, color = BLUE) {
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${color}" stroke-width="${width}" vector-effect="non-scaling-stroke"/>`;
+  }
+  function text(x, y, value, size = 2.25, anchor = 'start', rotate = 0, opts = {}) {
+    const transform = rotate ? ` transform="rotate(${rotate} ${x} ${y})"` : '';
+    const weight = opts.weight ? ` font-weight="${opts.weight}"` : '';
+    const style = opts.italic ? ' font-style="italic"' : '';
+    const color = opts.color || TEXT;
+    return `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${size}" fill="${color}" text-anchor="${anchor}"${transform}${weight}${style}>${esc(value)}</text>`;
+  }
+  function centeredCell(x1, x2, y, value, size = 1.65) {
+    return text((x1 + x2) / 2, y, value, size, 'middle');
+  }
+  function verticalLabel(x, y1, y2, value, size = 1.75) {
+    return text(x, (y1 + y2) / 2, value, size, 'middle', -90);
   }
 
-  function landscape(w,h,d) {
-    let a='';
-    a += rect(0,0,w,h,.22); a += rect(20,5,w-25,h-10,.35);
-    const x=w-190, y=h-45, tw=185, th=40;
-    // Left-side short registration marker and upper designation box.
-    a += rect(20,10,12,40,.25); a += line(26,10,26,50,.2); a += txt(26,31,'ДОКУМЕНТ',1.7,'middle','-90');
-    a += rect(32,5,80,14,.25); a += txt(34,11,'ЛИСТ КОНСТРУКТОРСКОЙ ДОКУМЕНТАЦИИ',1.8);
-    a += rect(x,y,tw,th,.35);
-    [x+10,x+22,x+36,x+100,x+132,x+156].forEach(v=>a+=line(v,y,v,y+th,.22));
-    [y+7,y+14,y+25,y+33].forEach(v=>a+=line(x,v,x+tw,v,.22));
-    a+=txt(x+1.5,y+4,'Изм.',1.8);a+=txt(x+11.5,y+4,'Лист',1.8);a+=txt(x+24,y+4,'№ докум.',1.8);a+=txt(x+38,y+4,'Подп.',1.8);
-    a+=txt(x+1.5,y+12,'Разраб.',1.8);a+=txt(x+1.5,y+22,'Пров.',1.8);a+=txt(x+38,y+22,d.title||'Наименование детали',2.7);
-    a+=txt(x+38,y+31,`Материал: ${d.material||'не указан'}`,2.1);a+=txt(x+102,y+12,'Обозначение',1.8);a+=txt(x+102,y+22,d.code||'ЧЕРТЁЖ.001',2.5);
-    a+=txt(x+133,y+12,'Масштаб',1.8);a+=txt(x+144,y+22,d.scale||'1:1',2.6,'middle');a+=txt(x+158,y+12,'Лист',1.8);a+=txt(x+tw-5,y+22,d.sheet||'1',2.8,'middle');
-    a+=txt(x+38,y+38,d.company||'Учебный чертёж',1.9);
-    return a;
+  function portrait(w, h, d) {
+    let s = '';
+    // Sheet edge is a faint screen boundary; the cyan lines are the actual template.
+    s += rect(0, 0, w, h, 0.12, '#9aa5ad');
+
+    // Main frame and full-height left service strip (A4 portrait).
+    s += rect(8, 5, 197, 287, 0.32);
+    s += rect(20, 5, 185, 287, 0.32);
+
+    // Upper service fields on the left margin.
+    s += rect(8, 5, 12, 60, 0.24);
+    s += line(14, 5, 14, 65, 0.2);
+    s += line(8, 65, 20, 65, 0.2);
+    s += rect(8, 65, 12, 60, 0.24);
+    s += line(14, 65, 14, 125, 0.2);
+
+    // Blank gap between upper and lower inventory/reference fields is intentional
+    // and matches the supplied drawing sheet.
+    s += rect(8, 147, 12, 35, 0.24);
+    s += line(14, 147, 14, 182, 0.2);
+    s += line(8, 182, 20, 182, 0.2);
+    s += rect(8, 182, 12, 25, 0.24);
+    s += line(14, 182, 14, 207, 0.2);
+    s += line(8, 207, 20, 207, 0.2);
+    s += rect(8, 207, 12, 30, 0.24);
+    s += line(14, 207, 14, 237, 0.2);
+    s += rect(8, 237, 12, 55, 0.24);
+    s += line(14, 237, 14, 292, 0.2);
+
+    // Upper designation tab visible in the reference.
+    s += rect(20, 5, 70, 14, 0.24);
+    s += line(20, 19, 90, 19, 0.18);
+
+    // Bottom title block: 185 x 55 mm, with the original major divisions.
+    const x0 = 20, x1 = 85, x2 = 155, x3 = 205, y0 = 237, y1 = 292;
+    s += rect(x0, y0, x3 - x0, y1 - y0, 0.32);
+    s += line(x1, y0, x1, y1, 0.24);
+    s += line(x2, y0, x2, y1, 0.24);
+
+    // Change/revision table: five columns (7, 10, 23, 15, 10 mm), five rows.
+    const changeCols = [20, 27, 37, 60, 75, 85];
+    changeCols.slice(1, -1).forEach(x => { s += line(x, 237, x, 262, 0.18); });
+    [242, 247, 252, 257, 262].forEach(y => { s += line(20, y, 85, y, 0.18); });
+    s += centeredCell(20, 27, 241.1, 'Изм.', 1.45);
+    s += centeredCell(27, 37, 241.1, 'Лист', 1.5);
+    s += centeredCell(37, 60, 241.1, '№ докум.', 1.55);
+    s += centeredCell(60, 75, 241.1, 'Подп.', 1.5);
+    s += centeredCell(75, 85, 241.1, 'Дата', 1.5);
+
+    // Approval / signature rows below the revision table.
+    const roleSplit = 36.5;
+    s += line(roleSplit, 262, roleSplit, 292, 0.2);
+    s += line(60, 262, 60, 292, 0.2);
+    s += line(75, 262, 75, 292, 0.2);
+    [267, 272, 277, 282, 287, 292].forEach(y => { s += line(20, y, 85, y, 0.18); });
+    const roles = [
+      ['Разраб.', d.developer], ['Пров.', d.checker], ['Т. контр.', d.technical],
+      ['Н. контр.', d.normative], ['Утв.', d.approved], ['','']
+    ];
+    roles.forEach((r, i) => {
+      const baseline = 265.2 + i * 5;
+      if (r[0]) s += text(21.1, baseline, r[0], 1.65);
+      if (r[1]) s += text(37.2, baseline, r[1], 1.55);
+    });
+
+    // Main product/document name cell and lower designation/material cell.
+    s += line(85, 250.5, 205, 250.5, 0.22);
+    s += line(85, 275, 155, 275, 0.2);
+    s += text(87, 255, 'Наименование изделия / документа', 1.7);
+    s += text(87, 264, d.title || 'Наименование детали', 2.6);
+    s += text(87, 269, `Обозначение: ${d.code || 'ЧЕРТЁЖ.001'}`, 1.8);
+    s += text(87, 280, `Материал: ${d.material || 'не указан'}`, 1.75);
+
+    // Right-side metadata columns: literature, mass, scale, sheet count and organisation.
+    s += line(170, 250.5, 170, 275, 0.2);
+    s += line(187, 250.5, 187, 275, 0.2);
+    s += line(155, 255.5, 205, 255.5, 0.16);
+    s += line(155, 270, 205, 270, 0.16);
+    s += line(180, 270, 180, 280, 0.18);
+    s += line(155, 275, 205, 275, 0.2);
+    s += line(155, 280, 205, 280, 0.18);
+    s += text(157, 254.1, 'Лит.', 1.55);
+    s += text(171.5, 254.1, 'Масса', 1.5);
+    s += text(188.5, 254.1, 'Масштаб', 1.5);
+    s += centeredCell(155, 170, 264, d.liter || 'У', 2.1);
+    s += centeredCell(170, 187, 264, d.mass || '—', 2.0);
+    s += centeredCell(187, 205, 264, d.scale || '1:1', 2.5);
+    s += text(157, 274.1, 'Лист', 1.55);
+    s += text(181.5, 274.1, 'Листов', 1.55);
+    s += centeredCell(155, 180, 279.3, d.sheet || '1', 2.0);
+    s += centeredCell(180, 205, 279.3, d.sheets || '1', 2.0);
+    s += text(157, 287.5, d.company || 'Организация', 1.65);
+
+    // Vertical service-field labels from the reference / ESKD title-sheet conventions.
+    s += verticalLabel(11, 5, 65, 'Перв. примен.', 1.75);
+    s += verticalLabel(11, 65, 125, 'Справ. №', 1.75);
+    s += verticalLabel(11, 147, 182, 'Взам. инв. №', 1.7);
+    s += verticalLabel(11, 182, 207, 'Инв. № дубл.', 1.65);
+    s += verticalLabel(11, 207, 237, 'Подп. и дата', 1.65);
+    s += verticalLabel(11, 237, 292, 'Инв. № подл.', 1.7);
+
+    // Bottom captions sit in the 5 mm print margin, as in the screenshot.
+    s += text(105, 296, 'Копировал', 1.7, 'middle', 0, { italic: true });
+    s += text(200, 296, 'Формат  A4', 1.7, 'end', 0, { italic: true });
+    return s;
+  }
+
+  function landscape(w, h, d, format) {
+    // A simple matching landscape variant with the same editable title-block labels.
+    let s = '';
+    s += rect(0, 0, w, h, 0.12, '#9aa5ad');
+    s += rect(5, 5, w - 10, h - 10, 0.32);
+    const bx = w - 190, by = h - 60;
+    s += rect(bx, by, 185, 55, 0.32);
+    [bx + 7, bx + 17, bx + 40, bx + 55, bx + 65, bx + 135].forEach(x => s += line(x, by, x, by + 55, 0.2));
+    [by + 5, by + 10, by + 15, by + 20, by + 25, by + 30, by + 35, by + 40, by + 45, by + 50].forEach(y => s += line(bx, y, bx + 65, y, 0.18));
+    s += line(bx + 65, by + 14, bx + 185, by + 14, 0.2);
+    s += line(bx + 65, by + 38, bx + 135, by + 38, 0.2);
+    s += line(bx + 135, by + 14, bx + 135, by + 55, 0.2);
+    s += line(bx + 150, by + 14, bx + 150, by + 38, 0.18);
+    s += line(bx + 167, by + 14, bx + 167, by + 38, 0.18);
+    ['Изм.','Лист','№ докум.','Подп.','Дата'].forEach((v,i)=>s+=centeredCell([bx,bx+7,bx+17,bx+40,bx+55][i],[bx+7,bx+17,bx+40,bx+55,bx+65][i],by+4,v,1.45));
+    ['Разраб.','Пров.','Т. контр.','Н. контр.','Утв.'].forEach((v,i)=>s+=text(bx+1,by+28+i*5,v,1.6));
+    s += text(bx + 67, by + 19, d.title || 'Наименование детали', 2.6);
+    s += text(bx + 67, by + 27, `Обозначение: ${d.code || 'ЧЕРТЁЖ.001'}`, 1.8);
+    s += text(bx + 67, by + 34, `Материал: ${d.material || 'не указан'}`, 1.7);
+    s += text(bx + 67, by + 44, d.company || 'Учебный чертёж', 1.7);
+    s += text(bx + 137, by + 18, 'Лит.', 1.5);
+    s += text(bx + 152, by + 18, 'Масса', 1.5);
+    s += text(bx + 169, by + 18, 'Масштаб', 1.5);
+    s += centeredCell(bx+135,bx+150,by+31,d.liter||'У',2);
+    s += centeredCell(bx+150,bx+167,by+31,d.mass||'—',2);
+    s += centeredCell(bx+167,bx+185,by+31,d.scale||'1:1',2.2);
+    s += text(bx + 137, by + 43, `Лист ${d.sheet || '1'}`, 1.55);
+    s += text(bx + 157, by + 43, `Листов ${d.sheets || '1'}`, 1.55);
+    s += text(bx + 92, by + 53, 'Копировал', 1.6, 'middle');
+    s += text(bx + 183, by + 53, `Формат ${format ? format.slice(0,2) : (w===297?'A4':'A3')}`, 1.6, 'end');
+    return s;
   }
 
   window.KompasTemplate = {
-    dimensions(format) { return format==='A4L'?{w:297,h:210}:format==='A3L'?{w:420,h:297}:{w:210,h:297}; },
+    dimensions(format) {
+      const sizes = {A4:[210,297],A3:[297,420],A2:[420,594],A1:[594,841],A0:[841,1189]};
+      const key = String(format || 'A4P');
+      const match = key.match(/^(A[0-4])([PL])$/);
+      if (!match) return {w:210,h:297};
+      const size = sizes[match[1]] || sizes.A4;
+      return match[2] === 'L' ? {w:size[1],h:size[0]} : {w:size[0],h:size[1]};
+    },
+    markup(format, data) {
+      const { w, h } = this.dimensions(format);
+      return format === 'A4P' ? portrait(w, h, data || {}) : landscape(w, h, data || {}, format);
+    },
     render(layer, format, data) {
-      const {w,h}=this.dimensions(format);
-      layer.innerHTML = format==='A4P' ? portrait(w,h,data) : landscape(w,h,data);
+      layer.innerHTML = this.markup(format, data);
     }
   };
 })();
