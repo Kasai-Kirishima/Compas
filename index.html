@@ -26,10 +26,12 @@
     <div class="ribbon-group">
       <button class="ribbon-btn" data-tool="select"><span>↖</span>Выбор</button>
       <button class="ribbon-btn" data-tool="line"><span>／</span>Отрезок</button>
+      <button class="ribbon-btn" data-tool="ruler"><span>▤</span>Линейка</button>
+      <button class="ribbon-btn" data-tool="freehand"><span>✎</span>Свободная</button>
       <button class="ribbon-btn" data-tool="polyline"><span>⌁</span>Ломаная</button>
       <button class="ribbon-btn" data-tool="circle"><span>◯</span>Окружность</button>
       <button class="ribbon-btn" data-tool="dimension"><span>↔</span>Размер</button>
-      <button class="ribbon-btn" data-tool="text"><span>Т</span>Текст</button>
+      <button class="ribbon-btn" data-tool="text"><span>Т</span>Текст</button><button class="ribbon-btn" id="addReferenceRibbonBtn"><span>▧</span>Референс</button><button class="ribbon-btn" id="gostRibbonBtn"><span>✓</span>ГОСТ-проверка</button>
     </div>
     <div class="ribbon-group">
       <button class="ribbon-btn" data-action="duplicate"><span>▣</span>Копия</button>
@@ -60,6 +62,8 @@
           <button class="tool-tile active" data-tool="select"><span>↖</span>Выбор</button>
           <button class="tool-tile" data-tool="point"><span>·</span>Точка</button>
           <button class="tool-tile" data-tool="line"><span>／</span>Отрезок</button>
+          <button class="tool-tile" data-tool="ruler"><span>▤</span>Линейка</button>
+          <button class="tool-tile" data-tool="freehand"><span>✎</span>Свободная линия</button>
           <button class="tool-tile" data-tool="construction"><span>┄</span>Всп. линия</button>
           <button class="tool-tile" data-tool="centerline"><span>┄·</span>Осевая</button>
           <button class="tool-tile" data-tool="polyline"><span>⌁</span>Ломаная</button>
@@ -124,7 +128,30 @@
         <label class="field-label">Сторон многоугольника<input id="polygonSides" type="number" min="3" max="24" value="6"></label>
         <label class="field-label">Радиус скругления, мм<input id="roundingRadius" type="number" min="0" max="50" step="0.5" value="3"></label>
         <label class="field-label">Шаг сетки, мм<input id="gridStep" type="number" min="0.1" max="100" step="0.5" value="5"></label>
+        <div class="panel-heading">ЛИНЕЙКА И ТОЧНОСТЬ</div>
+        <div class="panel-heading">РЕФЕРЕНС / ПОДЛОЖКА</div>
+        <button class="secondary-btn" id="addReferenceBtn">＋ Добавить изображение-референс</button>
+        <input type="file" id="referenceInput" accept="image/png,image/jpeg,image/webp,image/bmp" hidden>
+        <label class="check-row"><input type="checkbox" id="referenceVisibleToggle" checked> Показывать референсы</label>
+        <div class="muted-hint">Добавь файл кнопкой или перетащи изображение на лист. Для привязки масштаба можно откалибровать по известной длине. Прозрачность, размер, координаты и поворот — в свойствах объекта.</div>
+        <div class="panel-heading spaced">ЕСКД / ГОСТ — НАСТРОЙКИ</div>
+        <label class="field-label">Профиль оформления<select id="standardProfile"><option value="eskd-study">ЕСКД — учебный базовый профиль</option><option value="custom">Пользовательские настройки</option></select></label>
+        <div id="standardCustomFields" class="hidden">
+          <div class="two-fields"><label class="field-label">Основная линия, мм<input id="gostMainLine" type="number" min="0.5" max="1.4" step="0.1" value="0.5"></label><label class="field-label">Тонкая линия, мм<input id="gostThinLine" type="number" min="0.13" max="0.7" step="0.01" value="0.18"></label></div>
+          <div class="two-fields"><label class="field-label">Высота текста, мм<input id="gostTextHeight" type="number" list="gostTextHeights" value="3.5" step="0.5"><datalist id="gostTextHeights"><option value="2.5"><option value="3.5"><option value="5"><option value="7"><option value="10"><option value="14"><option value="20"><option value="28"><option value="40"></datalist></label><label class="field-label">Длина стрелки, мм<input id="gostArrowLength" type="number" min="2" max="10" step="0.5" value="3.5"></label></div>
+          <label class="field-label">Знаков после запятой<input id="gostPrecision" type="number" min="0" max="3" step="1" value="1"></label>
+          <button class="secondary-btn" id="saveGostSettingsBtn">Сохранить параметры профиля</button>
+        </div>
+        <button class="secondary-btn" id="applyGostBtn">Применить профиль ЕСКД к новым объектам</button>
+        <button class="secondary-btn" id="normalizeGostBtn">Привести выделенные объекты к профилю</button>
+        <button class="primary-btn" id="checkGostBtn">✓ Проверить чертёж по ЕСКД</button>
+        <div class="muted-hint">Автопроверка помогает найти типовые несоответствия, но не заменяет официальный нормоконтроль. Страна, отрасль и задание могут требовать другие редакции стандартов.</div>
+        <label class="check-row"><input type="checkbox" id="rulerVisible" checked> Показывать линейку на листе</label>
+        <label class="field-label">Привязка к линейке<select id="rulerMode"><option value="off">Выключена</option><option value="parallel">Параллельно кромке</option><option value="perpendicular">Перпендикулярно кромке</option></select></label>
+        <label class="field-label">Шаг фиксации угла при Shift, °<input id="angleStep" type="number" min="1" max="90" step="1" value="15"></label>
+        <button class="secondary-btn" id="clearRulerBtn">Убрать линейку</button>
         <div class="two-fields"><label class="field-label">Отступ размера, мм<input id="dimensionOffset" type="number" step="0.5" value="5"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="3"></label></div>
+        <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.35"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
         <div class="panel-heading">ШТРИХОВКА</div>
         <label class="field-label">Тип штриховки<select id="hatchPattern"><option value="single">Одинарная</option><option value="cross">Перекрёстная</option><option value="solid">Заливка</option></select></label>
         <div class="two-fields"><label class="field-label">Угол, °<input id="hatchAngle" type="number" value="45" step="5"></label><label class="field-label">Шаг, мм<input id="hatchSpacing" type="number" min="0.5" value="4" step="0.5"></label></div>
@@ -138,8 +165,8 @@
         <div class="layer-row"><label><input type="checkbox" id="geometryVisible" checked> Геометрия</label><span class="layer-dot blue"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="dimensionsVisible" checked> Размеры и текст</label><span class="layer-dot amber"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="constructionVisible" checked> Вспомогательные</label><span class="layer-dot green"></span></div>
-        <div class="layer-row"><label><input type="checkbox" id="templateVisible" checked> Шаблон листа</label><span class="layer-dot gray"></span></div>
-        <button class="secondary-btn" id="addTextBtn">＋ Добавить надпись</button>
+        <div class="layer-row"><label><input type="checkbox" id="templateVisible" checked> Шаблон листа</label><span class="layer-dot gray"></span></div><div class="layer-row"><label><input type="checkbox" id="referenceVisibleToggleSecondary" checked> Референс</label><span class="layer-dot amber"></span></div>
+        <button class="secondary-btn" id="addTextBtn">＋ Добавить надпись с настройками</button>
       </section>
 
       <section class="panel-content hidden" id="treePanel">
@@ -160,6 +187,18 @@
           <label class="field-label">Имя объекта<input id="objectName" placeholder="Объект"></label>
           <label class="field-label">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="3"></label>
           <button class="secondary-btn" id="editContentBtn">Изменить текст / значение</button>
+          <button class="secondary-btn" id="editTextFormatBtn">Все параметры текста</button>
+          <div id="referenceSelectionFields" class="reference-fields hidden">
+            <div class="panel-heading">СВОЙСТВА РЕФЕРЕНСА</div>
+            <label class="field-label">Прозрачность <span id="referenceOpacityValue">35%</span><input type="range" id="referenceOpacity" min="5" max="100" value="35"></label>
+            <div class="two-fields"><label class="field-label">Положение X, мм<input type="number" id="referenceX" step="0.1" value="55"></label><label class="field-label">Положение Y, мм<input type="number" id="referenceY" step="0.1" value="98"></label></div>
+            <div class="two-fields"><label class="field-label">Ширина, мм<input type="number" id="referenceWidth" min="1" max="2000" step="1" value="100"></label><label class="field-label">Поворот, °<input type="number" id="referenceRotation" min="-360" max="360" step="1" value="0"></label></div>
+            <button class="secondary-btn" id="referenceCalibrateBtn">Калибровать по известной длине</button>
+            <div class="muted-hint">После нажатия укажи две точки на изображении и введи реальное расстояние между ними в мм.</div>
+            <label class="check-row"><input type="checkbox" id="referenceLocked"> Заблокировать от перемещения</label>
+            <label class="check-row"><input type="checkbox" id="referenceExportable"> Включать в печать и SVG/PNG (не DXF)</label>
+            <button class="secondary-btn" id="fitReferenceBtn">Вписать в лист</button>
+          </div>
           <button class="secondary-btn danger" id="deleteSelectedBtn">Удалить выбранное</button>
         </div>
       </div>
@@ -168,12 +207,12 @@
     <section class="workspace">
       <div class="document-bar"><span class="doc-icon">▤</span><span id="docName">Чертёж БЕЗ ИМЕНИ1</span><span class="doc-dot"></span><span class="doc-meta">A4 · 1:1 · мм</span><div class="workspace-spacer"></div><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">＋</button></div>
       <div class="drawing-area" id="drawingArea">
-        <div class="canvas-hint" id="canvasHint">Выберите инструмент и начните построение</div>
+        <div class="canvas-hint" id="canvasHint">Выберите инструмент и начните построение · Средняя кнопка мыши — перемещение листа</div>
         <svg id="sheetSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" role="img" aria-label="Лист чертежа">
           <defs><pattern id="gridPattern" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 L 0 0 0 5" fill="none" stroke="#dfe4e8" stroke-width="0.12"/></pattern></defs>
           <rect id="paperRect" x="0" y="0" width="210" height="297" fill="#fff"/>
           <rect id="gridRect" x="0" y="0" width="210" height="297" fill="url(#gridPattern)" visibility="hidden"/>
-          <g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="previewLayer" pointer-events="none"></g>
+          <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g>
         </svg>
       </div>
       <div class="statusbar"><span id="statusMessage">Готово</span><span class="coordinates" id="coordinates">X: 0.00 · Y: 0.00 мм</span><span class="status-spacer"></span><span>Ортогонально: <b id="orthoStatus">Выкл.</b></span><span>Выбрано: <b id="selectedStatus">0</b></span></div>
@@ -186,7 +225,7 @@
       <label class="field-label">Обозначение документа<input id="codeField" value="ЧЕРТЁЖ.001"></label>
       <label class="field-label">Материал детали<input id="materialField" value="Материал не указан"></label>
       <div class="two-fields"><label class="field-label">Литера<input id="literField" value="У"></label><label class="field-label">Масса<input id="massField" value="—"></label></div>
-      <div class="two-fields"><label class="field-label">Масштаб<input id="scaleField" value="1:1"></label><label class="field-label">Лист<input id="sheetField" value="1"></label></div>
+      <div class="two-fields"><label class="field-label">Масштаб<input id="scaleField" value="1:1" list="scaleSuggestions"><datalist id="scaleSuggestions"><option value="1:1"><option value="1:2"><option value="1:2.5"><option value="1:4"><option value="1:5"><option value="1:10"><option value="1:20"><option value="1:25"><option value="1:50"><option value="1:100"><option value="2:1"><option value="2.5:1"><option value="4:1"><option value="5:1"><option value="10:1"></datalist></label><label class="field-label">Лист<input id="sheetField" value="1"></label></div>
       <label class="field-label">Всего листов<input id="sheetsField" value="1"></label>
       <label class="field-label">Организация<input id="companyField" value="Учебный чертёж"></label>
       <div class="panel-heading spaced">ПОДПИСИ</div>
@@ -204,13 +243,31 @@
       <button class="secondary-btn" id="importDxfBtn">Импорт DXF</button>
       <button class="secondary-btn" id="exportDxfBtn">Экспорт DXF</button>
       <input type="file" id="fileInput" accept=".json,application/json" hidden><input type="file" id="dxfInput" accept=".dxf,.txt" hidden>
-      <div class="right-tip"><b>Подсказка</b><br>Колёсико — масштаб. Средняя кнопка или Space + перетаскивание — перемещение листа. Shift + щелчок — множественный выбор.
+      <div class="right-tip"><b>Подсказка</b><br>Колёсико — масштаб с привязкой к курсору. Нажми и удерживай колесо (среднюю кнопку), затем двигай мышь — перемещение листа. Shift + колёсико — панорама по горизонтали; Alt + колёсико — по вертикали. Space + перетаскивание тоже перемещает лист. Shift + щелчок — множественный выбор.
 Ctrl + C / Ctrl + V — копировать / вставить.
 Стрелки — сдвиг на 1 мм, Shift + стрелки — 10 мм. Enter / двойной щелчок — завершить ломаную.</div>
     </aside>
   </main>
 
-  <div class="modal-backdrop hidden" id="helpModal"><div class="modal"><div class="modal-head"><b>Справка — КОМПАС Онлайн</b><button id="closeHelp">✕</button></div><div class="modal-body"><h3>Инструменты 2D-черчения</h3><p>Геометрия: отрезок, ломаная, прямоугольник, окружность, дуга, эллипс, многоугольник, сплайн, вспомогательная и осевая линии.</p><p>Размеры: авторазмер, линейный, горизонтальный, вертикальный, радиальный, диаметральный и угловой. Обозначения: выноска, центровые, шероховатость, допуск, сварка, штриховка, таблица.</p><p>Редактирование: копирование, перемещение мышью, поворот, симметрия, масштабирование, эквидистанта, скругление, фаска, массивы, усечение и разбиение отрезка.</p><p>DXF поддерживает базовый импорт/экспорт линий, окружностей, дуг, полилиний и текста. Родные CDW и DWG, параметрические ограничения и 3D-моделирование пока не поддерживаются.</p></div></div></div>
+  <div class="modal-backdrop hidden" id="textModal"><div class="modal text-modal"><div class="modal-head"><b id="textModalTitle">Параметры текста</b><button id="closeTextModal" type="button">✕</button></div><div class="modal-body text-form">
+    <label class="field-label text-wide">Содержимое надписи<textarea id="textContent" rows="5" placeholder="Введите текст. Перенос строки — новая строка на чертеже."></textarea></label>
+    <label class="field-label">Шрифт<select id="textFont"><option value="Arial,sans-serif">Arial</option><option value="GOST type A,Arial,sans-serif">ГОСТ тип А (если установлен)</option><option value="Times New Roman,serif">Times New Roman</option><option value="Verdana,sans-serif">Verdana</option><option value="Courier New,monospace">Courier New</option><option value="Georgia,serif">Georgia</option></select></label>
+    <label class="field-label">Другой шрифт<input id="textFontCustom" placeholder="Оставьте пустым для выбора выше"></label>
+    <label class="field-label">Высота букв, мм<input id="textSize" type="number" min="0.5" max="50" step="0.1" value="3"></label>
+    <label class="field-label">Ширина букв, %<input id="textWidthFactor" type="number" min="25" max="300" step="5" value="100"></label>
+    <label class="field-label">Угол поворота, °<input id="textRotation" type="number" min="-360" max="360" step="1" value="0"></label>
+    <label class="field-label">Выравнивание<select id="textAlign"><option value="start">По левому краю</option><option value="middle">По центру</option><option value="end">По правому краю</option></select></label>
+    <label class="field-label">Вертикальное положение<select id="textBaseline"><option value="alphabetic">По базовой линии</option><option value="hanging">От верхней линии</option><option value="middle">По середине</option><option value="text-after-edge">От нижней линии</option></select></label>
+    <label class="field-label">Межстрочный интервал, мм<input id="textLineHeight" type="number" min="0.5" max="100" step="0.1" value="4"></label>
+    <label class="field-label">Межбуквенный интервал, мм<input id="textLetterSpacing" type="number" min="-2" max="10" step="0.1" value="0"></label>
+    <label class="field-label">Цвет текста<input id="textColor" type="color" value="#20252a"></label>
+    <div class="text-wide text-checks"><label class="check-row"><input type="checkbox" id="textBold"> Жирный</label><label class="check-row"><input type="checkbox" id="textItalic"> Курсив</label><label class="check-row"><input type="checkbox" id="textUnderline"> Подчёркнутый</label><label class="check-row"><input type="checkbox" id="textOverline"> Надчёркнутый</label><label class="check-row"><input type="checkbox" id="textStrike"> Зачёркнутый</label><label class="check-row"><input type="checkbox" id="textFrame"> Рамка вокруг текста</label></div>
+    <div class="text-wide two-fields"><label class="field-label">Положение X, мм<input id="textPosX" type="number" step="0.01"></label><label class="field-label">Положение Y, мм<input id="textPosY" type="number" step="0.01"></label></div>
+    <div class="text-wide modal-actions"><button class="secondary-btn" id="cancelTextBtn" type="button">Отмена</button><button class="primary-btn" id="applyTextBtn" type="button">Применить текст</button></div>
+  </div></div></div>
+
+  <div class="modal-backdrop hidden" id="gostModal"><div class="modal gost-modal"><div class="modal-head"><b>Проверка оформления ЕСКД / ГОСТ</b><button id="closeGostModal" type="button">✕</button></div><div class="modal-body"><p id="gostSummary" class="gost-summary">Предварительная проверка параметров чертежа.</p><div id="gostCheckResults" class="gost-results"></div><div class="gost-refs"><b>Основные стандарты профиля</b><ul><li>ГОСТ 2.301 — форматы листов.</li><li>ГОСТ 2.302 — масштабы.</li><li>ГОСТ 2.303 — линии.</li><li>ГОСТ 2.304 — чертёжные шрифты.</li><li>ГОСТ 2.305 — виды, разрезы и сечения.</li><li>ГОСТ 2.306 — графические обозначения материалов.</li><li>ГОСТ 2.307 — нанесение размеров и предельных отклонений.</li><li>ГОСТ 2.104 / применимый национальный стандарт — основные надписи.</li></ul><p class="muted-hint">Профиль — учебная настройка по традиционному комплекту ЕСКД. По данным реестров, отдельные ДСТУ ГОСТ в Украине восстановлены с 01.03.2026 до 25.11.2027 только для ограниченных заказов государственных заказчиков в сферах безопасности/обороны и топливно-энергетического комплекса. В РФ действует ГОСТ Р 2.104-2023 для основных надписей; новый комплект ГОСТ Р 2.301–2.307-2026 вводится с 01.10.2027 с возможностью досрочного применения. Проверка не выдаёт сертификат соответствия и не заменяет нормоконтроль.</p></div><div class="modal-actions"><button class="secondary-btn" id="closeGostModalBottom" type="button">Закрыть</button></div></div></div></div>
+  <div class="modal-backdrop hidden" id="helpModal"><div class="modal"><div class="modal-head"><b>Справка — КОМПАС Онлайн</b><button id="closeHelp">✕</button></div><div class="modal-body"><h3>Инструменты 2D-черчения</h3><p>Геометрия: отрезок, свободная линия (рисование удержанием левой кнопки), ломаная, прямоугольник, окружность, дуга, эллипс, многоугольник, сплайн, вспомогательная и осевая линии. Для свободной линии настраиваются толщина и сглаживание.</p><p>Размеры: авторазмер, линейный, горизонтальный, вертикальный, радиальный, диаметральный и угловой. Обозначения: выноска, центровые, шероховатость, допуск, сварка, штриховка, таблица.</p><p>Редактирование: копирование, перемещение мышью, поворот, симметрия, масштабирование, эквидистанта, скругление, фаска, массивы, усечение и разбиение отрезка. Средняя кнопка (нажатое колесо) + перетаскивание двигает лист; Space + левая кнопка также двигает лист. Колёсико приближает/отдаляет, Shift+колёсико двигает по горизонтали, Alt+колёсико — по вертикали. Линейка задаётся двумя точками; можно привязывать отрезки параллельно или перпендикулярно её кромке. Shift фиксирует угол с заданным шагом.</p><p>Референс: добавление PNG/JPG/WEBP/BMP в качестве подложки, перемещение, точное положение X/Y, масштабирование, поворот, прозрачность, блокировка, исключение из печати и экспорта. Калибровка по известному расстоянию: отметить две точки на изображении, ввести фактическую длину в мм — редактор пересчитает ширину подложки. Текст имеет отдельный редактор: содержимое и переносы строк, шрифт, высота и ширина букв, угол, горизонтальное/вертикальное выравнивание, интервалы, цвет, жирность, курсив, подчёркивание, надчёркивание, зачёркивание и рамка. DXF поддерживает базовый импорт/экспорт линий, окружностей, дуг, полилиний и текста. Родные CDW и DWG, параметрические ограничения и 3D-моделирование пока не поддерживаются.</p></div></div></div>
   <script src="js/template.js"></script><script src="js/app.js"></script>
 </body>
 </html>
