@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="uk">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>КОМПАС Онлайн 1.0 — креслення</title>
+  <title>КОМПАС Онлайн 1.2 — креслення</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -36,7 +36,7 @@
     <div class="ribbon-group">
       <button class="ribbon-btn" data-action="duplicate"><span>▣</span>Копия</button>
       <button class="ribbon-btn" data-action="rotate"><span>⟳</span>Поворот</button>
-      <button class="ribbon-btn" data-action="mirror"><span>⇋</span>Симметрия</button>
+      <button class="ribbon-btn" data-action="mirror"><span>⇋</span>Зеркально…</button>
       <button class="ribbon-btn" data-action="arrayRect"><span>▦</span>Массив</button>
     </div>
     <div class="ribbon-group">
@@ -109,7 +109,7 @@
           <button class="secondary-btn" data-action="moveBy">Сдвиг по X/Y</button>
           <button class="secondary-btn" data-action="zoomSelected">Показать выбранное</button>
           <button class="secondary-btn" data-action="rotate">Повернуть</button>
-          <button class="secondary-btn" data-action="mirror">Зеркально</button>
+          <button class="secondary-btn" data-action="mirror">Зеркально…</button>
           <button class="secondary-btn" data-action="scale">Масштабировать</button>
           <button class="secondary-btn" data-action="offset">Эквидистанта</button>
           <button class="secondary-btn" data-action="fillet">Скруглить</button>
@@ -137,10 +137,13 @@
         <div class="panel-heading spaced">ЕСКД / ГОСТ — НАСТРОЙКИ</div>
         <label class="field-label">Профиль оформления<select id="standardProfile"><option value="dstu-gost-ua">ДСТУ ГОСТ 2.104:2006 — українські написи*</option><option value="eskd-study">ЄСКД — навчальний профіль</option><option value="custom">Пользовательские настройки</option></select></label>
         <div id="standardCustomFields" class="hidden">
-          <div class="two-fields"><label class="field-label">Основная линия, мм<input id="gostMainLine" type="number" min="0.5" max="1.4" step="0.1" value="0.5"></label><label class="field-label">Тонкая линия, мм<input id="gostThinLine" type="number" min="0.13" max="0.7" step="0.01" value="0.18"></label></div>
-          <div class="two-fields"><label class="field-label">Высота текста, мм<input id="gostTextHeight" type="number" list="gostTextHeights" value="3.5" step="0.5"><datalist id="gostTextHeights"><option value="2.5"><option value="3.5"><option value="5"><option value="7"><option value="10"><option value="14"><option value="20"><option value="28"><option value="40"></datalist></label><label class="field-label">Длина стрелки, мм<input id="gostArrowLength" type="number" min="2" max="10" step="0.5" value="3.5"></label></div>
-          <label class="field-label">Знаков после запятой<input id="gostPrecision" type="number" min="0" max="3" step="1" value="1"></label>
-          <button class="secondary-btn" id="saveGostSettingsBtn">Сохранить параметры профиля</button>
+          <label class="field-label">Група товщин ліній<select id="gostLineGroup"><option value="0.25">0,25 / 0,13 мм</option><option value="0.35">0,35 / 0,18 мм</option><option value="0.5" selected>0,50 / 0,25 мм — рекомендована</option><option value="0.7">0,70 / 0,35 мм</option><option value="1">1,00 / 0,50 мм</option><option value="1.4">1,40 / 0,70 мм</option><option value="2">2,00 / 1,00 мм</option></select></label>
+          <div class="two-fields"><label class="field-label">Основна (широка), мм<input id="gostMainLine" type="number" min="0.13" max="2" step="0.01" value="0.5" list="lineWidths"></label><label class="field-label">Вузька, мм<input id="gostThinLine" type="number" min="0.13" max="1" step="0.01" value="0.25" list="lineWidths"></label></div>
+          <datalist id="lineWidths"><option value="0.13"><option value="0.18"><option value="0.25"><option value="0.35"><option value="0.5"><option value="0.7"><option value="1"><option value="1.4"><option value="2"></datalist>
+          <div class="two-fields"><label class="field-label">Висота шрифту, мм<input id="gostTextHeight" type="number" list="isoTextHeights" value="3.5" step="0.1"><datalist id="isoTextHeights"><option value="1.8"><option value="2.5"><option value="3.5"><option value="5"><option value="7"><option value="10"><option value="14"><option value="20"></datalist></label><label class="field-label">Довжина стрілки, мм<input id="gostArrowLength" type="number" min="2" max="10" step="0.5" value="3.5"></label></div>
+          <label class="field-label">Креслярський шрифт<select id="gostLettering"><option value="B-V">Тип B — вертикальний (переважний)</option><option value="B-S">Тип B — похилий 75°</option><option value="A-V">Тип A — вертикальний</option><option value="A-S">Тип A — похилий 75°</option></select></label><div class="muted-hint">Профіль задає тип A/B, висоту та нахил 75°. Точний контур символів залежить від встановленого CAD-шрифту ISO 3098; якщо його немає, браузер використовує резервний шрифт.</div>
+          <label class="field-label">Знаків після коми<input id="gostPrecision" type="number" min="0" max="3" step="1" value="1"></label>
+          <button class="secondary-btn" id="saveGostSettingsBtn">Зберегти параметри профілю</button>
         </div>
         <button class="secondary-btn" id="applyGostBtn">Применить профиль ЕСКД к новым объектам</button>
         <button class="secondary-btn" id="normalizeGostBtn">Привести выделенные объекты к профилю</button>
@@ -151,7 +154,7 @@
         <label class="field-label">Шаг фиксации угла при Shift, °<input id="angleStep" type="number" min="1" max="90" step="1" value="15"></label>
         <button class="secondary-btn" id="clearRulerBtn">Убрать линейку</button>
         <div class="two-fields"><label class="field-label">Отступ размера, мм<input id="dimensionOffset" type="number" step="0.5" value="5"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="3"></label></div>
-        <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.35"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
+        <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.25"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
         <div class="panel-heading">ШТРИХОВКА</div>
         <label class="field-label">Тип штриховки<select id="hatchPattern"><option value="single">Одинарная</option><option value="cross">Перекрёстная</option><option value="solid">Заливка</option></select></label>
         <div class="two-fields"><label class="field-label">Угол, °<input id="hatchAngle" type="number" value="45" step="5"></label><label class="field-label">Шаг, мм<input id="hatchSpacing" type="number" min="0.5" value="4" step="0.5"></label></div>
@@ -181,8 +184,8 @@
         <div id="noSelection" class="muted-hint">Объект не выбран</div>
         <div id="selectionFields" class="hidden">
           <label class="field-label">Цвет линии<input type="color" id="objectColor" value="#20252b"></label>
-          <label class="field-label">Толщина, мм<input type="number" id="objectWidth" value="0.35" min="0.05" max="3" step="0.05"></label>
-          <label class="field-label">Тип линии<select id="objectDash"><option value="">Сплошная</option><option value="5 2">Штриховая</option><option value="10 2 2 2">Штрихпунктирная</option><option value="1 1.5">Штриховая тонкая</option></select></label>
+          <label class="field-label">Товщина лінії, мм<input type="number" id="objectWidth" value="0.5" min="0.05" max="3" step="0.01" list="lineWidths"></label>
+          <label class="field-label">Тип лінії<select id="objectDash"><option value="">Суцільна вузька / широка</option><option value="6 2">Штрихова</option><option value="12 3 1 3">Штрихпунктирна вузька</option><option value="24 3 1 3">Штрихпунктирна з довгими штрихами</option><option value="24 3 1 3 1 3">Штрихпунктирна з двома крапками</option><option value="1 2">Крапкова</option><option value="3 2">Коротка штрихова</option><option value="18 2 1 2">Штрихпунктирна з короткою крапкою</option><option value="WAVE">Суцільна хвиляста (тонка)</option><option value="ZIGZAG">Суцільна зі зламами (тонка)</option><option value="none">Без лінії</option></select></label>
           <label class="field-label">Слой<select id="objectLayer"><option value="geometry">Геометрия</option><option value="annotation">Размеры и текст</option><option value="construction">Вспомогательные</option></select></label>
           <label class="field-label">Имя объекта<input id="objectName" placeholder="Объект"></label>
           <label class="field-label">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="3"></label>
@@ -244,9 +247,19 @@
       <button class="secondary-btn" id="saveJsonBtn">Завантажити резервну копію (.json)</button>
       <button class="secondary-btn" id="restoreAutosaveBtn">Відновити автозбереження</button>
       <button class="secondary-btn" id="loadJsonBtn">Імпортувати JSON-файл</button>
-      <button class="secondary-btn" id="importDxfBtn">Импорт DXF</button>
-      <button class="secondary-btn" id="exportDxfBtn">Экспорт DXF</button>
-      <input type="file" id="fileInput" accept=".json,application/json" hidden><input type="file" id="dxfInput" accept=".dxf,.txt" hidden>
+      <div class="panel-heading">ІМПОРТ / ЕКСПОРТ</div>
+      <button class="secondary-btn" id="importDxfBtn">Імпорт DXF</button>
+      <button class="secondary-btn" id="importSvgBtn">Імпорт SVG (вектор)</button>
+      <button class="secondary-btn" id="importCsvBtn">Імпорт CSV (геометрія)</button>
+      <button class="secondary-btn" id="importHpglBtn">Імпорт HPGL / PLT</button>
+      <button class="secondary-btn" id="exportDxfBtn">Експорт DXF</button>
+      <button class="secondary-btn" id="exportCsvBtn">Експорт CSV</button>
+      <button class="secondary-btn" id="exportHpglBtn">Експорт HPGL / PLT</button>
+      <button class="secondary-btn" id="exportJpgBtn">Експорт JPEG</button>
+      <button class="secondary-btn" id="exportWebpBtn">Експорт WebP</button>
+      <button class="secondary-btn" id="exportBmpBtn">Експорт BMP</button>
+      <div class="muted-hint">PDF — через «Друк / PDF». JSON зберігає повний проєкт, SVG та DXF призначені для обміну, CSV — для таблиць координат і простої геометрії.</div>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden><input type="file" id="dxfInput" accept=".dxf,.txt" hidden><input type="file" id="svgInput" accept=".svg,image/svg+xml" hidden><input type="file" id="csvInput" accept=".csv,text/csv" hidden><input type="file" id="hpglInput" accept=".plt,.hpgl,.hpg,.txt" hidden>
       <div class="right-tip"><b>Подсказка</b><br>Колёсико — масштаб с привязкой к курсору. Нажми и удерживай колесо (среднюю кнопку), затем двигай мышь — перемещение листа. Shift + колёсико — панорама по горизонтали; Alt + колёсико — по вертикали. Space + перетаскивание тоже перемещает лист. Shift + щелчок — множественный выбор.
 Ctrl + C / Ctrl + V — копировать / вставить.
 Стрелки — сдвиг на 1 мм, Shift + стрелки — 10 мм. Enter / двойной щелчок — завершить ломаную.</div>
@@ -259,10 +272,19 @@ Ctrl + C / Ctrl + V — копировать / вставить.
     <div id="savedProjectsList" class="saved-projects-list"><div class="file-empty">Загружается список...</div></div>
     <div class="file-library-footer"><span class="muted-hint">Файли зберігаються локально в цьому браузері на цьому пристрої.</span><div class="file-footer-actions"><button class="secondary-btn" id="importJsonFromLibraryBtn" type="button">Імпорт JSON</button><button class="primary-btn" id="newFromLibraryBtn" type="button">Новий кресленик</button></div></div>
   </div></div></div>
+
+  <div class="modal-backdrop hidden" id="mirrorModal"><div class="modal mirror-modal"><div class="modal-head"><b>Дзеркальне відображення</b><button id="closeMirrorModal" type="button">✕</button></div><div class="modal-body">
+    <label class="field-label">Вісь симетрії<select id="mirrorAxisMode"><option value="vertical">Вертикальна через центр виділення</option><option value="horizontal">Горизонтальна через центр виділення</option><option value="custom">Довільна вісь через дві точки</option></select></label>
+    <div id="mirrorCustomPoints" class="hidden"><div class="two-fields"><label class="field-label">X1, мм<input id="mirrorX1" type="number" step="0.01"></label><label class="field-label">Y1, мм<input id="mirrorY1" type="number" step="0.01"></label><label class="field-label">X2, мм<input id="mirrorX2" type="number" step="0.01"></label><label class="field-label">Y2, мм<input id="mirrorY2" type="number" step="0.01"></label></div></div>
+    <label class="check-row"><input type="checkbox" id="mirrorKeepOriginal"> Створити дзеркальну копію, оригінал залишити</label>
+    <p class="muted-hint">Можна віддзеркалити відносно вертикальної, горизонтальної або довільної осі. Текстові написи залишаються читабельними.</p>
+    <div class="modal-actions"><button class="secondary-btn" id="cancelMirrorBtn" type="button">Скасувати</button><button class="primary-btn" id="applyMirrorBtn" type="button">Віддзеркалити</button></div>
+  </div></div></div>
   <div class="modal-backdrop hidden" id="textModal"><div class="modal text-modal"><div class="modal-head"><b id="textModalTitle">Параметры текста</b><button id="closeTextModal" type="button">✕</button></div><div class="modal-body text-form">
     <label class="field-label text-wide">Содержимое надписи<textarea id="textContent" rows="5" placeholder="Введите текст. Перенос строки — новая строка на чертеже."></textarea></label>
-    <label class="field-label">Шрифт<select id="textFont"><option value="Arial,sans-serif">Arial</option><option value="GOST type A,Arial,sans-serif">ГОСТ тип А (если установлен)</option><option value="Times New Roman,serif">Times New Roman</option><option value="Verdana,sans-serif">Verdana</option><option value="Courier New,monospace">Courier New</option><option value="Georgia,serif">Georgia</option></select></label>
-    <label class="field-label">Другой шрифт<input id="textFontCustom" placeholder="Оставьте пустым для выбора выше"></label>
+    <label class="field-label">Шрифт<select id="textFont"><option value="Arial,sans-serif">Arial / без засічок</option><option value="GOST type B,Arial,sans-serif">GOST / ISO 3098 — тип B (якщо встановлено)</option><option value="GOST type A,Arial,sans-serif">GOST / ISO 3098 — тип A (якщо встановлено)</option><option value="Times New Roman,serif">Times New Roman</option><option value="Verdana,sans-serif">Verdana</option><option value="Courier New,monospace">Courier New</option><option value="Georgia,serif">Georgia</option></select></label>
+    <label class="field-label">Тип креслярського шрифту<select id="textLettering"><option value="B-V">Тип B — вертикальний (переважний)</option><option value="B-S">Тип B — похилий 75°</option><option value="A-V">Тип A — вертикальний</option><option value="A-S">Тип A — похилий 75°</option></select></label>
+    <label class="field-label">Інший шрифт<input id="textFontCustom" placeholder="Порожньо — вибрати вище"></label>
     <label class="field-label">Высота букв, мм<input id="textSize" type="number" min="0.5" max="50" step="0.1" value="3"></label>
     <label class="field-label">Ширина букв, %<input id="textWidthFactor" type="number" min="25" max="300" step="5" value="100"></label>
     <label class="field-label">Угол поворота, °<input id="textRotation" type="number" min="-360" max="360" step="1" value="0"></label>
@@ -276,8 +298,8 @@ Ctrl + C / Ctrl + V — копировать / вставить.
     <div class="text-wide modal-actions"><button class="secondary-btn" id="cancelTextBtn" type="button">Отмена</button><button class="primary-btn" id="applyTextBtn" type="button">Применить текст</button></div>
   </div></div></div>
 
-  <div class="modal-backdrop hidden" id="gostModal"><div class="modal gost-modal"><div class="modal-head"><b>Проверка оформления ЕСКД / ГОСТ</b><button id="closeGostModal" type="button">✕</button></div><div class="modal-body"><p id="gostSummary" class="gost-summary">Предварительная проверка параметров чертежа.</p><div id="gostCheckResults" class="gost-results"></div><div class="gost-refs"><b>Основные стандарты профиля</b><ul><li>ГОСТ 2.301 — форматы листов.</li><li>ГОСТ 2.302 — масштабы.</li><li>ГОСТ 2.303 — линии.</li><li>ГОСТ 2.304 — чертёжные шрифты.</li><li>ГОСТ 2.305 — виды, разрезы и сечения.</li><li>ГОСТ 2.306 — графические обозначения материалов.</li><li>ГОСТ 2.307 — нанесение размеров и предельных отклонений.</li><li>ГОСТ 2.104 / применимый национальный стандарт — основные надписи.</li></ul><p class="muted-hint">Профиль — учебная настройка по традиционному комплекту ЕСКД. По данным реестров, отдельные ДСТУ ГОСТ в Украине восстановлены с 01.03.2026 до 25.11.2027 только для ограниченных заказов государственных заказчиков в сферах безопасности/обороны и топливно-энергетического комплекса. В РФ действует ГОСТ Р 2.104-2023 для основных надписей; новый комплект ГОСТ Р 2.301–2.307-2026 вводится с 01.10.2027 с возможностью досрочного применения. В Україні чинність ДСТУ ГОСТ 2.104:2006 відновлено з 01.03.2026 до 25.11.2027 лише для виробництва та/або постачання за замовленнями державних замовників у сферах безпеки й оборони та паливно-енергетичного комплексу. Для інших завдань застосовуйте стандарт, указаний викладачем або замовником. Перевірка не є сертифікатом відповідності.</p></div><div class="modal-actions"><button class="secondary-btn" id="closeGostModalBottom" type="button">Закрыть</button></div></div></div></div>
-  <div class="modal-backdrop hidden" id="helpModal"><div class="modal"><div class="modal-head"><b>Справка — КОМПАС Онлайн</b><button id="closeHelp">✕</button></div><div class="modal-body"><h3>Инструменты 2D-черчения</h3><p>Геометрия: отрезок, свободная линия (рисование удержанием левой кнопки), ломаная, прямоугольник, окружность, дуга, эллипс, многоугольник, сплайн, вспомогательная и осевая линии. Для свободной линии настраиваются толщина и сглаживание.</p><p>Размеры: авторазмер, линейный, горизонтальный, вертикальный, радиальный, диаметральный и угловой. Обозначения: выноска, центровые, шероховатость, допуск, сварка, штриховка, таблица.</p><p>Редактирование: копирование, перемещение мышью, поворот, симметрия, масштабирование, эквидистанта, скругление, фаска, массивы, усечение и разбиение отрезка. Средняя кнопка (нажатое колесо) + перетаскивание двигает лист; Space + левая кнопка также двигает лист. Колёсико приближает/отдаляет, Shift+колёсико двигает по горизонтали, Alt+колёсико — по вертикали. Линейка задаётся двумя точками; можно привязывать отрезки параллельно или перпендикулярно её кромке. Shift фиксирует угол с заданным шагом.</p><p>Референс: добавление PNG/JPG/WEBP/BMP в качестве подложки, перемещение, точное положение X/Y, масштабирование, поворот, прозрачность, блокировка, исключение из печати и экспорта. Калибровка по известному расстоянию: отметить две точки на изображении, ввести фактическую длину в мм — редактор пересчитает ширину подложки. Текст имеет отдельный редактор: содержимое и переносы строк, шрифт, высота и ширина букв, угол, горизонтальное/вертикальное выравнивание, интервалы, цвет, жирность, курсив, подчёркивание, надчёркивание, зачёркивание и рамка. DXF поддерживает базовый импорт/экспорт линий, окружностей, дуг, полилиний и текста. Родные CDW и DWG, параметрические ограничения и 3D-моделирование пока не поддерживаются.</p></div></div></div>
+  <div class="modal-backdrop hidden" id="gostModal"><div class="modal gost-modal"><div class="modal-head"><b>Проверка оформления ЕСКД / ГОСТ</b><button id="closeGostModal" type="button">✕</button></div><div class="modal-body"><p id="gostSummary" class="gost-summary">Предварительная проверка параметров чертежа.</p><div id="gostCheckResults" class="gost-results"></div><div class="gost-refs"><b>Основные стандарты профиля</b><ul><li>ГОСТ 2.301 — форматы листов.</li><li>ГОСТ 2.302 — масштабы.</li><li>ДСТУ ISO 128-20:2003 та ДСТУ ISO 128-24:2018 — типи й товщини ліній.</li><li>ДСТУ ISO 3098-0:2006 та ДСТУ EN ISO 3098-5:2022 — шрифти й CAD-написи.</li><li>ГОСТ 2.305 — виды, разрезы и сечения.</li><li>ГОСТ 2.306 — графические обозначения материалов.</li><li>ДСТУ EN ISO 129-1:2022 — розміри й допуски.</li><li>ГОСТ 2.104 / применимый национальный стандарт — основные надписи.</li></ul><p class="muted-hint">Профиль — учебная настройка по традиционному комплекту ЕСКД. По данным реестров, отдельные ДСТУ ГОСТ в Украине восстановлены с 01.03.2026 до 25.11.2027 только для ограниченных заказов государственных заказчиков в сферах безопасности/обороны и топливно-энергетического комплекса. В РФ действует ГОСТ Р 2.104-2023 для основных надписей; новый комплект ГОСТ Р 2.301–2.307-2026 вводится с 01.10.2027 с возможностью досрочного применения. В Україні чинність ДСТУ ГОСТ 2.104:2006 відновлено з 01.03.2026 до 25.11.2027 лише для виробництва та/або постачання за замовленнями державних замовників у сферах безпеки й оборони та паливно-енергетичного комплексу. Для інших завдань застосовуйте стандарт, указаний викладачем або замовником. Перевірка не є сертифікатом відповідності.</p></div><div class="modal-actions"><button class="secondary-btn" id="closeGostModalBottom" type="button">Закрыть</button></div></div></div></div>
+  <div class="modal-backdrop hidden" id="helpModal"><div class="modal"><div class="modal-head"><b>Справка — КОМПАС Онлайн</b><button id="closeHelp">✕</button></div><div class="modal-body"><h3>Инструменты 2D-черчения</h3><p>Геометрия: отрезок, свободная линия (рисование удержанием левой кнопки), ломаная, прямоугольник, окружность, дуга, эллипс, многоугольник, сплайн, вспомогательная и осевая линии. Для свободной линии настраиваются толщина и сглаживание.</p><p>Линии: суцільна, штрихова, штрихпунктирна, з двома крапками, крапкова, коротка штрихова, волниста та зламана. Для хвилястої/зламаної лінії автоматично встановлюється вузька товщина. Размеры: авторазмер, линейный, горизонтальный, вертикальный, радиальный, диаметральный и угловой. Обозначения: выноска, центровые, шероховатость, допуск, сварка, штриховка, таблица.</p><p>Редактирование: копирование, перемещение мышью, поворот, симметрия, масштабирование, эквидистанта, скругление, фаска, массивы, усечение и разбиение отрезка. Средняя кнопка (нажатое колесо) + перетаскивание двигает лист; Space + левая кнопка также двигает лист. Колёсико приближает/отдаляет, Shift+колёсико двигает по горизонтали, Alt+колёсико — по вертикали. Линейка задаётся двумя точками; можно привязывать отрезки параллельно или перпендикулярно её кромке. Shift фиксирует угол с заданным шагом.</p><p>Обмен файлами: импорт JSON, DXF (включая старые POLYLINE, MTEXT, ELLIPSE), SVG (основные фигуры, текст и полилинии), CSV, HPGL/PLT; растровые PNG/JPG/WEBP/BMP импортируются как референсы. Экспорт: JSON, DXF, SVG, CSV, HPGL/PLT, PNG, JPEG, WebP, BMP и печать в PDF. Сложные фильтры/эффекты SVG могут быть упрощены. Нативные CDW/DWG не поддерживаются. Референс: добавление PNG/JPG/WEBP/BMP в качестве подложки, перемещение, точное положение X/Y, масштабирование, поворот, прозрачность, блокировка, исключение из печати и экспорта. Калибровка по известному расстоянию: отметить две точки на изображении, ввести фактическую длину в мм — редактор пересчитает ширину подложки. Текст имеет отдельный редактор: ISO 3098 тип A/B, вертикальное или наклонное 75° начертание, содержимое и переносы строк, шрифт, высота и ширина букв, угол, горизонтальное/вертикальное выравнивание, интервалы, цвет, жирность, курсив, подчёркивание, надчёркивание, зачёркивание и рамка. DXF поддерживает базовый импорт/экспорт линий, окружностей, дуг, полилиний и текста. Родные CDW и DWG, параметрические ограничения и 3D-моделирование пока не поддерживаются.</p></div></div></div>
   <script src="js/template.js"></script><script src="js/app.js"></script>
 </body>
 </html>
