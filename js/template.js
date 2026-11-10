@@ -1,7 +1,6 @@
-/* Ukrainian-language drawing sheet templates based on DSTU GOST 2.104:2006.
-   Form 1: first sheet of drawings/schemes (185 x 55 mm main title block).
-   Form 2a: following sheets (185 x 15 mm main title block).
-   The template is a practical educational reconstruction, not a certified standard file. */
+/* Ukrainian-language editable drawing sheet templates.
+   Includes a user-provided custom A4 layout, educational vector reconstructions of GOST 2.104-2006 forms 1/2/2a/2b, plus GOST 2.106-96 specification layouts.
+   These are editable teaching templates, not certified or legally attested standard files. */
 (function () {
   const BLUE = '#12b9df';
   const TEXT = '#075d76';
@@ -98,12 +97,107 @@
     s+=txt(bx+67,by+11,d.code||'Позначення документа',1.65);s+=txt(bx+177,by+9,'Арк.',1.1,'middle');
     s+=txt(bx+92,by+14,'Копіював',1.45,'middle');s+=txt(bx+183,by+14,'Формат '+(format||'А3').slice(0,2),1.4,'end');
     // A concise reference strip for the continuation sheet.
-    [[h-30,h-5,'Інв. № ориг.'],[h-65,h-30,'Підпис і дата'],[h-90,h-65,'Взам. інв. №'],[h-115,h-90,'Інв. № дубл.'],[h-150,h-115,'Підпис і дата'],[h-210,h-150,'Довідковий №'],[h-270,h-210,'Перше застосування']].forEach(([a,b,label])=>{s+=rect(5,a,15,b-a,.2);s+=line(12,a,12,b,.18);s+=vlabel(8.5,a,b,label,1.5);});
+    if(h>=280)[[h-30,h-5,'Інв. № ориг.'],[h-65,h-30,'Підпис і дата'],[h-90,h-65,'Взам. інв. №'],[h-115,h-90,'Інв. № дубл.'],[h-150,h-115,'Підпис і дата'],[h-210,h-150,'Довідковий №'],[h-270,h-210,'Перше застосування']].forEach(([a,b,label])=>{s+=rect(5,a,15,b-a,.2);s+=line(12,a,12,b,.18);s+=vlabel(8.5,a,b,label,1.5);});
     return s;
   }
+
+  // Standardized, clean ESKD/GOST-style forms, kept separate from the user's custom template.
+  function basicFrame(w,h){let s='';s+=rect(0,0,w,h,.12,'#9aa5ad');s+=rect(20,5,w-25,h-10,.32);return s;}
+  function eskdForm1(w,h,d,format){
+    let s=basicFrame(w,h);if(h>=280)s=addAuxFields(s,5,h-5);const bx=w-190,by=h-60;
+    s+=rect(bx,by,185,55,.32);
+    const X=[bx,bx+7,bx+17,bx+40,bx+55,bx+65,bx+135,bx+155,bx+170,bx+185];
+    // Revision register and approval/signature columns.
+    [1,2,3,4,5].forEach(i=>s+=line(X[i],by,X[i],by+55,.18));
+    [5,10].forEach(v=>s+=line(bx,by+v,bx+65,by+v,.18));
+    [19,28,37,46].forEach(v=>s+=line(bx,by+v,bx+65,by+v,.18));
+    s+=cell(X[0],X[1],by+4,'Зм.',1.25)+cell(X[1],X[2],by+4,'Арк.',1.15)+cell(X[2],X[3],by+4,'№ докум.',1.15)+cell(X[3],X[4],by+4,'Підпис',1.15)+cell(X[4],X[5],by+4,'Дата',1.15);
+    [['Розробив','developer'],['Перевірив','checker'],['Т. контр.','technical'],['Н. контр.','normative'],['Затвердив','approved']].forEach((r,i)=>{const y=by+16+i*9;s+=txt(bx+1, y,r[0],1.45);if(d[r[1]])s+=txt(bx+18,y,d[r[1]],1.35);});
+    // Document name, designation and material.
+    s+=line(X[5],by+15,X[9],by+15,.18);s+=line(X[5],by+37,X[8],by+37,.18);s+=line(X[5],by+46,X[9],by+46,.18);
+    s+=txt(bx+67,by+5.5,'Найменування виробу / документа',1.45);
+    s+=txt(bx+67,by+24,d.title||'Найменування деталі',2.15);
+    s+=txt(bx+67,by+33,'Позначення: '+(d.code||'КРЕСЛЕННЯ.001'),1.45);
+    s+=txt(bx+67,by+44,'Матеріал: '+(d.material||'не зазначено'),1.4);
+    // Litera, mass, scale and sheet numbering.
+    [X[7],X[8]].forEach(x=>s+=line(x,by,x,by+37,.18));
+    s+=line(X[6],by+9,X[9],by+9,.18);s+=line(X[6],by+28,X[9],by+28,.18);s+=line(X[6],by+37,X[9],by+37,.18);s+=line(X[7]+5,by+28,X[7]+5,by+55,.18);
+    s+=txt(X[6]+2,by+7,'Літ.',1.25);s+=txt(X[7]+2,by+7,'Маса',1.25);s+=txt(X[8]+2,by+7,'Масштаб',1.2);
+    s+=cell(X[6],X[7],by+20,d.liter||'У',1.8)+cell(X[7],X[8],by+20,d.mass||'—',1.7)+cell(X[8],X[9],by+20,d.scale||'1:1',1.8);
+    s+=txt(X[6]+2,by+34,'Арк.',1.2);s+=txt(X[7]+7,by+34,'Аркушів',1.2);
+    s+=cell(X[6],X[7]+5,by+45,d.sheet||'1',1.5)+cell(X[7]+5,X[9],by+45,d.sheets||'1',1.5);
+    s+=txt(bx+92,by+54,'Копіював',1.4,'middle');s+=txt(bx+183,by+54,'Формат '+format,1.4,'end');
+    return s;
+  }
+  function textForm2(w,h,d,format){
+    // Form 2 is for the first/title page of text design documents. This is an editable teaching reconstruction.
+    let s=basicFrame(w,h);if(h>=280)s=addAuxFields(s,5,h-5);
+    const bx=w-190,by=h-60;s+=rect(bx,by,185,55,.32);
+    const X=[bx,bx+7,bx+17,bx+40,bx+55,bx+65,bx+118,bx+145,bx+165,bx+185];
+    X.slice(1,6).forEach(x=>s+=line(x,by,x,by+55,.18));
+    [by+5,by+10,by+19,by+28,by+37,by+46].forEach(y=>s+=line(bx,y,bx+65,y,.18));
+    s+=cell(X[0],X[1],by+4,'Зм.',1.2)+cell(X[1],X[2],by+4,'Арк.',1.1)+cell(X[2],X[3],by+4,'№ докум.',1.1)+cell(X[3],X[4],by+4,'Підпис',1.1)+cell(X[4],X[5],by+4,'Дата',1.1);
+    [['Розробив','developer'],['Перевірив','checker'],['Т. контр.','technical'],['Н. контр.','normative'],['Затвердив','approved']].forEach((r,i)=>{let y=by+16+i*9;s+=txt(bx+1,y,r[0],1.35);if(d[r[1]])s+=txt(bx+18,y,d[r[1]],1.3);});
+    s+=line(X[5],by+19,X[9],by+19,.18);s+=line(X[5],by+37,X[9],by+37,.18);s+=line(X[5],by+46,X[9],by+46,.18);
+    s+=txt(bx+67,by+7,'Найменування текстового документа',1.45);s+=txt(bx+67,by+29,d.title||'Пояснювальна записка',2.0);s+=txt(bx+67,by+42,'Позначення: '+(d.code||'ДОКУМЕНТ.001'),1.4);
+    s+=line(X[7],by+19,X[7],by+46,.18);s+=line(X[8],by+19,X[8],by+46,.18);
+    s+=txt(X[6]+2,by+25,'Літ.',1.2);s+=txt(X[7]+2,by+25,'Арк.',1.2);s+=txt(X[8]+2,by+25,'Аркушів',1.2);
+    s+=cell(X[6],X[7],by+34,d.liter||'У',1.5)+cell(X[7],X[8],by+34,d.sheet||'1',1.5)+cell(X[8],X[9],by+34,d.sheets||'1',1.5);
+    s+=txt(bx+67,by+53,'Організація: '+(d.company||'Навчальна робота'),1.3);s+=txt(bx+183,by+54,'Формат '+format,1.35,'end');
+    return s;
+  }
+  function textForm2b(w,h,d,format,even){
+    // Form 2б is an alternate continuation-page layout for duplex text documents.
+    let s=basicFrame(w,h);const bx=w-190,by=h-20;s+=rect(bx,by,185,15,.28);
+    if(h>=280){const ax=even?w-20:5;const bands=[[5,35,'Перв. застос.'],[35,60,'Довідковий №'],[60,85,'Підпис і дата'],[85,110,'Інв. № дубл.'],[110,135,'Взам. інв. №'],[135,170,'Підпис і дата'],[170,h-20,'Інв. № ориг.']];bands.forEach(([a,b,label])=>{s+=rect(ax,a,15,b-a,.2);s+=line(ax+7,a,ax+7,b,.18);s+=vlabel(ax+7.5,a,b,label,1.35);});}
+    const X=[bx,bx+7,bx+17,bx+40,bx+55,bx+65,bx+120,bx+145,bx+165,bx+185];
+    X.slice(1,6).forEach(x=>s+=line(x,by,x,by+15,.17));
+    s+=line(bx,by+9,bx+65,by+9,.17);s+=cell(X[0],X[1],by+8,'Зм.',1.15)+cell(X[1],X[2],by+8,'Арк.',1.1)+cell(X[2],X[3],by+8,'№ докум.',1.05)+cell(X[3],X[4],by+8,'Підпис',1.05)+cell(X[4],X[5],by+8,'Дата',1.05);
+    s+=line(X[5],by+5,X[9],by+5,.17);[X[7],X[8]].forEach(x=>s+=line(x,by+5,x,by+15,.17));
+    s+=txt(bx+67,by+12,d.code||'Позначення документа',1.4);s+=txt(X[6]+2,by+4,'Літ.',1.1);s+=txt(X[7]+2,by+4,'Арк.',1.1);s+=txt(X[8]+2,by+4,'Аркушів',1.1);
+    s+=cell(X[6],X[7],by+13,d.liter||'У',1.4)+cell(X[7],X[8],by+13,d.sheet||'1',1.4)+cell(X[8],X[9],by+13,d.sheets||'1',1.4);
+    s+=txt(bx+92,by+14,'Копіював',1.3,'middle');s+=txt(bx+183,by+14,'Формат '+format,1.3,'end');
+    return s;
+  }
+  function specificationSheet(w,h,d,format,first){
+    let s=basicFrame(w,h);const x0=20,y0=5,tableW=185,bottom=first?h-60:h-20,headerH=20,rowH=6;
+    // ГОСТ 2.106-96 specification table: format, zone, position, designation, name, quantity, note.
+    const rel=[6,6,8,70,63,10,22],scale=tableW/rel.reduce((a,b)=>a+b,0),cols=[x0];rel.forEach(v=>cols.push(cols[cols.length-1]+v*scale));
+    s+=rect(x0,y0,tableW,bottom-y0,.28);
+    cols.slice(1,-1).forEach(x=>s+=line(x,y0,x,bottom,.18));
+    s+=line(x0,y0+headerH,x0+tableW,y0+headerH,.22);
+    const labels=['Формат','Зона','Поз.','Позначення','Найменування','Кіл.','Примітка'];
+    labels.forEach((v,i)=>{const cx=(cols[i]+cols[i+1])/2; s+=vlabel(cx,y0+2,y0+headerH-1,v,1.45);});
+    for(let y=y0+headerH+rowH;y<bottom-.1;y+=rowH)s+=line(x0,y,x0+tableW,y,.16);
+    const sections=[['Документація',0],['Деталі',3],['Стандартні вироби',7],['Інші вироби',11],['Матеріали',15]];
+    sections.forEach(([label,row])=>{const y=y0+headerH+row*rowH+4.1;if(y<bottom-1)s+=txt(cols[3]+2,y,label,1.65,'start',0,{weight:'bold'});});
+    if(first){s+=eskdForm1(w,h,d,format);}
+    else {s+=form2a(w,h,d,format);}
+    return s;
+  }
+  function blankSheet(w,h){return basicFrame(w,h);}
+
   window.KompasTemplate={
-    dimensions(format){const sizes={A4:[210,297],A3:[297,420],A2:[420,594],A1:[594,841],A0:[841,1189]};const m=String(format||'A4P').match(/^(A[0-4])([PL])$/);if(!m)return{w:210,h:297};const z=sizes[m[1]];return m[2]==='L'?{w:z[1],h:z[0]}:{w:z[0],h:z[1]};},
-    markup(format,data,form){const {w,h}=this.dimensions(format);if(form==='form2a')return form2a(w,h,data||{},format.slice(0,2));return format==='A4P'?form1(w,h,data||{}):form1Landscape(w,h,data||{},format.slice(0,2));},
-    render(layer,format,data,form){layer.innerHTML=this.markup(format,data,form||'form1');}
+    dimensions(format){
+      const sizes={A0:[841,1189],A1:[594,841],A2:[420,594],A3:[297,420],A4:[210,297],A5:[148,210]};
+      const extra={'A0x2':[1189,1682],'A0x3':[1189,2523],'A1x3':[841,1783],'A1x4':[841,2378],'A2x3':[594,1261],'A2x4':[594,1682],'A2x5':[594,2102],'A3x3':[420,891],'A3x4':[420,1189],'A3x5':[420,1486],'A3x6':[420,1783],'A3x7':[420,2080],'A4x3':[297,630],'A4x4':[297,841],'A4x5':[297,1051],'A4x6':[297,1261],'A4x7':[297,1471],'A4x8':[297,1682],'A4x9':[297,1892]};
+      const key=String(format||'A4P');if(extra[key])return{w:extra[key][0],h:extra[key][1]};
+      const m=key.match(/^(A[0-5])([PL])$/);if(!m)return{w:210,h:297};const z=sizes[m[1]];return m[2]==='L'?{w:z[1],h:z[0]}:{w:z[0],h:z[1]};
+    },
+    markup(format,data,form){
+      const {w,h}=this.dimensions(format),d=data||{},f=form||'user-template';
+      if(f==='blank')return blankSheet(w,h);
+      if(f==='gost-form1')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
+      if(f==='form2')return textForm2(w,h,d,String(format).replace(/[PL]$/,''));
+      if(f==='form2a')return form2a(w,h,d,String(format).replace(/[PL]$/,''));
+      if(f==='form2b-even')return textForm2b(w,h,d,String(format).replace(/[PL]$/,''),true);
+      if(f==='spec-form1')return specificationSheet(w,h,d,String(format).replace(/[PL]$/,''),true);
+      if(f==='spec-form1a')return specificationSheet(w,h,d,String(format).replace(/[PL]$/,''),false);
+      if(f==='form2b-odd')return textForm2b(w,h,d,String(format).replace(/[PL]$/,''),false);
+      // Backward-compatible alias: old saved projects used form1 for the exact user-provided template.
+      if(f==='form1'||f==='user-template'){if(h<280)return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));return format==='A4P'?form1(w,h,d):form1Landscape(w,h,d,String(format).replace(/[PL]$/,''));}
+      return format==='A4P'?form1(w,h,d):form1Landscape(w,h,d,String(format).replace(/[PL]$/,''));
+    },
+    render(layer,format,data,form){layer.innerHTML=this.markup(format,data,form||'user-template');}
   };
 })();
