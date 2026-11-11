@@ -79,3 +79,13 @@
 .tree-object[aria-disabled="true"]{opacity:.55;}
 @media(max-width:700px){.newdoc-body{grid-template-columns:1fr;}.newdoc-preview-wrap{display:none;}.newdoc-actions{grid-column:1;}}
 @media print{#selectionLayer{display:none!important;}}
+
+/* Cover drawing wizard and reference safety controls */
+.cover-modal{width:min(760px,94vw);max-height:92vh;display:flex;flex-direction:column;}
+.cover-modal .modal-body{overflow:auto;}
+.cover-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px;}
+.cover-checks{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;margin:8px 0;border-top:1px solid #4b545b;border-bottom:1px solid #4b545b;padding:7px 0;}
+.cover-checks .check-row{margin:4px 0;}
+#referenceLockBtn{border-color:#b08a45;color:#ffe2a7;}
+#referenceLockBtn:hover{background:#59472a;}
+@media(max-width:650px){.cover-fields{grid-template-columns:1fr;}.cover-checks{grid-template-columns:1fr;}.cover-modal{width:96vw;max-height:94vh;}}

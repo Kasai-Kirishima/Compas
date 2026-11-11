@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>КОМПАС Онлайн 1.3 — креслення</title>
+  <title>КОМПАС Онлайн 1.4 — креслення</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -77,6 +77,10 @@
           <button class="tool-tile" data-tool="breakline"><span>⌁</span>Линия обрыва</button>
           <button class="tool-tile" data-tool="section"><span>А—А</span>Разрез</button>
         </div>
+
+        <div class="panel-heading">ПАРАМЕТРИЧЕСКИЕ ПОСТРОЕНИЯ</div>
+        <button class="secondary-btn" id="coverWizardBtn">Создать схему круглой крышки</button>
+        <div class="muted-hint">Готовое построение по размерам референса: внешний контур с 5 открытыми пазами, отверстия, шестигранник, оси и размеры.</div>
 
         <div class="panel-heading">РАЗМЕРЫ</div>
         <div class="tool-grid">
@@ -153,7 +157,9 @@
         <div class="panel-heading">ЛИНЕЙКА И ТОЧНОСТЬ</div>
         <div class="panel-heading">РЕФЕРЕНС / ПОДЛОЖКА</div>
         <button class="secondary-btn" id="addReferenceBtn">＋ Добавить изображение-референс</button>
+        <button class="secondary-btn" id="insertCoverReferenceBtn">＋ Вставить референс этой крышки</button>
         <input type="file" id="referenceInput" accept="image/png,image/jpeg,image/webp,image/bmp" hidden>
+        <label class="check-row"><input type="checkbox" id="referenceLockOnImport" checked> Закреплять референс сразу после вставки</label>
         <label class="check-row"><input type="checkbox" id="referenceVisibleToggle" checked> Показывать референсы</label>
         <div class="muted-hint">Добавь файл кнопкой или перетащи изображение на лист. Для привязки масштаба можно откалибровать по известной длине. Прозрачность, размер, координаты и поворот — в свойствах объекта.</div>
         <div class="panel-heading spaced">ЕСКД / ГОСТ — НАСТРОЙКИ</div>
@@ -230,7 +236,9 @@
             <label class="field-label">Поворот, °<input type="number" id="referenceRotation" min="-360" max="360" step="1" value="0"></label>
             <button class="secondary-btn" id="referenceCalibrateBtn">Калибровать по известной длине</button>
             <div class="muted-hint">После нажатия укажи две точки на изображении и введи реальное расстояние между ними в мм.</div>
-            <label class="check-row"><input type="checkbox" id="referenceLocked"> Заблокировать от перемещения</label>
+            <label class="check-row"><input type="checkbox" id="referenceLocked"> Закрепить от случайного перемещения</label>
+            <div class="two-fields"><button class="secondary-btn" id="referenceLockBtn" type="button">Закрепить</button><button class="secondary-btn" id="centerReferenceBtn" type="button">По центру листа</button></div>
+            <button class="secondary-btn" id="centerReferenceToGeometryBtn" type="button">По центру геометрии</button>
             <label class="check-row"><input type="checkbox" id="referenceExportable"> Включать в печать и SVG/PNG (не DXF)</label>
             <button class="secondary-btn" id="fitReferenceBtn">Вписать в лист</button>
           </div>
@@ -318,6 +326,26 @@ Ctrl + C / Ctrl + V — копировать / вставить.
     <div class="file-library-footer"><span class="muted-hint">Файли зберігаються локально в цьому браузері на цьому пристрої.</span><div class="file-footer-actions"><button class="secondary-btn" id="importJsonFromLibraryBtn" type="button">Імпорт JSON</button><button class="primary-btn" id="newFromLibraryBtn" type="button">Новий кресленик</button></div></div>
   </div></div></div>
 
+  <div class="modal-backdrop hidden" id="coverWizardModal"><div class="modal cover-modal"><div class="modal-head"><b>Параметрическая схема круглой крышки</b><button id="closeCoverWizard" type="button">✕</button></div><div class="modal-body">
+    <p class="muted-hint">Параметры сняты с присланной схемы. Заголовок «Вариант №6 / Крышка» не добавляется. Можно изменить любые размеры перед построением.</p>
+    <div class="cover-fields">
+      <label class="field-label">Наружный диаметр, мм<input id="coverOuterDia" type="number" min="10" max="1000" step="0.1" value="81"></label>
+      <label class="field-label">Диаметр расположения центров, мм<input id="coverPitchDia" type="number" min="5" max="900" step="0.1" value="46"></label>
+      <label class="field-label">Диаметр отверстий, мм<input id="coverHoleDia" type="number" min="1" max="500" step="0.1" value="16"></label>
+      <label class="field-label">Количество пазов / отверстий<input id="coverHoleCount" type="number" min="2" max="24" step="1" value="5"></label>
+      <label class="field-label">Ширина открытого паза, мм<input id="coverSlotWidth" type="number" min="0.5" max="100" step="0.1" value="6"></label>
+      <label class="field-label">Размер шестигранника по вершинам, мм<input id="coverHexSize" type="number" min="1" max="500" step="0.1" value="20"></label>
+      <label class="field-label">Угол первого паза, °<input id="coverStartAngle" type="number" min="-360" max="360" step="1" value="-90"></label>
+    </div>
+    <div class="cover-checks">
+      <label class="check-row"><input type="checkbox" id="coverIncludePitch" checked> Делительная окружность Ø46</label>
+      <label class="check-row"><input type="checkbox" id="coverIncludeAxes" checked> Оси и центровые отметки</label>
+      <label class="check-row"><input type="checkbox" id="coverIncludeDims" checked> Размеры и выноски</label>
+    </div>
+    <div class="muted-hint" id="coverValidation">Будет построен замкнутый внешний контур с пятью открытыми радиальными пазами и центральным шестигранником.</div>
+    <div class="modal-actions"><button class="secondary-btn" id="cancelCoverWizard" type="button">Отмена</button><button class="primary-btn" id="createCoverSchemaBtn" type="button">Создать схему</button></div>
+  </div></div></div>
+
   <div class="modal-backdrop hidden" id="mirrorModal"><div class="modal mirror-modal"><div class="modal-head"><b>Дзеркальне відображення</b><button id="closeMirrorModal" type="button">✕</button></div><div class="modal-body">
     <label class="field-label">Вісь симетрії<select id="mirrorAxisMode"><option value="vertical">Вертикальна через центр виділення</option><option value="horizontal">Горизонтальна через центр виділення</option><option value="custom">Довільна вісь через дві точки</option></select></label>
     <div id="mirrorCustomPoints" class="hidden"><div class="two-fields"><label class="field-label">X1, мм<input id="mirrorX1" type="number" step="0.01"></label><label class="field-label">Y1, мм<input id="mirrorY1" type="number" step="0.01"></label><label class="field-label">X2, мм<input id="mirrorX2" type="number" step="0.01"></label><label class="field-label">Y2, мм<input id="mirrorY2" type="number" step="0.01"></label></div></div>
@@ -345,6 +373,6 @@ Ctrl + C / Ctrl + V — копировать / вставить.
 
   <div class="modal-backdrop hidden" id="gostModal"><div class="modal gost-modal"><div class="modal-head"><b>Проверка оформления ЕСКД / ГОСТ</b><button id="closeGostModal" type="button">✕</button></div><div class="modal-body"><p id="gostSummary" class="gost-summary">Предварительная проверка параметров чертежа.</p><div id="gostCheckResults" class="gost-results"></div><div class="gost-refs"><b>Основные стандарты профиля</b><ul><li>ГОСТ 2.301 — форматы листов.</li><li>ГОСТ 2.302 — масштабы.</li><li>ДСТУ ISO 128-20:2003 та ДСТУ ISO 128-24:2018 — типи й товщини ліній.</li><li>ДСТУ ISO 3098-0:2006 та ДСТУ EN ISO 3098-5:2022 — шрифти й CAD-написи.</li><li>ГОСТ 2.305 — виды, разрезы и сечения.</li><li>ГОСТ 2.306 — графические обозначения материалов.</li><li>ДСТУ EN ISO 129-1:2022 — розміри й допуски.</li><li>ГОСТ 2.104 / применимый национальный стандарт — основные надписи.</li></ul><p class="muted-hint">Профиль — учебная настройка по традиционному комплекту ЕСКД. По данным реестров, отдельные ДСТУ ГОСТ в Украине восстановлены с 01.03.2026 до 25.11.2027 только для ограниченных заказов государственных заказчиков в сферах безопасности/обороны и топливно-энергетического комплекса. В РФ действует ГОСТ Р 2.104-2023 для основных надписей; новый комплект ГОСТ Р 2.301–2.307-2026 вводится с 01.10.2027 с возможностью досрочного применения. В Україні чинність ДСТУ ГОСТ 2.104:2006 відновлено з 01.03.2026 до 25.11.2027 лише для виробництва та/або постачання за замовленнями державних замовників у сферах безпеки й оборони та паливно-енергетичного комплексу. Для інших завдань застосовуйте стандарт, указаний викладачем або замовником. Перевірка не є сертифікатом відповідності.</p></div><div class="modal-actions"><button class="secondary-btn" id="closeGostModalBottom" type="button">Закрыть</button></div></div></div></div>
   <div class="modal-backdrop hidden" id="helpModal"><div class="modal"><div class="modal-head"><b>Справка — КОМПАС Онлайн</b><button id="closeHelp">✕</button></div><div class="modal-body"><h3>Инструменты 2D-черчения</h3><p>Геометрия: отрезок, свободная линия (рисование удержанием левой кнопки), ломаная, прямоугольник, окружность, дуга, эллипс, многоугольник, сплайн, вспомогательная и осевая линии. Для свободной линии настраиваются толщина и сглаживание.</p><p>Линии: суцільна, штрихова, штрихпунктирна, з двома крапками, крапкова, коротка штрихова, волниста та зламана. Для хвилястої/зламаної лінії автоматично встановлюється вузька товщина. Размеры: авторазмер, линейный, горизонтальный, вертикальный, радиальный, диаметральный и угловой. Обозначения: выноска, центровые, шероховатость, допуск, сварка, штриховка, таблица.</p><p>Редактирование: копирование, перемещение мышью, поворот, симметрия, масштабирование, эквидистанта, скругление, фаска, массивы, усечение и разбиение отрезка. Средняя кнопка (нажатое колесо) + перетаскивание двигает лист; Space + левая кнопка также двигает лист. Колёсико приближает/отдаляет, Shift+колёсико двигает по горизонтали, Alt+колёсико — по вертикали. Линейка задаётся двумя точками; можно привязывать отрезки параллельно или перпендикулярно её кромке. Shift фиксирует угол с заданным шагом.</p><p>Обмен файлами: импорт JSON, DXF (включая старые POLYLINE, MTEXT, ELLIPSE), SVG (основные фигуры, текст и полилинии), CSV, HPGL/PLT; растровые PNG/JPG/WEBP/BMP импортируются как референсы. Экспорт: JSON, DXF, SVG, CSV, HPGL/PLT, PNG, JPEG, WebP, BMP и печать в PDF. Сложные фильтры/эффекты SVG могут быть упрощены. Нативные CDW/DWG не поддерживаются. Референс: добавление PNG/JPG/WEBP/BMP в качестве подложки, перемещение, точное положение X/Y, масштабирование, поворот, прозрачность, блокировка, исключение из печати и экспорта. Калибровка по известному расстоянию: отметить две точки на изображении, ввести фактическую длину в мм — редактор пересчитает ширину подложки. Текст имеет отдельный редактор: ISO 3098 тип A/B, вертикальное или наклонное 75° начертание, содержимое и переносы строк, шрифт, высота и ширина букв, угол, горизонтальное/вертикальное выравнивание, интервалы, цвет, жирность, курсив, подчёркивание, надчёркивание, зачёркивание и рамка. DXF поддерживает базовый импорт/экспорт линий, окружностей, дуг, полилиний и текста. Родные CDW и DWG, параметрические ограничения и 3D-моделирование пока не поддерживаются.</p></div></div></div>
-  <script src="js/template.js"></script><script src="js/app.js"></script>
+  <script src="js/template.js"></script><script src="assets/cover-reference.js"></script><script src="js/app.js"></script>
 </body>
 </html>

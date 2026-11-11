@@ -275,7 +275,7 @@
     $('noSelection').classList.toggle('hidden',arr.length>0);$('selectionFields').classList.toggle('hidden',arr.length===0);
     if(arr.length>1)$('noSelection').textContent=`Выбрано объектов: ${arr.length}`;
     else $('noSelection').textContent='Объект не выбран';
-    $('editTextFormatBtn').classList.toggle('hidden',!(o&&['text','techReq'].includes(o.type)));$('referenceSelectionFields').classList.toggle('hidden',!(o&&o.type==='reference'));$('objectLocked').checked=!!(o&&o.locked);$('objectGeometryFields').classList.toggle('hidden',!o);if(o){$('objectColor').value=o.color||'#20252a';$('objectWidth').value=o.width||.35;$('objectDash').value=o.linePattern==='wave'?'WAVE':o.linePattern==='zigzag'?'ZIGZAG':(o.dash||'');$('objectLayer').value=layerFor(o)==='reference'?'geometry':layerFor(o);$('objectName').value=o.name||'';$('objectTextSize').value=o.size||o.textSize||3;const box=objectBounds(o);if(box){$('objectBoxX').value=mm(box.x);$('objectBoxY').value=mm(box.y);$('objectBoxW').value=mm(Math.max(.1,box.w));$('objectBoxH').value=mm(Math.max(.1,box.h));}if(o.type==='reference'){$('referenceOpacity').value=Math.round((o.opacity??.35)*100);$('referenceOpacityValue').textContent=$('referenceOpacity').value+'%';$('referenceWidth').value=o.w||100;$('referenceHeight').value=o.h||60;$('referenceX').value=o.x||0;$('referenceY').value=o.y||0;$('referenceRotation').value=o.rotation||0;$('referenceLocked').checked=!!o.locked;$('referenceExportable').checked=!!o.exportable;$('referenceKeepAspect').checked=o.keepAspect!==false;}}
+    $('editTextFormatBtn').classList.toggle('hidden',!(o&&['text','techReq'].includes(o.type)));$('referenceSelectionFields').classList.toggle('hidden',!(o&&o.type==='reference'));$('objectLocked').checked=!!(o&&o.locked);$('objectGeometryFields').classList.toggle('hidden',!o);if(o){$('objectColor').value=o.color||'#20252a';$('objectWidth').value=o.width||.35;$('objectDash').value=o.linePattern==='wave'?'WAVE':o.linePattern==='zigzag'?'ZIGZAG':(o.dash||'');$('objectLayer').value=layerFor(o)==='reference'?'geometry':layerFor(o);$('objectName').value=o.name||'';$('objectTextSize').value=o.size||o.textSize||3;const box=objectBounds(o);if(box){$('objectBoxX').value=mm(box.x);$('objectBoxY').value=mm(box.y);$('objectBoxW').value=mm(Math.max(.1,box.w));$('objectBoxH').value=mm(Math.max(.1,box.h));}if(o.type==='reference'){$('referenceOpacity').value=Math.round((o.opacity??.35)*100);$('referenceOpacityValue').textContent=$('referenceOpacity').value+'%';$('referenceWidth').value=o.w||100;$('referenceHeight').value=o.h||60;$('referenceX').value=o.x||0;$('referenceY').value=o.y||0;$('referenceRotation').value=o.rotation||0;$('referenceLocked').checked=!!o.locked;$('referenceLockBtn').textContent=o.locked?'Снять закрепление':'Закрепить';$('referenceExportable').checked=!!o.exportable;$('referenceKeepAspect').checked=o.keepAspect!==false;}}
   }
   function applySelectedGeometry(){
     const selected=getSelected();if(selected.length!==1){setMessage('Для точного ввода габаритов выберите один объект');return;}
@@ -376,11 +376,96 @@
       const img=new Image();img.onerror=()=>alert('Файл изображения повреждён или не поддерживается.');img.onload=()=>{
         const max=2000,ratio=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(img.naturalHeight*ratio));
         const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,canvas.width,canvas.height);let dataUrl;try{dataUrl=canvas.toDataURL('image/webp',.88);if(!dataUrl.startsWith('data:image/webp'))dataUrl=canvas.toDataURL('image/png');}catch(e){alert('Не удалось обработать изображение.');return;}
-        const d=dimensions(),aspect=canvas.width/canvas.height,w=Math.min(100,d.w-30),h=w/aspect,center=placement?pointFromEvent(placement,true):{x:d.w/2,y:d.h/2};const o={type:'reference',name:file.name||'Референс',x:mm(center.x-w/2),y:mm(center.y-h/2),w:mm(w),h:mm(h),aspect,opacity:.35,rotation:0,locked:false,exportable:false,dataUrl,layer:'reference'};
-        visible.reference=true;$('referenceVisibleToggle').checked=true;addObject(o);setMessage('Референс добавлен. Выберите его для настройки прозрачности, размера и поворота.');
+        const d=dimensions(),aspect=canvas.width/canvas.height,w=Math.min(100,d.w-30),h=w/aspect,center=placement?pointFromEvent(placement,true):{x:d.w/2,y:d.h/2};const o={type:'reference',name:file.name||'Референс',x:mm(center.x-w/2),y:mm(center.y-h/2),w:mm(w),h:mm(h),aspect,opacity:.48,rotation:0,locked:!!$('referenceLockOnImport')?.checked,exportable:false,dataUrl,layer:'reference',keepAspect:true};
+        visible.reference=true;$('referenceVisibleToggle').checked=true;addObject(o);setMessage(o.locked?'Референс добавлен и закреплён. Отредактируй координаты в свойствах или сними закрепление кнопкой.':'Референс добавлен. Выбери его для настройки размера и положения.');
       };img.src=reader.result;
     };reader.readAsDataURL(file);
   }
+  function selectedReferences(){return getSelected().filter(o=>o.type==='reference');}
+  function toggleReferenceLock(){
+    const refs=selectedReferences();if(!refs.length){setMessage('Выбери референс, чтобы закрепить или снять закрепление');return;}
+    const next=!refs.every(o=>o.locked);commit();refs.forEach(o=>o.locked=next);renderAll();setMessage(next?'Референс закреплён: случайное перетаскивание отключено':'Закрепление референса снято');
+  }
+  function centerReferences(mode='sheet'){
+    const refs=selectedReferences();if(!refs.length){setMessage('Выбери референс для центрирования');return;}
+    let center;
+    if(mode==='geometry'){
+      const picked=getSelected().filter(o=>o.type!=='reference'&&!o.hidden);
+      const candidates=picked.length?picked:state.objects.filter(o=>o.type!=='reference'&&!o.hidden);
+      const b=unionBounds(candidates);if(b)center={x:b.x+b.w/2,y:b.y+b.h/2};
+    }
+    if(!center){const d=dimensions();center={x:d.w/2,y:d.h/2};}
+    commit();refs.forEach(o=>{const w=o.w||1,h=o.h||1;o.x=mm(center.x-w/2);o.y=mm(center.y-h/2);});renderAll();setMessage(mode==='geometry'?'Референс выровнен по центру геометрии':'Референс выровнен по центру листа');
+  }
+  function fitSelectedReference(){
+    const refs=selectedReferences();if(!refs.length){setMessage('Выбери референс');return;}const d=dimensions();
+    commit();refs.forEach(o=>{const aspect=o.aspect||((o.w||1)/(o.h||1)),w=Math.min(d.w-30,(d.h-30)*aspect),h=w/aspect;o.w=mm(w);o.h=mm(h);o.x=mm((d.w-w)/2);o.y=mm((d.h-h)/2);o.rotation=0;});renderAll();setMessage('Референс вписан в лист и отцентрирован');
+  }
+  function insertBuiltInCoverReference(){
+    const dataUrl=window.KompasReferenceAssets?.coverScheme;if(!dataUrl){setMessage('Встроенный референс не найден в assets');return;}
+    const img=new Image();img.onerror=()=>setMessage('Не удалось открыть встроенный референс');img.onload=()=>{
+      const d=dimensions(),aspect=img.naturalWidth/img.naturalHeight,w=Math.min(120,d.w-30),h=w/aspect;
+      const o={type:'reference',name:'Референс — схема крышки без заголовка',x:mm((d.w-w)/2),y:mm((d.h-h)/2),w:mm(w),h:mm(h),aspect,opacity:.58,rotation:0,locked:!!$('referenceLockOnImport').checked,exportable:false,dataUrl,layer:'reference',keepAspect:true};
+      visible.reference=true;$('referenceVisibleToggle').checked=true;addObject(o);setMessage(o.locked?'Референс крышки вставлен и закреплён':'Референс крышки вставлен');
+    };img.src=dataUrl;
+  }
+  function createCoverOutline(cx,cy,outerR,pitchR,holeR,slotWidth,count,startDeg){
+    const h=slotWidth/2,alpha=Math.asin(h/outerR),beta=Math.asin(h/holeR),t=Math.sqrt(Math.max(0,holeR*holeR-h*h));
+    const start=startDeg*Math.PI/180,step=2*Math.PI/count,pts=[];
+    const polar=(r,a)=>({x:mm(cx+r*Math.cos(a)),y:mm(cy+r*Math.sin(a))});
+    for(let i=0;i<count;i++){
+      const a=start+i*step,u={x:Math.cos(a),y:Math.sin(a)},n={x:-u.y,y:u.x},hc={x:cx+pitchR*u.x,y:cy+pitchR*u.y};
+      const outerMinus=polar(outerR,a-alpha),innerMinus={x:mm(hc.x+u.x*t-n.x*h),y:mm(hc.y+u.y*t-n.y*h)};
+      if(i===0)pts.push(outerMinus);else pts.push(outerMinus);
+      pts.push(innerMinus);
+      const arcSpan=2*Math.PI-2*beta,arcSteps=48;
+      for(let k=1;k<=arcSteps;k++){const phi=-beta-arcSpan*k/arcSteps;pts.push({x:mm(hc.x+holeR*(u.x*Math.cos(phi)+n.x*Math.sin(phi))),y:mm(hc.y+holeR*(u.y*Math.cos(phi)+n.y*Math.sin(phi)))});}
+      const outerPlus=polar(outerR,a+alpha);pts.push(outerPlus);
+      const outerArc=step-2*alpha,arcCount=Math.max(12,Math.ceil(outerArc*outerR/2.2));
+      for(let k=1;k<=arcCount;k++){const ang=a+alpha+outerArc*k/arcCount;pts.push(polar(outerR,ang));}
+    }
+    return pts;
+  }
+  function makeGeneratedObject(o){
+    o.id=newId();o.color=o.color||'#20252a';o.width=o.width??(annotationTypes.has(o.type)||constructionTypes.has(o.type)?state.gost.thinLine:state.gost.mainLine);
+    o.layer=o.layer||(annotationTypes.has(o.type)?'annotation':constructionTypes.has(o.type)?'construction':'geometry');return o;
+  }
+  function createCoverSchema(){
+    const outerD=Number($('coverOuterDia').value),pitchD=Number($('coverPitchDia').value),holeD=Number($('coverHoleDia').value),count=clamp(Math.round(Number($('coverHoleCount').value)||5),2,24),slotW=Number($('coverSlotWidth').value),hexD=Number($('coverHexSize').value),startDeg=Number($('coverStartAngle').value)||0;
+    const values=[outerD,pitchD,holeD,slotW,hexD,startDeg];if(!values.every(Number.isFinite)||outerD<=0||pitchD<=0||holeD<=0||slotW<=0||hexD<=0){$('coverValidation').textContent='Все размеры должны быть положительными числами.';return;}
+    const R=outerD/2,pR=pitchD/2,r=holeD/2,hx=hexD/2;
+    if(R<=pR+r||slotW>=holeD||slotW>=outerD||hx>=R||slotW/2>=R||slotW/2>=r){$('coverValidation').textContent='Проверь размеры: наружный радиус должен быть больше радиуса расположения отверстий плюс радиус отверстия; ширина паза — меньше диаметра отверстия.';return;}
+    const d=dimensions(),cx=d.w/2,cy=d.h/2-18,groupName='Крышка по размерам';
+    if(R*2+48>d.w||R*2+65>d.h){$('coverValidation').textContent='Деталь с размерными выносками может не поместиться на листе. Выбери более крупный формат или уменьши размеры.';return;}
+    const items=[],main=state.gost.mainLine||.5,thin=state.gost.thinLine||.25;
+    const outline=createCoverOutline(cx,cy,R,pR,r,slotW,count,startDeg);
+    items.push({type:'polyline',points:outline,closed:true,name:'Зовнішній контур кришки з радіальними пазами',width:main,layer:'geometry'});
+    const hexPts=Array.from({length:6},(_,i)=>{const a=-Math.PI/2+i*Math.PI/3;return{x:mm(cx+hx*Math.cos(a)),y:mm(cy+hx*Math.sin(a))};});
+    items.push({type:'polyline',points:hexPts,closed:true,name:'Центральний шестигранний отвір',width:main,layer:'geometry'});
+    if($('coverIncludePitch').checked)items.push({type:'circle',x:cx,y:cy,x2:mm(cx+pR),y2:cy,name:'Ділильна окружність Ø'+pitchD,width:thin,color:'#a88751',dash:'12 3 1 3',layer:'construction'});
+    const start=startDeg*Math.PI/180,centers=[];
+    for(let i=0;i<count;i++){
+      const a=start+i*2*Math.PI/count,hc={x:mm(cx+pR*Math.cos(a)),y:mm(cy+pR*Math.sin(a))};centers.push({a,p:hc});
+      if($('coverIncludeAxes').checked){items.push({type:'centerline',x:mm(cx),y:mm(cy),x2:mm(cx+(R+4)*Math.cos(a)),y2:mm(cy+(R+4)*Math.sin(a)),name:`Ось паза ${i+1}`,width:thin,color:'#b28d55',dash:'12 3 1 3',layer:'construction'});items.push({type:'centerMark',x:hc.x,y:hc.y,size:3.4,name:`Центр отвору ${i+1}`,width:thin,layer:'annotation'});}
+    }
+    if($('coverIncludeAxes').checked)items.push({type:'centerMark',x:cx,y:cy,size:5,name:'Центр деталі',width:thin,layer:'annotation'});
+    if($('coverIncludeDims').checked){
+      const leader=(target,elbow,end,text,name)=>items.push({type:'leader',points:[target,elbow,end],text,name,width:thin,textSize:2.6,layer:'annotation'});
+      const point=(rad,a)=>({x:mm(cx+rad*Math.cos(a)),y:mm(cy+rad*Math.sin(a))});
+      leader(point(R,-3*Math.PI/4),{x:mm(cx-52),y:mm(cy-45)},{x:mm(cx-43),y:mm(cy-45)},`Ø${outerD}`,'Розмір зовнішнього діаметра');
+      leader(point(pR,3*Math.PI/4),{x:mm(cx-52),y:mm(cy+44)},{x:mm(cx-43),y:mm(cy+44)},`Ø${pitchD}`,'Діаметр розташування центрів');
+      const top=centers.reduce((best,q)=>q.p.y<best.p.y?q:best,centers[0]);
+      const topTarget={x:mm(top.p.x+Math.cos(top.a)*r),y:mm(top.p.y+Math.sin(top.a)*r)};
+      leader(topTarget,{x:mm(cx+28),y:mm(cy-48)},{x:mm(cx+36),y:mm(cy-48)},`Ø${holeD} — ${count} отв.`,'Діаметр та кількість отворів');
+      const slotAngle=start+Math.PI*2/count,ux=Math.cos(slotAngle),uy=Math.sin(slotAngle),nx=-uy,ny=ux;
+      const slotTarget={x:mm(cx+(pR+r+4)*ux+nx*slotW/2),y:mm(cy+(pR+r+4)*uy+ny*slotW/2)};
+      leader(slotTarget,{x:mm(cx+R+8),y:mm(cy-14)},{x:mm(cx+R+15),y:mm(cy-14)},String(slotW),'Ширина радіального паза');
+      const topHex=hexPts.reduce((best,q)=>q.y<best.y?q:best,hexPts[0]),bottomHex=hexPts.reduce((best,q)=>q.y>best.y?q:best,hexPts[0]);
+      items.push({type:'dimension',kind:'vertical',x:topHex.x,y:topHex.y,x2:bottomHex.x,y2:bottomHex.y,offset:Math.max(16,hx+9),label:String(hexD),name:'Розмір шестигранника',textSize:state.gost.textHeight,layer:'annotation',width:thin});
+    }
+    const generated=items.map(makeGeneratedObject);commit();state.objects.push(...generated);state.selectedIds=generated.map(o=>o.id);renderAll();$('coverWizardModal').classList.add('hidden');setMessage(`Створено схему кришки: Ø${outerD}, Ø${pitchD}, ${count} пазів/отворів Ø${holeD}, ширина ${slotW} мм, шестигранник ${hexD} мм. Заголовок не додано.`);
+  }
+
   let editingTextId=null;
   function textValuesFromForm(){return{text:$('textContent').value,font:$('textFontCustom').value.trim()||$('textFont').value,size:clamp(Number($('textSize').value)||3,.5,50),widthFactor:clamp((Number($('textWidthFactor').value)||100)/100,.25,3),rotation:Number($('textRotation').value)||0,align:$('textAlign').value,baseline:$('textBaseline').value,lineHeight:clamp(Number($('textLineHeight').value)||4,.5,100),letterSpacing:clamp(Number($('textLetterSpacing').value)||0,-2,10),lettering:$('textLettering').value||state.gost.lettering||'B-V',color:$('textColor').value,bold:$('textBold').checked,italic:$('textItalic').checked,underline:$('textUnderline').checked,overline:$('textOverline').checked,strike:$('textStrike').checked,frame:$('textFrame').checked};}
   function openTextDialog(position,existing){editingTextId=existing?.id||null;const o=existing||{};$('textModalTitle').textContent=existing?'Редактирование текста':'Создание текста';$('textContent').value=o.text??'Текст';const font=o.font||state.gost.fontFamily||'GOST type B,Arial,sans-serif';$('textFontCustom').value='';$('textFont').value=font;if($('textFont').value!==font)$('textFontCustom').value=font;$('textLettering').value=o.lettering||state.gost.lettering||'B-V';$('textSize').value=o.size||Number($('defaultTextSize').value)||3;$('textWidthFactor').value=Math.round((o.widthFactor||1)*100);$('textRotation').value=o.rotation||0;$('textAlign').value=o.align||'start';$('textBaseline').value=o.baseline||'alphabetic';$('textLineHeight').value=o.lineHeight||((o.size||3)*1.25);$('textLetterSpacing').value=o.letterSpacing||0;$('textColor').value=o.color||'#20252a';$('textBold').checked=!!o.bold;$('textItalic').checked=!!o.italic;$('textUnderline').checked=!!o.underline;$('textOverline').checked=!!o.overline;$('textStrike').checked=!!o.strike;$('textFrame').checked=!!o.frame;$('textPosX').value=mm(position?.x??o.x??0);$('textPosY').value=mm(position?.y??o.y??0);$('textModal').classList.remove('hidden');$('textContent').focus();}
@@ -869,6 +954,12 @@
   $('editTextFormatBtn').addEventListener('click',()=>{const o=getSelected().find(x=>x.type==='text'||x.type==='techReq');if(o)openTextDialog(o,o);else setMessage('Выберите текстовый объект');});
   $('addReferenceBtn').addEventListener('click',()=>$('referenceInput').click());
   $('addReferenceRibbonBtn').addEventListener('click',()=>$('referenceInput').click());
+  $('insertCoverReferenceBtn').addEventListener('click',insertBuiltInCoverReference);
+  $('coverWizardBtn').addEventListener('click',()=>$('coverWizardModal').classList.remove('hidden'));
+  $('closeCoverWizard').addEventListener('click',()=>$('coverWizardModal').classList.add('hidden'));
+  $('cancelCoverWizard').addEventListener('click',()=>$('coverWizardModal').classList.add('hidden'));
+  $('createCoverSchemaBtn').addEventListener('click',createCoverSchema);
+  $('coverWizardModal').addEventListener('click',e=>{if(e.target===$('coverWizardModal'))$('coverWizardModal').classList.add('hidden');});
   $('gostRibbonBtn').addEventListener('click',checkGost);
   $('referenceInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importReference(f);e.target.value='';});
   drawingArea.addEventListener('pointerdown',e=>{if(e.button===1||state.space)onCanvasPointerDown(e);});drawingArea.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
@@ -883,9 +974,12 @@
   $('referenceY').addEventListener('change',e=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;commit();o.y=mm(Number(e.target.value)||0);renderAll();});
   $('referenceRotation').addEventListener('change',e=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;commit();o.rotation=Number(e.target.value)||0;renderAll();});$('referenceKeepAspect').addEventListener('change',e=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;commit();o.keepAspect=e.target.checked;renderAll();});
   $('referenceCalibrateBtn').addEventListener('click',()=>{const o=getSelected().find(x=>x.type==='reference');if(!o){setMessage('Выберите референс');return;}const raw=prompt('Введи реальную длину между двумя точками на изображении, в миллиметрах:','100');if(raw===null)return;const length=Number(raw);if(!Number.isFinite(length)||length<=0){alert('Длина должна быть положительным числом в миллиметрах.');return;}state.referenceCalibration={id:o.id,knownLength:length,points:[]};selectTool('select');setMessage('Калибровка: щёлкни первую точку на референсе. Затем щёлкни вторую.');});
-  $('referenceLocked').addEventListener('change',e=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;commit();o.locked=e.target.checked;renderAll();});
+  $('referenceLocked').addEventListener('change',e=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;commit();o.locked=e.target.checked;renderAll();setMessage(o.locked?'Референс закреплён':'Закрепление референса снято');});
+  $('referenceLockBtn').addEventListener('click',toggleReferenceLock);
+  $('centerReferenceBtn').addEventListener('click',()=>centerReferences('sheet'));
+  $('centerReferenceToGeometryBtn').addEventListener('click',()=>centerReferences('geometry'));
   $('referenceExportable').addEventListener('change',e=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;commit();o.exportable=e.target.checked;renderAll();});
-  $('fitReferenceBtn').addEventListener('click',()=>{const o=getSelected().find(x=>x.type==='reference');if(!o)return;const d=dimensions();commit();o.w=d.w-40;o.h=o.w/(o.aspect||1);o.x=(d.w-o.w)/2;o.y=(d.h-o.h)/2;o.rotation=0;renderAll();setMessage('Референс вписан в лист');});
+  $('fitReferenceBtn').addEventListener('click',fitSelectedReference);
   $('standardProfile').addEventListener('change',e=>{if(e.target.value==='eskd-study'||e.target.value==='dstu-gost-ua')applyGostProfile(true);else $('standardCustomFields').classList.remove('hidden');});
   $('applyGostBtn').addEventListener('click',()=>applyGostProfile(false));$('gostLettering').addEventListener('change',e=>{state.gost.lettering=e.target.value;state.gost.fontFamily=String(e.target.value).startsWith('A')?'GOST type A,Arial,sans-serif':'GOST type B,Arial,sans-serif';state.dirty=true;$('saveState').textContent='Є незбережені зміни';persistAutosave();});$('textLettering').addEventListener('change',e=>{if(!$('textFontCustom').value.trim())$('textFont').value=String(e.target.value).startsWith('A')?'GOST type A,Arial,sans-serif':'GOST type B,Arial,sans-serif';});$('gostLineGroup').addEventListener('change',e=>{const wide=Number(e.target.value);$('gostMainLine').value=wide;$('gostThinLine').value=mm(wide/2);});
   $('saveGostSettingsBtn').addEventListener('click',readGostSettings);
@@ -897,7 +991,7 @@
   $('objectWidth').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.width=clamp(Number(e.target.value)||.35,.05,3));renderAll();}});$('objectDash').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>{if(e.target.value==='WAVE'){o.linePattern='wave';o.width=state.gost.thinLine;delete o.dash;}else if(e.target.value==='ZIGZAG'){o.linePattern='zigzag';o.width=state.gost.thinLine;delete o.dash;}else{o.linePattern='';o.dash=e.target.value;}});renderAll();}});$('objectLayer').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.layer=e.target.value);renderAll();}});$('objectName').addEventListener('change',e=>{if(getSelected().length===1){commit();getSelected()[0].name=e.target.value;renderAll();}});$('objectLocked').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.locked=e.target.checked);renderAll();setMessage(e.target.checked?'Объекты заблокированы':'Блокировка снята');}});
   svg.addEventListener('pointerdown',e=>{if(e.button!==1&&!state.space)onCanvasPointerDown(e);});svg.addEventListener('dblclick',e=>{e.preventDefault();finishPath();});svg.addEventListener('contextmenu',e=>{if(state.tool==='polyline'||state.tool==='spline'){e.preventDefault();finishPath();}else e.preventDefault();});window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);
   drawingArea.addEventListener('wheel',e=>{e.preventDefault();if(e.shiftKey){state.viewPan.x-=e.deltaY||e.deltaX;updateZoom();persistAutosave();return;}if(e.altKey){state.viewPan.y-=e.deltaY;updateZoom();persistAutosave();return;}setZoomAt(state.zoom*(e.deltaY<0?1.1:.9),e.clientX,e.clientY);},{passive:false});
-  window.addEventListener('keydown',e=>{const tag=document.activeElement.tagName;if(e.code==='Space'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){state.space=true;e.preventDefault();}if(e.key==='Enter'&&(state.tool==='polyline'||state.tool==='spline'))finishPath();if(e.key==='F8'){state.ortho=!state.ortho;$('orthoToggle').checked=state.ortho;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if((e.key==='Delete'||e.key==='Backspace')&&!['INPUT','TEXTAREA','SELECT'].includes(tag))deleteSelected();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('openBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key==='0'){e.preventDefault();$('fitBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();newDocument();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();pasteClipboard();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();applyAction('duplicate');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&!['INPUT','TEXTAREA'].includes(tag)){e.preventDefault();state.selectedIds=state.objects.map(o=>o.id);renderAll();}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA','SELECT'].includes(tag)&&state.selectedIds.length&&!e.repeat){e.preventDefault();const step=e.shiftKey?10:1,dx=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,dy=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;commit();getSelected().forEach(o=>translateObject(o,dx,dy));renderAll();}if(e.key==='Escape'){if(state.resize){state.resize=null;drawingArea.classList.remove('resizing');renderAll();}if(!$('filesModal').classList.contains('hidden'))$('filesModal').classList.add('hidden');if(!$('mirrorModal').classList.contains('hidden'))closeMirrorDialog();if(state.referenceCalibration){state.referenceCalibration=null;setMessage('Калибровка референса отменена');}if(!$('textModal').classList.contains('hidden')){closeTextDialog();return;}state.freehandDraft=null;state.points=[];state.selectionRect=null;previewLayer.innerHTML='';selectTool('select');}});
+  window.addEventListener('keydown',e=>{const tag=document.activeElement.tagName;if(e.code==='Space'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){state.space=true;e.preventDefault();}if(e.key==='Enter'&&(state.tool==='polyline'||state.tool==='spline'))finishPath();if(e.key==='F8'){state.ortho=!state.ortho;$('orthoToggle').checked=state.ortho;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if((e.key==='Delete'||e.key==='Backspace')&&!['INPUT','TEXTAREA','SELECT'].includes(tag))deleteSelected();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('openBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key==='0'){e.preventDefault();$('fitBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();newDocument();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();pasteClipboard();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();applyAction('duplicate');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();toggleReferenceLock();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&!['INPUT','TEXTAREA'].includes(tag)){e.preventDefault();state.selectedIds=state.objects.map(o=>o.id);renderAll();}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA','SELECT'].includes(tag)&&state.selectedIds.length&&!e.repeat){e.preventDefault();const step=e.shiftKey?10:1,dx=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,dy=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;commit();getSelected().forEach(o=>translateObject(o,dx,dy));renderAll();}if(e.key==='Escape'){if(state.resize){state.resize=null;drawingArea.classList.remove('resizing');renderAll();}if(!$('filesModal').classList.contains('hidden'))$('filesModal').classList.add('hidden');if(!$('mirrorModal').classList.contains('hidden'))closeMirrorDialog();if(state.referenceCalibration){state.referenceCalibration=null;setMessage('Калибровка референса отменена');}if(!$('textModal').classList.contains('hidden')){closeTextDialog();return;}state.freehandDraft=null;state.points=[];state.selectionRect=null;previewLayer.innerHTML='';selectTool('select');}});
   window.addEventListener('keyup',e=>{if(e.code==='Space')state.space=false;});window.addEventListener('blur',()=>{state.space=false;if(state.pan){state.pan=null;drawingArea.classList.remove('dragging');persistAutosave();}});
   document.querySelectorAll('.panel-tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.panel-tab').forEach(t=>t.classList.toggle('active',t===tab));$('toolsPanel').classList.toggle('hidden',tab.dataset.panel!=='tools');$('treePanel').classList.toggle('hidden',tab.dataset.panel!=='tree');}));
   $('helpBtn').addEventListener('click',()=>$('helpModal').classList.remove('hidden'));$('closeHelp').addEventListener('click',()=>$('helpModal').classList.add('hidden'));$('helpModal').addEventListener('click',e=>{if(e.target===$('helpModal'))$('helpModal').classList.add('hidden');});
