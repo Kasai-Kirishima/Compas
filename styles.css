@@ -80,12 +80,29 @@
 @media(max-width:700px){.newdoc-body{grid-template-columns:1fr;}.newdoc-preview-wrap{display:none;}.newdoc-actions{grid-column:1;}}
 @media print{#selectionLayer{display:none!important;}}
 
-/* Cover drawing wizard and reference safety controls */
-.cover-modal{width:min(760px,94vw);max-height:92vh;display:flex;flex-direction:column;}
-.cover-modal .modal-body{overflow:auto;}
-.cover-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 14px;}
-.cover-checks{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;margin:8px 0;border-top:1px solid #4b545b;border-bottom:1px solid #4b545b;padding:7px 0;}
-.cover-checks .check-row{margin:4px 0;}
 #referenceLockBtn{border-color:#b08a45;color:#ffe2a7;}
 #referenceLockBtn:hover{background:#59472a;}
-@media(max-width:650px){.cover-fields{grid-template-columns:1fr;}.cover-checks{grid-template-columns:1fr;}.cover-modal{width:96vw;max-height:94vh;}}
+
+
+/* Version 1.5 — reference lock and polar copy workflow */
+.reference-lock-card{display:flex;flex-direction:column;gap:8px;margin:9px 0;padding:10px;background:#252c30;border:1px solid #4b5961;border-radius:4px;}
+.reference-lock-status{display:block;font-size:12px;font-weight:700;padding:4px 2px;}
+.reference-lock-status.unlocked{color:#8ed4a5;}
+.reference-lock-status.locked{color:#ffc66d;}
+.reference-lock-action{width:100%;min-height:36px;font-weight:700;border-color:#a77d38!important;}
+.reference-lock-action[aria-pressed="true"]{border-color:#4f9a70!important;color:#a6e4b8;}
+.reference-quick-lock{border-color:#8b754a!important;}
+.reference-quick-lock:disabled{opacity:.45;cursor:not-allowed;}
+.reference-quick-lock:not(:disabled){color:#ffe1a3;background:#4a3f2b;}
+.polar-modal{width:min(560px,94vw);max-height:92vh;display:flex;flex-direction:column;}
+.polar-modal .modal-body{overflow:auto;}
+.polar-presets{display:flex;align-items:center;gap:7px;margin:7px 0 14px;flex-wrap:wrap;color:#aeb9bf;font-size:12px;}
+.polar-presets button{min-width:40px;height:29px;border:1px solid #5b6a73;background:#3b454c;color:#f0f4f6;border-radius:4px;cursor:pointer;}
+.polar-presets button:hover{border-color:#1699b8;background:#354e57;}
+.polar-center-title{font-size:12px;font-weight:700;color:#dfe7eb;margin:8px 0 5px;}
+.polar-center-actions{display:grid;grid-template-columns:1.35fr 1fr 1fr;gap:6px;margin:7px 0 12px;}
+.polar-center-actions button{margin:0;min-height:32px;font-size:10px;padding:4px;}
+.polar-options{border-top:1px solid #4b545b;border-bottom:1px solid #4b545b;padding:8px 0;margin:9px 0;}
+@media(max-width:600px){.polar-modal{width:96vw;max-height:94vh;}.polar-center-actions{grid-template-columns:1fr 1fr;}.polar-center-actions button:first-child{grid-column:1/-1;}}
+
+.action-wide-hint{grid-column:1/-1;font-size:10px;line-height:1.45;margin:2px 0 7px;padding:7px;background:#252c30;border-left:2px solid #b08a45;border-radius:2px;}
