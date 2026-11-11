@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>КОМПАС Онлайн 1.2 — креслення</title>
+  <title>КОМПАС Онлайн 1.3 — креслення</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -120,6 +120,28 @@
           <button class="secondary-btn" data-action="trim">Усечь линию</button>
           <button class="secondary-btn danger" id="deleteBtn">Удалить</button>
         </div>
+        <div class="panel-heading">УПРАВЛЕНИЕ ОБЪЕКТАМИ</div>
+        <div class="action-grid">
+          <button class="secondary-btn" data-action="group">Сгруппировать</button>
+          <button class="secondary-btn" data-action="ungroup">Разгруппировать</button>
+          <button class="secondary-btn" data-action="toggleLock">Блокировать / снять</button>
+          <button class="secondary-btn" data-action="hideSelected">Скрыть выбранное</button>
+          <button class="secondary-btn" data-action="showAll">Показать все</button>
+          <button class="secondary-btn" data-action="bringFront">На передний план</button>
+          <button class="secondary-btn" data-action="sendBack">На задний план</button>
+          <button class="secondary-btn" data-action="centerToSheet">По центру листа</button>
+        </div>
+        <div class="panel-heading">ВЫРАВНИВАНИЕ</div>
+        <div class="action-grid">
+          <button class="secondary-btn" data-action="alignLeft">По левому краю</button>
+          <button class="secondary-btn" data-action="alignCenter">По центру X</button>
+          <button class="secondary-btn" data-action="alignRight">По правому краю</button>
+          <button class="secondary-btn" data-action="alignTop">По верхнему краю</button>
+          <button class="secondary-btn" data-action="alignMiddle">По центру Y</button>
+          <button class="secondary-btn" data-action="alignBottom">По нижнему краю</button>
+          <button class="secondary-btn" data-action="distributeH">Распределить X</button>
+          <button class="secondary-btn" data-action="distributeV">Распределить Y</button>
+        </div>
 
         <div class="panel-heading">ТОЧНЫЙ ВВОД КООРДИНАТ</div>
         <div class="two-fields"><label class="field-label">X, мм<input id="coordinateX" type="number" step="0.01" value="50"></label><label class="field-label">Y, мм<input id="coordinateY" type="number" step="0.01" value="50"></label></div>
@@ -188,14 +210,24 @@
           <label class="field-label">Тип лінії<select id="objectDash"><option value="">Суцільна вузька / широка</option><option value="6 2">Штрихова</option><option value="12 3 1 3">Штрихпунктирна вузька</option><option value="24 3 1 3">Штрихпунктирна з довгими штрихами</option><option value="24 3 1 3 1 3">Штрихпунктирна з двома крапками</option><option value="1 2">Крапкова</option><option value="3 2">Коротка штрихова</option><option value="18 2 1 2">Штрихпунктирна з короткою крапкою</option><option value="WAVE">Суцільна хвиляста (тонка)</option><option value="ZIGZAG">Суцільна зі зламами (тонка)</option><option value="none">Без лінії</option></select></label>
           <label class="field-label">Слой<select id="objectLayer"><option value="geometry">Геометрия</option><option value="annotation">Размеры и текст</option><option value="construction">Вспомогательные</option></select></label>
           <label class="field-label">Имя объекта<input id="objectName" placeholder="Объект"></label>
+          <div id="objectGeometryFields" class="object-geometry-fields">
+            <div class="panel-heading">ПОЛОЖЕНИЕ И РАЗМЕР</div>
+            <div class="two-fields"><label class="field-label">X, мм<input id="objectBoxX" type="number" step="0.1"></label><label class="field-label">Y, мм<input id="objectBoxY" type="number" step="0.1"></label></div>
+            <div class="two-fields"><label class="field-label">Ширина, мм<input id="objectBoxW" type="number" min="0.1" step="0.1"></label><label class="field-label">Высота, мм<input id="objectBoxH" type="number" min="0.1" step="0.1"></label></div>
+            <button class="secondary-btn" id="applyObjectGeometryBtn">Применить положение и размер</button>
+            <div class="muted-hint">Можно тянуть маркеры по углам и сторонам объекта. Shift при перетягивании углового маркера сохраняет пропорции.</div>
+          </div>
+          <label class="check-row"><input type="checkbox" id="objectLocked"> Заблокировать объект от изменений</label>
           <label class="field-label">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="3"></label>
           <button class="secondary-btn" id="editContentBtn">Изменить текст / значение</button>
           <button class="secondary-btn" id="editTextFormatBtn">Все параметры текста</button>
           <div id="referenceSelectionFields" class="reference-fields hidden">
             <div class="panel-heading">СВОЙСТВА РЕФЕРЕНСА</div>
             <label class="field-label">Прозрачность <span id="referenceOpacityValue">35%</span><input type="range" id="referenceOpacity" min="5" max="100" value="35"></label>
+            <label class="check-row"><input type="checkbox" id="referenceKeepAspect" checked> Сохранять пропорции при изменении размера</label>
             <div class="two-fields"><label class="field-label">Положение X, мм<input type="number" id="referenceX" step="0.1" value="55"></label><label class="field-label">Положение Y, мм<input type="number" id="referenceY" step="0.1" value="98"></label></div>
-            <div class="two-fields"><label class="field-label">Ширина, мм<input type="number" id="referenceWidth" min="1" max="2000" step="1" value="100"></label><label class="field-label">Поворот, °<input type="number" id="referenceRotation" min="-360" max="360" step="1" value="0"></label></div>
+            <div class="two-fields"><label class="field-label">Ширина, мм<input type="number" id="referenceWidth" min="1" max="2000" step="1" value="100"></label><label class="field-label">Высота, мм<input type="number" id="referenceHeight" min="1" max="2000" step="1" value="60"></label></div>
+            <label class="field-label">Поворот, °<input type="number" id="referenceRotation" min="-360" max="360" step="1" value="0"></label>
             <button class="secondary-btn" id="referenceCalibrateBtn">Калибровать по известной длине</button>
             <div class="muted-hint">После нажатия укажи две точки на изображении и введи реальное расстояние между ними в мм.</div>
             <label class="check-row"><input type="checkbox" id="referenceLocked"> Заблокировать от перемещения</label>
@@ -210,12 +242,12 @@
     <section class="workspace">
       <div class="document-bar"><span class="doc-icon">▤</span><span id="docName">Чертёж БЕЗ ИМЕНИ1</span><span class="doc-dot"></span><span class="doc-meta">A4 · 1:1 · мм</span><div class="workspace-spacer"></div><button id="zoomOut">−</button><span id="zoomLabel">100%</span><button id="zoomIn">＋</button></div>
       <div class="drawing-area" id="drawingArea">
-        <div class="canvas-hint" id="canvasHint">Выберите инструмент и начните построение · Средняя кнопка мыши — перемещение листа</div>
+        <div class="canvas-hint" id="canvasHint">Выберите инструмент и начните построение · Средняя кнопка мыши — перемещение листа · Маркеры выделения — изменение размера</div>
         <svg id="sheetSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" role="img" aria-label="Лист чертежа">
           <defs><pattern id="gridPattern" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 L 0 0 0 5" fill="none" stroke="#dfe4e8" stroke-width="0.12"/></pattern></defs>
           <rect id="paperRect" x="0" y="0" width="210" height="297" fill="#fff"/>
           <rect id="gridRect" x="0" y="0" width="210" height="297" fill="url(#gridPattern)" visibility="hidden"/>
-          <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g>
+          <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g><g id="selectionLayer"></g>
         </svg>
       </div>
       <div class="statusbar"><span id="statusMessage">Готово</span><span class="coordinates" id="coordinates">X: 0.00 · Y: 0.00 мм</span><span class="status-spacer"></span><span>Ортогонально: <b id="orthoStatus">Выкл.</b></span><span>Выбрано: <b id="selectedStatus">0</b></span></div>
@@ -266,6 +298,19 @@ Ctrl + C / Ctrl + V — копировать / вставить.
     </aside>
   </main>
 
+
+  <div class="modal-backdrop hidden" id="newDocModal"><div class="modal newdoc-modal"><div class="modal-head"><b>Створення нового кресленика</b><button id="closeNewDocModal" type="button">✕</button></div><div class="modal-body newdoc-body">
+    <div class="newdoc-fields">
+      <label class="field-label">Назва кресленика<input id="newDocName" value="Кресленик_1" maxlength="120"></label>
+      <label class="field-label">Формат аркуша<select id="newDocFormat"></select></label>
+      <label class="field-label">Рамка та основний напис<select id="newDocTemplate"></select></label>
+      <label class="field-label">Орієнтація<select id="newDocOrientation"><option value="P">Книжкова</option><option value="L">Альбомна</option></select></label>
+      <label class="field-label">Профіль оформлення<select id="newDocProfile"><option value="dstu-gost-ua">Український навчальний профіль ДСТУ / ISO</option><option value="eskd-study">Навчальний профіль ЄСКД</option></select></label>
+      <label class="check-row"><input type="checkbox" id="newDocGrid"> Відображати сітку одразу після створення</label>
+    </div>
+    <div class="newdoc-preview-wrap"><div class="panel-heading">ПЕРЕГЛЯД АРКУША</div><svg id="newDocPreview" viewBox="0 0 210 297" aria-label="Попередній перегляд шаблону"><rect width="210" height="297" fill="white"/></svg><p class="muted-hint" id="newDocTemplateHint">Ваш власний шаблон із додатковими боковими графами та основним написом.</p></div>
+    <div class="modal-actions newdoc-actions"><button class="secondary-btn" id="cancelNewDocBtn" type="button">Скасувати</button><button class="primary-btn" id="createNewDocBtn" type="button">Створити кресленик</button></div>
+  </div></div></div>
 
   <div class="modal-backdrop hidden" id="filesModal"><div class="modal files-modal"><div class="modal-head"><b>Збережені кресленики</b><button id="closeFilesModal" type="button">✕</button></div><div class="modal-body">
     <div class="file-library-toolbar"><input id="fileSearch" type="search" placeholder="Пошук за назвою..." aria-label="Поиск файлов"><span id="fileCount" class="muted-hint">0 файлів</span></div>

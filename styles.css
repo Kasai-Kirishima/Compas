@@ -58,3 +58,24 @@
 .file-footer-actions{display:flex;gap:7px;}
 .file-footer-actions button{width:auto;white-space:nowrap;padding:0 12px;}
 @media(max-width:650px){.file-card{grid-template-columns:1fr;}.file-card-actions{justify-content:flex-start;}.file-library-footer{align-items:flex-start;flex-direction:column;}.file-footer-actions{width:100%;}.file-footer-actions button{flex:1;}}
+
+/* Version 1.3: interactive resize handles, project setup and object workflow */
+#selectionLayer{overflow:visible;pointer-events:none;}
+#selectionLayer [data-resize-handle]{pointer-events:all;cursor:move;vector-effect:non-scaling-stroke;}
+#selectionLayer [data-resize-handle="nw"],#selectionLayer [data-resize-handle="se"]{cursor:nwse-resize;}
+#selectionLayer [data-resize-handle="ne"],#selectionLayer [data-resize-handle="sw"]{cursor:nesw-resize;}
+#selectionLayer [data-resize-handle="n"],#selectionLayer [data-resize-handle="s"]{cursor:ns-resize;}
+#selectionLayer [data-resize-handle="e"],#selectionLayer [data-resize-handle="w"]{cursor:ew-resize;}
+.drawing-area.resizing{cursor:grabbing!important;user-select:none;}
+.newdoc-modal{width:min(900px,95vw);max-height:92vh;display:flex;flex-direction:column;}
+.newdoc-body{display:grid;grid-template-columns:minmax(260px,1fr) minmax(220px,.8fr);gap:12px 20px;overflow:auto;}
+.newdoc-fields{display:flex;flex-direction:column;gap:4px;}
+.newdoc-preview-wrap{min-width:0;display:flex;flex-direction:column;align-items:center;}
+.newdoc-preview-wrap .panel-heading{align-self:stretch;}
+#newDocPreview{display:block;width:min(100%,260px);height:360px;max-height:48vh;background:#fff;border:1px solid #65717a;box-shadow:0 5px 18px #0005;}
+.newdoc-preview-wrap .muted-hint{align-self:stretch;margin-top:10px;}
+.newdoc-actions{grid-column:1/-1;position:sticky;bottom:-17px;padding:10px 0 0;background:#30363b;border-top:1px solid #4b545b;}
+.file-card-name{overflow-wrap:anywhere;}
+.tree-object[aria-disabled="true"]{opacity:.55;}
+@media(max-width:700px){.newdoc-body{grid-template-columns:1fr;}.newdoc-preview-wrap{display:none;}.newdoc-actions{grid-column:1;}}
+@media print{#selectionLayer{display:none!important;}}
