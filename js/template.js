@@ -175,6 +175,86 @@
     else {s+=form2a(w,h,d,format);}
     return s;
   }
+
+  // Clean laboratory sheet reconstructed from the user's mobile screenshot.
+  // The central drawing field is intentionally empty: no part geometry, dimensions or hatching.
+  function lab5Template(w,h,d={}){
+    const scale=Math.min(w/210,h/297);
+    const ox=(w-210*scale)/2, oy=(h-297*scale)/2;
+    const X=px=>(px-8)*.375;
+    const Y=py=>(py-272)*(297/810);
+    const ln=(x1,y1,x2,y2,sw=.24)=>line(X(x1),Y(y1),X(x2),Y(y2),sw,'#000000');
+    const rc=(x1,y1,x2,y2,sw=.3)=>rect(X(x1),Y(y1),X(x2)-X(x1),Y(y2)-Y(y1),sw,'#000000');
+    const tx=(x,y,value,size=1.7,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,size,anchor,rotate,{...opts,color:'#000000'});
+    let s=`<g transform="translate(${ox} ${oy}) scale(${scale})">`;
+    // Main drawing frame and left archival columns.
+    s+=rc(15,284,553,1068,.42);
+    s+=ln(29,284,29,613,.28)+ln(48,284,48,1068,.42)+ln(553,284,553,1068,.42);
+    s+=ln(15,449,48,449,.28)+ln(15,613,48,613,.28);
+    // The lower left archival block is intentionally separated by the open gap visible in the reference.
+    s+=ln(15,671,48,671,.28)+ln(15,767,48,767,.28)+ln(15,836,48,836,.28)+ln(15,917,48,917,.28)+ln(15,1027,48,1027,.28);
+    s+=ln(29,671,29,1068,.28);
+    // Upper empty index cell and the large, completely blank drawing field.
+    s+=rc(48,284,240,323,.28);
+    s+=ln(48,323,553,323,.28);
+    s+=ln(48,917,553,917,.42);
+    // Main title row and lower blocks.
+    s+=ln(226,917,226,1068,.28);
+    s+=ln(226,958,553,958,.28);
+    s+=ln(417,958,417,1068,.28);
+    s+=ln(226,1027,553,1027,.28);
+    // Left revision/signature table.
+    [68,95,158,198].forEach(x=>s+=ln(x,917,x,1068,.23));
+    [932,947,958,985,1013,1027,1054].forEach(y=>s+=ln(48,y,226,y,.23));
+    // Right-hand title block cells.
+    s+=ln(417,972,553,972,.23);
+    s+=ln(417,1013,553,1013,.23);
+    s+=ln(444,958,444,985,.23);
+    s+=ln(457,972,457,1013,.23);
+    s+=ln(504,958,504,1013,.23);
+    s+=ln(487,972,487,1013,.18);
+    s+=ln(417,985,553,985,.18);
+    // Right-side sheet fields row.
+    s+=ln(473,1013,473,1027,.2);
+    // Left archival field labels, rotated like the source sheet.
+    s+=tx(22,366,'Габар. розмір',1.65,'middle',-90,{italic:true});
+    s+=tx(22,531,'Справ. №',1.65,'middle',-90,{italic:true});
+    s+=tx(22,720,'Підп. і дата',1.55,'middle',-90,{italic:true});
+    s+=tx(22,802,'Інв. № дубл.',1.55,'middle',-90,{italic:true});
+    s+=tx(22,876,'Взам. інв. №',1.55,'middle',-90,{italic:true});
+    s+=tx(22,975,'Підпис і дата',1.55,'middle',-90,{italic:true});
+    s+=tx(22,1048,'Інв. № ориг.',1.55,'middle',-90,{italic:true});
+    // Revision table headings and roles.
+    s+=tx(58,946,'Зм.',1.55,'middle',0,{italic:true});
+    s+=tx(81,946,'Арк.',1.55,'middle',0,{italic:true});
+    s+=tx(126,946,'№ докум.',1.55,'middle',0,{italic:true});
+    s+=tx(178,946,'Підп.',1.55,'middle',0,{italic:true});
+    s+=tx(212,946,'Дата',1.55,'middle',0,{italic:true});
+    s+=tx(50,973,'Розроб.',1.6,'start',0,{italic:true});
+    s+=tx(97,973,d.developer||'Щербенко М.',1.65,'start',0,{italic:true});
+    s+=tx(50,999,'Перев.',1.6,'start',0,{italic:true});
+    s+=tx(50,1020,'Т.контр.',1.6,'start',0,{italic:true});
+    s+=tx(50,1044,'Н.контр.',1.6,'start',0,{italic:true});
+    s+=tx(50,1063,'Утв.',1.6,'start',0,{italic:true});
+    // Title and right-hand information fields.
+    const title=(d.title&&d.title!=='Найменування деталі')?d.title:'Лабораторна робота 5';
+    s+=tx(370,947,title,4.1,'middle',0,{italic:true});
+    s+=tx(421,969,'Літ.',1.65,'middle',0,{italic:true});
+    s+=tx(480,969,'Маса',1.65,'middle',0,{italic:true});
+    s+=tx(528,969,'Масштаб',1.55,'middle',0,{italic:true});
+    s+=tx(432,1002,d.liter||'У',2.0,'middle',0,{italic:true});
+    s+=tx(480,1002,d.mass||'—',2.0,'middle',0,{italic:true});
+    s+=tx(528,1002,d.scale||'1:1',2.5,'middle',0,{italic:true});
+    s+=tx(441,1023,'Лист',1.55,'middle',0,{italic:true});
+    s+=tx(513,1023,'Листів',1.55,'middle',0,{italic:true});
+    s+=tx(461,1023,d.sheet||'1',1.8,'middle',0,{italic:true});
+    s+=tx(540,1023,d.sheets||'1',1.8,'middle',0,{italic:true});
+    s+=tx(335,1077,'Копіював',1.65,'middle',0,{italic:true});
+    s+=tx(527,1077,'Формат  А4',1.65,'middle',0,{italic:true});
+    s+='</g>';
+    return s;
+  }
+
   function blankSheet(w,h){return basicFrame(w,h);}
 
   window.KompasTemplate={
@@ -186,6 +266,7 @@
     },
     markup(format,data,form){
       const {w,h}=this.dimensions(format),d=data||{},f=form||'user-template';
+      if(f==='lab5-template')return lab5Template(w,h,d);
       if(f==='blank')return blankSheet(w,h);
       if(f==='gost-form1')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
       if(f==='form2')return textForm2(w,h,d,String(format).replace(/[PL]$/,''));
