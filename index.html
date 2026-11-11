@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>КОМПАС Онлайн 1.5 — креслення</title>
+  <title>КОМПАС Онлайн 1.7 — креслення</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -20,8 +20,8 @@
       <button class="ribbon-btn" id="newBtn"><span>＋</span>Створити</button>
       <button class="ribbon-btn" id="openBtn"><span>▱</span>Файли</button>
       <button class="ribbon-btn" id="saveBtn"><span>▣</span>Зберегти</button>
-      <button class="ribbon-btn" id="undoBtn"><span>↶</span>Отменить</button>
-      <button class="ribbon-btn" id="redoBtn"><span>↷</span>Повторить</button>
+      <button class="ribbon-btn" id="undoBtn" disabled title="Ctrl+Z"><span>↶</span>Отменить</button>
+      <button class="ribbon-btn" id="redoBtn" disabled title="Ctrl+Y"><span>↷</span>Повторить</button>
     </div>
     <div class="ribbon-group">
       <button class="ribbon-btn" data-tool="select"><span>↖</span>Выбор</button>
@@ -179,7 +179,11 @@
         <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.25"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
         <div class="panel-heading">ШТРИХОВКА</div>
         <label class="field-label">Тип штриховки<select id="hatchPattern"><option value="single">Одинарная</option><option value="cross">Перекрёстная</option><option value="solid">Заливка</option></select></label>
-        <div class="two-fields"><label class="field-label">Угол, °<input id="hatchAngle" type="number" value="45" step="5"></label><label class="field-label">Шаг, мм<input id="hatchSpacing" type="number" min="0.5" value="4" step="0.5"></label></div>
+        <div class="two-fields"><label class="field-label">Угол, °<input id="hatchAngle" type="number" value="45" step="5"></label><label class="field-label">Шаг, мм<input id="hatchSpacing" type="number" min="0.5" value="3" step="0.5"></label></div>
+        <div class="two-fields"><label class="field-label">Толщина, мм<input id="hatchWidth" type="number" min="0.05" max="1" step="0.05" value="0.25"></label><label class="field-label">Цвет<input id="hatchColor" type="color" value="#20252a"></label></div>
+        <div class="hatch-presets"><span>Быстрый угол:</span><button type="button" data-hatch-angle="0">0°</button><button type="button" data-hatch-angle="45">45°</button><button type="button" data-hatch-angle="90">90°</button><button type="button" data-hatch-angle="135">135°</button></div>
+        <button class="primary-btn" id="hatchSelectedBoundaryBtn" type="button">Заштриховать выделенный контур</button>
+        <div class="muted-hint">Выделите прямоугольник, окружность, эллипс или замкнутую ломаную. Штриховка заполнит только внутреннюю область. Можно также выбрать инструмент «Штриховка» и задать прямоугольную область двумя углами.</div>
         <label class="check-row"><input type="checkbox" id="orthoToggle"> Ортогональное черчение (F8)</label>
         <label class="check-row"><input type="checkbox" id="objectSnapToggle" checked> Привязка к объектам</label>
         <label class="check-row"><input type="checkbox" id="gridToggle"> Сетка</label>
@@ -215,6 +219,10 @@
             <div class="two-fields"><label class="field-label">X, мм<input id="objectBoxX" type="number" step="0.1"></label><label class="field-label">Y, мм<input id="objectBoxY" type="number" step="0.1"></label></div>
             <div class="two-fields"><label class="field-label">Ширина, мм<input id="objectBoxW" type="number" min="0.1" step="0.1"></label><label class="field-label">Высота, мм<input id="objectBoxH" type="number" min="0.1" step="0.1"></label></div>
             <button class="secondary-btn" id="applyObjectGeometryBtn">Применить положение и размер</button>
+            <div class="panel-heading spaced">ПОВОРОТ</div>
+            <div class="two-fields"><label class="field-label">Угол, °<input id="objectRotationAngle" type="number" step="1" value="15"></label><button class="secondary-btn" id="applyObjectRotationBtn" type="button">Повернуть</button></div>
+            <div class="quick-rotate-row"><button type="button" data-rotate-step="-90">−90°</button><button type="button" data-rotate-step="-15">−15°</button><button type="button" data-rotate-step="15">+15°</button><button type="button" data-rotate-step="90">+90°</button></div>
+            <div class="muted-hint">Перетащите круглую ручку над рамкой выделения для поворота мышью. Shift фиксирует угол с заданным шагом.</div>
             <div class="muted-hint">Можно тянуть маркеры по углам и сторонам объекта. Shift при перетягивании углового маркера сохраняет пропорции.</div>
           </div>
           <label class="check-row"><input type="checkbox" id="objectLocked"> Заблокировать объект от изменений</label>
@@ -248,7 +256,7 @@
           <defs><pattern id="gridPattern" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 L 0 0 0 5" fill="none" stroke="#dfe4e8" stroke-width="0.12"/></pattern></defs>
           <rect id="paperRect" x="0" y="0" width="210" height="297" fill="#fff"/>
           <rect id="gridRect" x="0" y="0" width="210" height="297" fill="url(#gridPattern)" visibility="hidden"/>
-          <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g><g id="selectionLayer"></g>
+          <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="sheetFrameLayer" pointer-events="none"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g><g id="selectionLayer"></g>
         </svg>
       </div>
       <div class="statusbar"><span id="statusMessage">Готово</span><span class="coordinates" id="coordinates">X: 0.00 · Y: 0.00 мм</span><span class="status-spacer"></span><span>Ортогонально: <b id="orthoStatus">Выкл.</b></span><span>Выбрано: <b id="selectedStatus">0</b></span></div>

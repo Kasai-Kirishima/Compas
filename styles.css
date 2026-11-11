@@ -106,3 +106,24 @@
 @media(max-width:600px){.polar-modal{width:96vw;max-height:94vh;}.polar-center-actions{grid-template-columns:1fr 1fr;}.polar-center-actions button:first-child{grid-column:1/-1;}}
 
 .action-wide-hint{grid-column:1/-1;font-size:10px;line-height:1.45;margin:2px 0 7px;padding:7px;background:#252c30;border-left:2px solid #b08a45;border-radius:2px;}
+
+/* Version 1.6 — rotation handle, hatch presets, robust black drawing frame */
+.drawing-area.rotating{cursor:grabbing!important;user-select:none;}
+#selectionLayer [data-rotate-handle]{cursor:grab!important;pointer-events:all;}
+#selectionLayer [data-rotate-handle]:active{cursor:grabbing!important;}
+.quick-rotate-row,.hatch-presets{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 10px;align-items:center;}
+.quick-rotate-row button,.hatch-presets button{flex:1;min-width:43px;height:28px;border:1px solid #58656d;border-radius:3px;background:#3a444b;color:#e8eef1;font-size:11px;}
+.quick-rotate-row button:hover,.hatch-presets button:hover{border-color:#16a2c5;background:#344d56;}
+.hatch-presets span{color:#aeb8bf;font-size:10px;margin-right:3px;}
+#undoBtn:disabled,#redoBtn:disabled{opacity:.34;cursor:not-allowed;filter:grayscale(1);}
+#templateLayer{color:#000;}
+@media print{#templateLayer{display:block!important;}#templateLayer *{stroke:#000!important;fill:#000!important;}#templateLayer rect{fill:none!important;}}
+
+/* Version 1.7 — persistent black sheet frame, hatch and history polish */
+#sheetFrameLayer{pointer-events:none;}
+#sheetFrameLayer rect{fill:none!important;stroke:#000!important;shape-rendering:geometricPrecision;}
+#templateLayer line,#templateLayer rect,#templateLayer path,#templateLayer polygon{stroke:#000!important;}
+#templateLayer text{fill:#000!important;stroke:none!important;}
+#undoBtn:not(:disabled),#redoBtn:not(:disabled){opacity:1;color:#f4fbff;border-color:#178eaa;}
+#selectionLayer [data-rotate-handle]{filter:drop-shadow(0 0 1px #0005);}
+@media print{#sheetFrameLayer{display:block!important;}#sheetFrameLayer *{stroke:#000!important;fill:none!important;}}

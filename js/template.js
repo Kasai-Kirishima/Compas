@@ -2,8 +2,8 @@
    Includes a user-provided custom A4 layout, educational vector reconstructions of GOST 2.104-2006 forms 1/2/2a/2b, plus GOST 2.106-96 specification layouts.
    These are editable teaching templates, not certified or legally attested standard files. */
 (function () {
-  const BLUE = '#12b9df';
-  const TEXT = '#075d76';
+  const BLUE = '#000000';
+  const TEXT = '#000000';
   function esc(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c])); }
   function line(x1,y1,x2,y2,width=.22,color=BLUE){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" fill="none" vector-effect="non-scaling-stroke"/>`;}
   function rect(x,y,w,h,width=.25,color=BLUE){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${color}" stroke-width="${width}" vector-effect="non-scaling-stroke"/>`;}
@@ -27,7 +27,7 @@
   }
   function form1(w,h,d) {
     let s='';
-    s+=rect(0,0,w,h,.12,'#9aa5ad');
+    s+=rect(0,0,w,h,.12,'#000000');
     // A4 portrait print frame: 20 mm left margin, 5 mm elsewhere.
     s+=rect(20,5,185,287,.32);
     s=addAuxFields(s,5,292);
@@ -63,7 +63,7 @@
     return s;
   }
   function form1Landscape(w,h,d,format){
-    let s='';s+=rect(0,0,w,h,.12,'#9aa5ad');
+    let s='';s+=rect(0,0,w,h,.12,'#000000');
     // On larger/landscape sheets the frame keeps 20 mm at left and 5 mm elsewhere.
     s+=rect(20,5,w-25,h-10,.32);
     const bx=w-190,by=h-60;
@@ -86,7 +86,7 @@
     return s;
   }
   function form2a(w,h,d,format){
-    let s='';s+=rect(0,0,w,h,.12,'#9aa5ad');
+    let s='';s+=rect(0,0,w,h,.12,'#000000');
     s+=rect(20,5,w-25,h-10,.32);
     const bx=w-190,by=h-20;
     s+=rect(bx,by,185,15,.28);
@@ -102,7 +102,7 @@
   }
 
   // Standardized, clean ESKD/GOST-style forms, kept separate from the user's custom template.
-  function basicFrame(w,h){let s='';s+=rect(0,0,w,h,.12,'#9aa5ad');s+=rect(20,5,w-25,h-10,.32);return s;}
+  function basicFrame(w,h){let s='';s+=rect(0,0,w,h,.12,'#000000');s+=rect(20,5,w-25,h-10,.32);return s;}
   function eskdForm1(w,h,d,format){
     let s=basicFrame(w,h);if(h>=280)s=addAuxFields(s,5,h-5);const bx=w-190,by=h-60;
     s+=rect(bx,by,185,55,.32);
