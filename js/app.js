@@ -13,7 +13,7 @@
     objectSnap:true, ortho:false, template:true, space:false, pan:null, viewPan:{x:0,y:0}, drag:null, selectionRect:null,
     history:[], redo:[], clipboard:[], ruler:null, rulerMode:'off', rulerVisible:true, freehandDraft:null, resize:null, rotateDrag:null,
     gost:{profile:'dstu-gost-ua',mainLine:.5,thinLine:.25,textHeight:5,textDefaultsVersion:2,arrowLength:2.5,dimensionArrowVersion:1,precision:1,lettering:'B-V',fontFamily:'GOST type B,Arial,sans-serif'},
-    title:{title:'Лабораторна робота 5',code:'КРЕСЛЕННЯ.001',material:'Матеріал не зазначено',scale:'1:1',sheet:'1',sheets:'1',company:'Навчальний кресленик',liter:'У',mass:'—',developer:'Щербенко М.',checker:'',technical:'',normative:'',approved:''},
+    title:{title:'Лабораторна робота 5',code:'КРЕСЛЕННЯ.001',material:'Матеріал не зазначено',scale:'1:1',sheet:'1',sheets:'1',company:'Навчальний кресленик',liter:'У',mass:'—',developer:'',checker:'',technical:'',normative:'',approved:''},
     titleForm:'lab5-template', projectId:null, fileName:'Кресленик_1', dirty:false, assignmentDimensions:''
   };
   const visible = {geometry:true,dimensions:true,construction:true,template:true,reference:true};
@@ -454,7 +454,7 @@
     if(state.tool==='split'||state.tool==='trim'){const o=state.objects.find(x=>state.selectedIds.includes(x.id));if(!o||o.type!=='line'){setMessage('Выберите один отрезок для операции');return;}if(state.tool==='split')splitLineAt(o,p);else trimLineAt(o,p);return;}
     const target=state.lastTarget; if(!target)return;
   }
-  const GOST_TEXT_HEIGHTS=[1.8,2.5,3.5,5,7,10,14,20];
+  const GOST_TEXT_HEIGHTS=[1.8,2.5,3.5,5,7,10,14,20,28,40];
   const GOST_SCALES=['1:1','1:2','1:2.5','1:4','1:5','1:10','1:15','1:20','1:25','1:40','1:50','1:75','1:100','1:200','1:400','1:500','1:800','1:1000','2:1','2.5:1','4:1','5:1','10:1','20:1','40:1','50:1','100:1'];
   function applyGostControls(){
     if($('standardProfile'))$('standardProfile').value=state.gost.profile||'dstu-gost-ua';
@@ -515,9 +515,11 @@
 
     const textObjects=state.objects.filter(o=>['text','techReq'].includes(o.type));
     const badText=textObjects.filter(o=>!GOST_TEXT_HEIGHTS.includes(Number(o.size||state.gost.textHeight)));
-    if(badText.length)warnings.push(`${badText.length} текстових об’єктів мають висоту поза рядом 1,8; 2,5; 3,5; 5; 7; 10; 14; 20 мм (ДСТУ ISO 3098-0:2006).`);
-    else if(textObjects.length)passed.push(`Висота ${textObjects.length} текстових об’єктів входить до типового ряду ДСТУ ISO 3098-0:2006.`);
+    if(badText.length)warnings.push(`${badText.length} текстових об’єктів мають висоту поза рядом 1,8; 2,5; 3,5; 5; 7; 10; 14; 20; 28; 40 мм (ГОСТ 2.304-81 / ДСТУ ISO 3098).`);
+    else if(textObjects.length)passed.push(`Висота ${textObjects.length} текстових об’єктів входить до стандартного ряду ГОСТ 2.304-81 / ДСТУ ISO 3098.`);
     else info.push('Текстових об’єктів користувача поки немає.');
+    const smallTypeA=textObjects.filter(o=>Number(o.size)===1.8&&String(o.lettering||state.gost.lettering||'B-V').startsWith('A'));
+    if(smallTypeA.length)warnings.push(`${smallTypeA.length} написів висотою 1,8 мм задано шрифтом типу А; за ГОСТ 2.304-81 цей розмір застосовується лише для типу Б.`);
     const letteringBad=textObjects.filter(o=>o.lettering&&!['A-V','A-S','B-V','B-S'].includes(o.lettering));
     const styleBad=textObjects.filter(o=>o.bold||o.italic||Math.abs((o.widthFactor??1)-1)>.01||Math.abs(Number(o.letterSpacing)||0)>.001);
     if(letteringBad.length)warnings.push(`${letteringBad.length} текстових об’єктів мають невідоме креслярське начертання.`);else if(textObjects.length)passed.push('Типи креслярського шрифту позначені як A/B, вертикальні або похилі.');
@@ -1181,7 +1183,7 @@
     if((state.objects.length||state.dirty)&&!confirm('Создать новый чертёж? Несохранённые изменения будут потеряны.'))return;
     const fmt=$('newDocFormat').value||'A4P',template=$('newDocTemplate').value||'user-template',name=$('newDocName').value.trim()||'Кресленик_1',profile=$('newDocProfile').value;
     state.objects=[];state.selectedIds=[];state.assignmentDimensions='';$('assignmentDimensions').value='';state.ruler=null;state.rulerMode='off';state.rulerVisible=true;state.viewPan={x:0,y:0};state.projectId=null;state.titleForm=template;$('rulerMode').value='off';$('rulerVisible').checked=true;state.format=fmt;state.fileName=name;$('paperFormat').value=fmt;$('titleFormSelect').value=template;$('templateQuickSelect').value=template;$('filenameField').value=name;
-    state.title={title:template==='lab5-template'?'Лабораторна робота 5':'Найменування деталі',code:'КРЕСЛЕННЯ.001',material:'Матеріал не зазначено',scale:'1:1',sheet:'1',sheets:'1',company:'Навчальний кресленик',liter:'У',mass:'—',developer:template==='lab5-template'?'Щербенко М.':'',checker:'',technical:'',normative:'',approved:''};
+    state.title={title:template==='lab5-template'?'Лабораторна робота 5':'Найменування деталі',code:'КРЕСЛЕННЯ.001',material:'Матеріал не зазначено',scale:'1:1',sheet:'1',sheets:'1',company:'Навчальний кресленик',liter:'У',mass:'—',developer:'',checker:'',technical:'',normative:'',approved:''};
     state.gost={profile,mainLine:.5,thinLine:.25,textHeight:5,textDefaultsVersion:2,arrowLength:2.5,dimensionArrowVersion:1,precision:1,lettering:'B-V',fontFamily:'GOST type B,Arial,sans-serif'};applyGostControls();
     state.history=[];state.redo=[];updateHistoryButtons();state.grid=$('newDocGrid').checked;$('gridToggle').checked=state.grid;const gp=svg.querySelector('#gridPattern');if(gp){const step=gridStep();gp.setAttribute('width',step);gp.setAttribute('height',step);gp.querySelector('path').setAttribute('d',`M ${step} 0 L 0 0 0 ${step}`);}$('gridRect').setAttribute('visibility',state.grid?'visible':'hidden');
     syncTitleInputs();renderTemplate();renderAll();state.dirty=false;$('saveState').textContent='Новий кресленик';$('newDocModal').classList.add('hidden');resetViewPan();const d=dimensions(),aw=drawingArea.clientWidth-90,ah=drawingArea.clientHeight-90;setZoom(clamp(Math.min(aw/d.w,ah/d.h),.25,6));setMessage(`Створено ${name}: ${fmt} · ${template}`);

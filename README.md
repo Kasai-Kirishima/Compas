@@ -335,3 +335,8 @@ DXF является обменным форматом. После преобр�
 - Version 2.2 uses 5 mm as the default height for new drawing text and dimensions; existing objects can be enlarged in one click from the ESKD/GOST panel.
 - Interface labels, controls, tool names, and help text were enlarged for readability.
 - Template text smaller than 1.8 mm is raised to 1.8 mm; the Lab 5 main title uses a 5 mm height.
+
+
+## Читабельность и учебный штамп (проверка 2026-11-14)
+
+Для шаблона лабораторной работы № 5 оставлены только подписи ролей «Ученик» и «Учитель»; персональные имена удалены. Заголовок основной надписи увеличен до номинальной высоты 7 мм, подписи и значения полей приведены к номинальным высотам 2,5 и 3,5 мм. Для новых текстовых объектов базовая высота — 5 мм. Используемый ряд высот: 1,8; 2,5; 3,5; 5; 7; 10; 14; 20; 28; 40 мм по ГОСТ 2.304-81. Высота 1,8 мм относится к типу Б и не применяется как обычный размер в обновлённом шаблоне.

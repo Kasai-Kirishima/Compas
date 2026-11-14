@@ -56,10 +56,10 @@
     s+=line(170,242,170,277,.18);s+=line(187,242,187,277,.18);s+=line(155,247,205,247,.16);s+=line(155,270,205,270,.16);s+=line(180,270,180,282,.18);s+=line(155,277,205,277,.18);s+=line(155,282,205,282,.18);
     s+=txt(157,246,'Літ.',1.45);s+=txt(171.5,246,'Маса',1.45);s+=txt(188,246,'Масштаб',1.4);
     s+=cell(155,170,264,d.liter||'У',1.9);s+=cell(170,187,264,d.mass||'—',1.9);s+=cell(187,205,264,d.scale||'1:1',2.2);
-    s+=txt(157,276,'Арк.',1.4);s+=txt(181,276,'Аркушів',1.4);s+=cell(155,180,281,d.sheet||'1',1.8);s+=cell(180,205,281,d.sheets||'1',1.8);
+    s+=txt(157,276,'Арк.',1.4);s+=txt(181,276,'Аркушів',1.4);s+=cell(155,180,281,d.sheet||'1',2.5);s+=cell(180,205,281,d.sheets||'1',2.5);
     s+=txt(157,289.2,d.company||'Навчальний кресленик',1.45);
     // Captions under the frame.
-    s+=txt(105,296,'Копіював',1.65,'middle',0,{italic:true});s+=txt(200,296,'Формат  '+(d.format||'А4'),1.65,'end',0,{italic:true});
+    s+=txt(105,296,'Копіював',2.5,'middle',0,{italic:true});s+=txt(200,296,'Формат  '+(d.format||'А4'),1.65,'end',0,{italic:true});
     return s;
   }
   function form1Landscape(w,h,d,format){
@@ -185,7 +185,7 @@
     const Y=py=>(py-272)*(297/810);
     const ln=(x1,y1,x2,y2,sw=.24)=>line(X(x1),Y(y1),X(x2),Y(y2),sw,'#000000');
     const rc=(x1,y1,x2,y2,sw=.3)=>rect(X(x1),Y(y1),X(x2)-X(x1),Y(y2)-Y(y1),sw,'#000000');
-    const labTextHeight=size=>size<=1.7?1.8:size<=2.2?2.5:size<=3?3.5:size<=4.6?5:size;
+    const labTextHeight=size=>size<=2.5?2.5:size<=3.5?3.5:size<=5?5:size<=7?7:size;
     const tx=(x,y,value,size=1.7,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,labTextHeight(size),anchor,rotate,{...opts,color:'#000000'});
     let s=`<g transform="translate(${ox} ${oy}) scale(${scale})">`;
     // Main drawing frame and left archival columns.
@@ -205,7 +205,9 @@
     s+=ln(417,958,417,1068,.28);
     s+=ln(226,1027,553,1027,.28);
     // Left revision/signature table.
-    [68,95,158,198].forEach(x=>s+=ln(x,917,x,1068,.23));
+    // The role rows span the first two narrow columns so the larger labels stay inside the table.
+    s+=ln(68,917,68,958,.23)+ln(68,1027,68,1068,.23);
+    [95,158,198].forEach(x=>s+=ln(x,917,x,1068,.23));
     [932,947,958,985,1013,1027,1054].forEach(y=>s+=ln(48,y,226,y,.23));
     // Right-hand title block cells.
     s+=ln(417,972,553,972,.23);
@@ -231,27 +233,23 @@
     s+=tx(126,946,'№ докум.',1.55,'middle',0,{italic:true});
     s+=tx(178,946,'Підп.',1.55,'middle',0,{italic:true});
     s+=tx(212,946,'Дата',1.55,'middle',0,{italic:true});
-    s+=tx(50,973,'Розроб.',1.6,'start',0,{italic:true});
-    s+=tx(97,973,d.developer||'Щербенко М.',1.65,'start',0,{italic:true});
-    s+=tx(50,999,'Перев.',1.6,'start',0,{italic:true});
-    s+=tx(50,1020,'Т.контр.',1.6,'start',0,{italic:true});
-    s+=tx(50,1044,'Н.контр.',1.6,'start',0,{italic:true});
-    s+=tx(50,1063,'Утв.',1.6,'start',0,{italic:true});
+    s+=tx(58,977,'Ученик',3.5,'start',0,{italic:false});
+    s+=tx(58,1004,'Учитель',3.5,'start',0,{italic:false});
     // Title and right-hand information fields.
     const title=(d.title&&d.title!=='Найменування деталі')?d.title:'Лабораторна робота 5';
-    s+=tx(370,947,title,4.1,'middle',0,{italic:true});
-    s+=tx(421,969,'Літ.',1.65,'middle',0,{italic:true});
-    s+=tx(480,969,'Маса',1.65,'middle',0,{italic:true});
-    s+=tx(528,969,'Масштаб',1.55,'middle',0,{italic:true});
-    s+=tx(432,1002,d.liter||'У',2.0,'middle',0,{italic:true});
-    s+=tx(480,1002,d.mass||'—',2.0,'middle',0,{italic:true});
-    s+=tx(528,1002,d.scale||'1:1',2.5,'middle',0,{italic:true});
-    s+=tx(441,1023,'Лист',1.55,'middle',0,{italic:true});
-    s+=tx(513,1023,'Листів',1.55,'middle',0,{italic:true});
-    s+=tx(461,1023,d.sheet||'1',1.8,'middle',0,{italic:true});
-    s+=tx(540,1023,d.sheets||'1',1.8,'middle',0,{italic:true});
-    s+=tx(335,1077,'Копіював',1.65,'middle',0,{italic:true});
-    s+=tx(527,1077,'Формат  А4',1.65,'middle',0,{italic:true});
+    s+=tx(370,947,title,5.5,'middle',0,{italic:false});
+    s+=tx(421,969,'Літ.',2.5,'middle',0,{italic:true});
+    s+=tx(480,969,'Маса',2.5,'middle',0,{italic:true});
+    s+=tx(528,969,'Масштаб',2.5,'middle',0,{italic:true});
+    s+=tx(432,1002,d.liter||'У',3.5,'middle',0,{italic:true});
+    s+=tx(480,1002,d.mass||'—',3.5,'middle',0,{italic:true});
+    s+=tx(528,1002,d.scale||'1:1',3.5,'middle',0,{italic:true});
+    s+=tx(441,1023,'Лист',2.5,'middle',0,{italic:true});
+    s+=tx(513,1023,'Листів',2.5,'middle',0,{italic:true});
+    s+=tx(461,1023,d.sheet||'1',2.5,'middle',0,{italic:true});
+    s+=tx(540,1023,d.sheets||'1',2.5,'middle',0,{italic:true});
+    s+=tx(335,1077,'Копіював',2.5,'middle',0,{italic:true});
+    s+=tx(527,1077,'Формат  А4',2.5,'middle',0,{italic:true});
     s+='</g>';
     return s;
   }
