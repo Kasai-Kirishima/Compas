@@ -188,38 +188,43 @@
     const labTextHeight=size=>size<=2.5?2.5:size<=3.5?3.5:size<=5?5:size<=7?7:size;
     const tx=(x,y,value,size=1.7,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,labTextHeight(size),anchor,rotate,{...opts,color:'#000000'});
     let s=`<g transform="translate(${ox} ${oy}) scale(${scale})">`;
-    // Main drawing frame and left archival columns.
+    // Sheet frame and archival columns. The title block itself follows the 185 x 55 mm
+    // envelope of GOST 2.104 Form 1 and is aligned to the right sheet border.
     s+=rc(15,284,553,1068,.42);
     s+=ln(29,284,29,613,.28)+ln(48,284,48,1068,.42)+ln(553,284,553,1068,.42);
     s+=ln(15,449,48,449,.28)+ln(15,613,48,613,.28);
-    // The lower left archival block is intentionally separated by the open gap visible in the reference.
     s+=ln(15,671,48,671,.28)+ln(15,767,48,767,.28)+ln(15,836,48,836,.28)+ln(15,917,48,917,.28)+ln(15,1027,48,1027,.28);
     s+=ln(29,671,29,1068,.28);
-    // Upper empty index cell and the large, completely blank drawing field.
     s+=rc(48,284,240,323,.28);
     s+=ln(48,323,553,323,.28);
-    s+=ln(48,917,553,917,.42);
-    // Main title row and lower blocks.
-    s+=ln(226,917,226,1068,.28);
-    s+=ln(226,958,553,958,.28);
-    s+=ln(417,958,417,1068,.28);
-    s+=ln(226,1027,553,1027,.28);
-    // Left revision/signature table.
-    // The role rows span the first two narrow columns so the larger labels stay inside the table.
-    s+=ln(68,917,68,958,.23)+ln(68,1027,68,1068,.23);
-    [95,158,198].forEach(x=>s+=ln(x,917,x,1068,.23));
-    [932,947,958,985,1013,1027,1054].forEach(y=>s+=ln(48,y,226,y,.23));
-    // Right-hand title block cells.
-    s+=ln(417,972,553,972,.23);
-    s+=ln(417,1013,553,1013,.23);
-    s+=ln(444,958,444,985,.23);
-    s+=ln(457,972,457,1013,.23);
-    s+=ln(504,958,504,1013,.23);
-    s+=ln(487,972,487,1013,.18);
-    s+=ln(417,985,553,985,.18);
-    // Right-side sheet fields row.
-    s+=ln(473,1013,473,1027,.2);
-    // Left archival field labels, rotated like the source sheet.
+    s+=ln(48,918,553,918,.42);
+
+    // Exact title-block geometry: 185 mm wide, 55 mm high.
+    const x0=59.667, x1=78.334, x2=105.001, x3=166.334,
+          x4=206.334, x5=233.001, x6=419.668, x7=553;
+    const y0=918, y1=959, y2=973, y3=1014, y4=1028, y5=1068;
+    // Main title field and central/right split.
+    s+=ln(x0,y0,x0,y5,.28)+ln(x5,y0,x5,y5,.28)+ln(x6,y0,x6,y5,.28);
+    s+=ln(x0,y0,x7,y0,.28)+ln(x0,y5,x7,y5,.28);
+    s+=ln(x5,y1,x7,y1,.28)+ln(x5,y4,x7,y4,.28);
+    // Revision/signature grid at the upper-left of the stamp.
+    [x1,x2,x3,x4,x5].forEach(x=>s+=ln(x,y0,x,y1,.23));
+    [y0+13.667,y0+27.333].forEach(y=>s+=ln(x0,y,x5,y,.23));
+    // Student and teacher rows: merge the first two narrow columns so labels fit
+    // without crossing a vertical border. Remaining columns retain their divisions.
+    s+=ln(x2,y1,x2,y3,.23)+ln(x3,y1,x3,y3,.23)+ln(x4,y1,x4,y3,.23)+ln(x5,y1,x5,y3,.23);
+    s+=ln(x0,y1,x5,y1,.23)+ln(x0,(y1+y3)/2,x5,(y1+y3)/2,.23)+ln(x0,y3,x5,y3,.23);
+    // Lower-left cells and the lower central field.
+    [x1,x2,x3,x4,x5].forEach(x=>s+=ln(x,y4,x,y5,.23));
+    s+=ln(x0,y4,x5,y4,.23);
+    // Right-hand title-block cells, preserving the familiar Lit./mass/scale layout.
+    const rx=x6, rw=x7-x6, k=rw/136;
+    const r=(v)=>rx+v*k;
+    s+=ln(rx,y2,x7,y2,.23)+ln(rx,y3,x7,y3,.23);
+    s+=ln(r(27),y1,r(27),y2,.23)+ln(r(87),y1,r(87),y2,.23);
+    s+=ln(r(40),y2,r(40),y3,.23)+ln(r(70),y2,r(70),y3,.23)+ln(r(87),y2,r(87),y3,.18);
+    s+=ln(r(0),y4,r(0),y5,.2)+ln(r(56),y4,r(56),y5,.2);
+    // Archival labels at the left side of the sheet.
     s+=tx(22,366,'Габар. розмір',1.65,'middle',-90,{italic:true});
     s+=tx(22,531,'Справ. №',1.65,'middle',-90,{italic:true});
     s+=tx(22,720,'Підп. і дата',1.55,'middle',-90,{italic:true});
@@ -227,29 +232,31 @@
     s+=tx(22,876,'Взам. інв. №',1.55,'middle',-90,{italic:true});
     s+=tx(22,975,'Підпис і дата',1.55,'middle',-90,{italic:true});
     s+=tx(22,1048,'Інв. № ориг.',1.55,'middle',-90,{italic:true});
-    // Revision table headings and roles.
-    s+=tx(58,946,'Зм.',1.55,'middle',0,{italic:true});
-    s+=tx(81,946,'Арк.',1.55,'middle',0,{italic:true});
-    s+=tx(126,946,'№ докум.',1.55,'middle',0,{italic:true});
-    s+=tx(178,946,'Підп.',1.55,'middle',0,{italic:true});
-    s+=tx(212,946,'Дата',1.55,'middle',0,{italic:true});
-    s+=tx(58,977,'Ученик',3.5,'start',0,{italic:false});
-    s+=tx(58,1004,'Учитель',3.5,'start',0,{italic:false});
-    // Title and right-hand information fields.
+    // Revision table headings.
+    s+=tx((x0+x1)/2,946,'Зм.',2.5,'middle',0,{italic:true});
+    s+=tx((x1+x2)/2,946,'Арк.',2.5,'middle',0,{italic:true});
+    s+=tx((x2+x3)/2,946,'№ докум.',2.5,'middle',0,{italic:true});
+    s+=tx((x3+x4)/2,946,'Підп.',2.5,'middle',0,{italic:true});
+    s+=tx((x4+x5)/2,946,'Дата',2.5,'middle',0,{italic:true});
+    // Role labels are centered in the merged 17 mm-wide cell.
+    s+=tx((x0+x2)/2,986,'Ученик',3.5,'middle',0,{italic:false});
+    s+=tx((x0+x2)/2,1006,'Учитель',3.5,'middle',0,{italic:false});
+    // Main title and right-hand information fields.
     const title=(d.title&&d.title!=='Найменування деталі')?d.title:'Лабораторна робота 5';
-    s+=tx(370,947,title,5.5,'middle',0,{italic:false});
-    s+=tx(421,969,'Літ.',2.5,'middle',0,{italic:true});
-    s+=tx(480,969,'Маса',2.5,'middle',0,{italic:true});
-    s+=tx(528,969,'Масштаб',2.5,'middle',0,{italic:true});
-    s+=tx(432,1002,d.liter||'У',3.5,'middle',0,{italic:true});
-    s+=tx(480,1002,d.mass||'—',3.5,'middle',0,{italic:true});
-    s+=tx(528,1002,d.scale||'1:1',3.5,'middle',0,{italic:true});
-    s+=tx(441,1023,'Лист',2.5,'middle',0,{italic:true});
-    s+=tx(513,1023,'Листів',2.5,'middle',0,{italic:true});
-    s+=tx(461,1023,d.sheet||'1',2.5,'middle',0,{italic:true});
-    s+=tx(540,1023,d.sheets||'1',2.5,'middle',0,{italic:true});
-    s+=tx(335,1077,'Копіював',2.5,'middle',0,{italic:true});
-    s+=tx(527,1077,'Формат  А4',2.5,'middle',0,{italic:true});
+    s+=tx((x5+x6)/2,948,title,5,'middle',0,{italic:false});
+    s+=tx(r(13),969,'Літ.',2.5,'middle',0,{italic:true});
+    s+=tx(r(63),969,'Маса',2.5,'middle',0,{italic:true});
+    s+=tx(r(111),969,'Масштаб',2.5,'middle',0,{italic:true});
+    s+=tx(r(13),1001,d.liter||'У',3.5,'middle',0,{italic:true});
+    s+=tx(r(63),1001,d.mass||'—',3.5,'middle',0,{italic:true});
+    s+=tx(r(111),1001,d.scale||'1:1',3.5,'middle',0,{italic:true});
+    s+=tx(r(24),1022,'Лист',2.5,'middle',0,{italic:true});
+    s+=tx(r(95),1022,'Листів',2.5,'middle',0,{italic:true});
+    s+=tx(r(44),1022,d.sheet||'1',2.5,'middle',0,{italic:true});
+    s+=tx(r(126),1022,d.sheets||'1',2.5,'middle',0,{italic:true});
+    // Bottom inscription is moved inside the bottom row rather than below the sheet frame.
+    s+=tx((x5+x6)/2,1052,'Копіював',2.5,'middle',0,{italic:true});
+    s+=tx((x6+x7)/2,1052,'Формат  А4',2.5,'middle',0,{italic:true});
     s+='</g>';
     return s;
   }
