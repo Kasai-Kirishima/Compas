@@ -127,3 +127,35 @@
 #undoBtn:not(:disabled),#redoBtn:not(:disabled){opacity:1;color:#f4fbff;border-color:#178eaa;}
 #selectionLayer [data-rotate-handle]{filter:drop-shadow(0 0 1px #0005);}
 @media print{#sheetFrameLayer{display:block!important;}#sheetFrameLayer *{stroke:#000!important;fill:none!important;}}
+
+/* Version 2.0 — exact-size PDF print staging and preflight */
+.gost-result.warn{border-left:3px solid #d69a36;background:#443a2a;color:#ffe2aa;}
+.gost-result.info{border-left:3px solid #6f9eb0;background:#293940;color:#c5e5f0;}
+.gost-result.bad{border-left:3px solid #d25c5c;background:#472d30;color:#ffd0d0;}
+.gost-result.good{border-left:3px solid #4caa79;background:#293a32;color:#c8f1d9;}
+.print-modal{width:min(720px,94vw);max-height:92vh;display:flex;flex-direction:column;}
+.print-modal .modal-body{overflow:auto;}
+.print-page-dimensions{font-size:15px!important;font-weight:700;color:#e8f5fa;margin:6px 0 12px;}
+.print-instructions{padding:10px 13px;background:#252d32;border:1px solid #4b5961;border-radius:4px;font-size:12px;}
+.print-instructions ol{margin:8px 0 0 19px;padding:0;line-height:1.8;}
+.print-reference-check{margin:13px 0;padding:8px;background:#2b343a;border-radius:3px;}
+.print-actions{flex-wrap:wrap;}
+.print-actions button{flex:1 1 145px;min-height:36px;}
+.bridge-modal{width:min(660px,94vw);max-height:92vh;display:flex;flex-direction:column;}
+.bridge-modal .modal-body{overflow:auto;}
+.bridge-modal ol{padding-left:21px;line-height:1.85;font-size:12px;}
+.bridge-modal code{background:#20262a;padding:2px 4px;border-radius:3px;color:#d0eff7;}
+.bridge-note{background:#433a2b;border-left:3px solid #d2a04d;padding:10px;margin:12px 0;color:#f4ddb0;font-size:12px;}
+#printStage{display:none;}
+@media print{
+  @page{margin:0;}
+  html.kompas-printing,body.kompas-printing{margin:0!important;padding:0!important;width:auto!important;height:auto!important;background:#fff!important;overflow:hidden!important;}
+  body.kompas-printing>*:not(#printStage){display:none!important;}
+  body.kompas-printing>#printStage{display:block!important;position:static!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#fff!important;break-after:avoid!important;}
+  #printStage svg{display:block!important;margin:0!important;max-width:none!important;max-height:none!important;transform:none!important;box-shadow:none!important;}
+}
+
+@media print{#printStage [data-print-hidden="true"]{display:none!important;}}
+
+/* v2.1: assignment-specific dimension checklist */
+#assignmentDimensions{min-height:92px;resize:vertical;line-height:1.45;font-family:inherit;font-size:12px;}

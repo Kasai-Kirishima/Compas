@@ -12,9 +12,9 @@
     format:'A4P', tool:'select', objects:[], selectedIds:[], points:[], zoom:1.8, grid:false, snap:false,
     objectSnap:true, ortho:false, template:true, space:false, pan:null, viewPan:{x:0,y:0}, drag:null, selectionRect:null,
     history:[], redo:[], clipboard:[], ruler:null, rulerMode:'off', rulerVisible:true, freehandDraft:null, resize:null, rotateDrag:null,
-    gost:{profile:'dstu-gost-ua',mainLine:.5,thinLine:.25,textHeight:3.5,arrowLength:3.5,precision:1,lettering:'B-V',fontFamily:'GOST type B,Arial,sans-serif'},
+    gost:{profile:'dstu-gost-ua',mainLine:.5,thinLine:.25,textHeight:3.5,arrowLength:2.5,dimensionArrowVersion:1,precision:1,lettering:'B-V',fontFamily:'GOST type B,Arial,sans-serif'},
     title:{title:'Лабораторна робота 5',code:'КРЕСЛЕННЯ.001',material:'Матеріал не зазначено',scale:'1:1',sheet:'1',sheets:'1',company:'Навчальний кресленик',liter:'У',mass:'—',developer:'Щербенко М.',checker:'',technical:'',normative:'',approved:''},
-    titleForm:'lab5-template', projectId:null, fileName:'Кресленик_1', dirty:false
+    titleForm:'lab5-template', projectId:null, fileName:'Кресленик_1', dirty:false, assignmentDimensions:''
   };
   const visible = {geometry:true,dimensions:true,construction:true,template:true,reference:true};
   const deep = o => JSON.parse(JSON.stringify(o));
@@ -25,6 +25,16 @@
   const isAnnotation = o => layerFor(o) === 'annotation';
 
   function setMessage(message){ $('statusMessage').textContent = message; }
+  function mergeSavedGost(saved){
+    const incoming=deep(saved||{});
+    // Previous builds used 3.5 mm as the default arrow length. Migrate
+    // unversioned defaults while preserving values saved by this build.
+    if(!incoming.dimensionArrowVersion){
+      if(Number(incoming.arrowLength)===3.5)incoming.arrowLength=2.5;
+      incoming.dimensionArrowVersion=1;
+    }
+    state.gost=Object.assign({},state.gost,incoming);
+  }
   function dimensions(){ return window.KompasTemplate.dimensions(state.format); }
   function gridStep(){ return clamp(Number($('gridStep')?.value)||5,.1,100); }
   function updateZoom(){ const d=dimensions(); svg.style.width=`${d.w*state.zoom}px`; svg.style.height=`${d.h*state.zoom}px`; svg.style.transform=`translate(${state.viewPan.x}px, ${state.viewPan.y}px)`; $('zoomLabel').textContent=`${Math.round(state.zoom*100)}%`; }
@@ -65,9 +75,31 @@
     el.setAttribute('fill',o.fill||'none'); el.setAttribute('stroke-linecap','round'); el.setAttribute('stroke-linejoin','round');
     if(o.dash) el.setAttribute('stroke-dasharray',o.dash);
   }
-  function arrow(g,x,y,ux,uy,color,size=1.6){
-    const nx=-uy,ny=ux,w=size*.32;
-    add(g,'path',{d:`M ${x} ${y} l ${-ux*size+nx*w} ${-uy*size+ny*w} l ${-ux*size-nx*w} ${-uy*size-ny*w} z`,fill:color,stroke:'none'});
+  // Filled dimension arrow. Coordinates are absolute: using two relative `l`
+  // commands here used to displace the second base corner and made a malformed
+  // arrowhead. `ux,uy` always points from the arrow base towards its tip.
+  function arrow(g,x,y,ux,uy,color,size=2.5){
+    const v=Math.hypot(ux,uy);
+    if(!Number.isFinite(v)||v<1e-8||!Number.isFinite(size)||size<=0)return null;
+    ux/=v; uy/=v;
+    const nx=-uy,ny=ux,half=Math.max(.45,size*.24),baseX=x-ux*size,baseY=y-uy*size;
+    return add(g,'path',{
+      d:`M ${x} ${y} L ${baseX+nx*half} ${baseY+ny*half} L ${baseX-nx*half} ${baseY-ny*half} Z`,
+      fill:color,stroke:color,'stroke-width':.12,'stroke-linejoin':'miter','vector-effect':'none',
+      'data-dimension-arrow':'true'
+    });
+  }
+  function dimensionLabel(g,x,y,text,size,color,rotation=0){
+    const label=String(text??''),w=Math.max(size*1.5,label.length*size*.62+1.8),h=size*1.25;
+    const group=add(g,'g',rotation?{transform:`rotate(${rotation} ${x} ${y})`}:{});
+    add(group,'rect',{x:x-w/2,y:y-size*.92,width:w,height:h,fill:'#ffffff',stroke:'none','data-dimension-text-mask':'true'});
+    return addText(group,x,y+size*.08,label,size,color,'middle');
+  }
+  function dimensionNumber(o,value){
+    if(o.label!==undefined&&o.label!==null&&String(o.label).trim()!=='')return String(o.label);
+    const precision=clamp(Number(state.gost.precision??1),0,3);
+    const raw=Number(value).toFixed(precision);
+    return precision?raw.replace(/(\.\d*?[1-9])0+$/,'$1').replace(/\.0+$/,''):raw;
   }
   function addText(g,x,y,text,size=2.8,color='#20252a',anchor='middle',rotate=0,extra={}){
     const slanted=String(state.gost.lettering||'B-V').endsWith('-S'),transforms=[rotate?`rotate(${rotate} ${x} ${y})`:'',slanted?`skewX(-15)`:''].filter(Boolean).join(' ');const el=add(g,'text',{x,y,'font-family':state.gost.fontFamily||'Arial,sans-serif','font-size':size,'text-anchor':anchor,fill:color,stroke:'none',transform:transforms||null,'font-weight':extra.weight||null,'font-style':extra.italic?'italic':null});
@@ -90,41 +122,99 @@
   }
   function smoothPath(points,amount=70){if(!points||points.length<2)return '';if(points.length===2||amount<=0)return `M ${points.map((p,i)=>`${i?'L':' '}${p.x} ${p.y}`).join(' ')}`;const t=clamp(Number(amount)||0,0,100)/100;let d=`M ${points[0].x} ${points[0].y}`;for(let i=1;i<points.length-1;i++){const p=points[i],n=points[i+1],mx=(p.x+n.x)/2,my=(p.y+n.y)/2,cx=mx+(p.x-mx)*t,cy=my+(p.y-my)*t;d+=` Q ${cx} ${cy} ${mx} ${my}`;}const last=points[points.length-1];d+=` T ${last.x} ${last.y}`;return d;}
   function renderDimension(g,o,selected){
-    const color=selected?'#078db2':(o.color||'#20252a'), kind=o.kind||'linear', thin=state.gost.thinLine, textSize=o.textSize||state.gost.textHeight, arrowSize=state.gost.arrowLength;
+    const color=selected?'#078db2':(o.color||'#20252a');
+    const kind=o.kind||'linear',thin=state.gost.thinLine;
+    const textSize=clamp(Number(o.textSize)||state.gost.textHeight||3.5,.8,20);
+    const arrowSize=clamp(Number(state.gost.arrowLength)||2.5,2,10);
+    const extension=2; // extension beyond the arrow tip, ГОСТ 2.307-2011, 5.10
+    const makeLine=(a,b,width=thin)=>add(g,'line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:color,'stroke-width':width,fill:'none'});
+
     if(kind==='radius'||kind==='diameter'){
-      const cx=o.x,cy=o.y,dx=o.x2-cx,dy=o.y2-cy,r=Math.hypot(dx,dy)||1,ux=dx/r,uy=dy/r;
-      const x1=kind==='diameter'?cx-ux*r:cx, y1=kind==='diameter'?cy-uy*r:cy;
-      const x2=kind==='diameter'?cx+ux*r:o.x2, y2=kind==='diameter'?cy+uy*r:o.y2;
-      add(g,'line',{x1,y1,x2,y2,stroke:color,'stroke-width':thin});
-      arrow(g,kind==='diameter'?x1:x2,kind==='diameter'?y1:y2,kind==='diameter'?-ux:ux,kind==='diameter'?-uy:uy,color,arrowSize);
-      if(kind==='diameter') arrow(g,x2,y2,ux,uy,color,arrowSize);
-      addText(g,(x1+x2)/2+(-uy)*2,(y1+y2)/2+ux*2,`${kind==='diameter'?'Ø':'R'}${o.label||r.toFixed(state.gost.precision??1)}`,textSize,color);
+      const cx=Number(o.x),cy=Number(o.y),dx=Number(o.x2)-cx,dy=Number(o.y2)-cy;
+      const r=Math.hypot(dx,dy);
+      if(!Number.isFinite(r)||r<.01)return;
+      const ux=dx/r,uy=dy/r,nx=-uy,ny=ux;
+      const p1=kind==='diameter'?{x:cx-ux*r,y:cy-uy*r}:{x:cx,y:cy};
+      const p2={x:cx+ux*r,y:cy+uy*r};
+      makeLine(p1,p2);
+      if(kind==='diameter'){
+        // Diameter arrows terminate at the two opposite points of the circle.
+        // Their tips point from the centre out towards the circular contour.
+        const aSize=Math.min(arrowSize,Math.max(1.8,r*.48));
+        arrow(g,p1.x,p1.y,-ux,-uy,color,aSize);
+        arrow(g,p2.x,p2.y,ux,uy,color,aSize);
+        const label=dimensionNumber(o,2*r);
+        // ГОСТ 2.307-2011, 5.25: move the diameter number away from the line centre.
+        dimensionLabel(g,(cx-nx*(textSize*.85+1)),(cy-ny*(textSize*.85+1)),`Ø${label}`,textSize,color);
+      }else{
+        // A radius dimension has one arrowhead at the measured arc.
+        arrow(g,p2.x,p2.y,ux,uy,color,arrowSize);
+        const label=dimensionNumber(o,r);
+        const mx=(cx+p2.x)/2-nx*(textSize*.75+1),my=(cy+p2.y)/2-ny*(textSize*.75+1);
+        dimensionLabel(g,mx,my,`R${label}`,textSize,color);
+      }
       return;
     }
+
     if(kind==='angular'){
-      const vx=o.x,vy=o.y,a1=Math.atan2(o.y2-vy,o.x2-vx),a2=Math.atan2(o.y3-vy,o.x3-vx),rad=o.radius||12;
-      let delta=a2-a1; while(delta<0)delta+=Math.PI*2; while(delta>=Math.PI*2)delta-=Math.PI*2;
-      const p1={x:vx+Math.cos(a1)*rad,y:vy+Math.sin(a1)*rad},p2={x:vx+Math.cos(a1+delta)*rad,y:vy+Math.sin(a1+delta)*rad};
-      add(g,'line',{x1:vx,y1:vy,x2:vx+Math.cos(a1)*(rad+3),y2:vy+Math.sin(a1)*(rad+3),stroke:color,'stroke-width':thin});
-      add(g,'line',{x1:vx,y1:vy,x2:vx+Math.cos(a2)*(rad+3),y2:vy+Math.sin(a2)*(rad+3),stroke:color,'stroke-width':thin});
+      const vx=Number(o.x),vy=Number(o.y),aStart=Math.atan2(Number(o.y2)-vy,Number(o.x2)-vx),aEnd=Math.atan2(Number(o.y3)-vy,Number(o.x3)-vx);
+      let delta=(aEnd-aStart+Math.PI*2)%(Math.PI*2),start=aStart,end=aEnd;
+      // Keep the natural smaller angle; this avoids an accidental 300+ degree arc.
+      if(delta>Math.PI){delta=Math.PI*2-delta;start=aEnd;end=aStart;}
+      const rad=clamp(Number(o.radius)||12,2,1000),p1={x:vx+Math.cos(start)*rad,y:vy+Math.sin(start)*rad},p2={x:vx+Math.cos(end)*rad,y:vy+Math.sin(end)*rad};
+      const ext=extension;
+      makeLine({x:vx,y:vy},{x:vx+Math.cos(start)*(rad+ext),y:vy+Math.sin(start)*(rad+ext)});
+      makeLine({x:vx,y:vy},{x:vx+Math.cos(end)*(rad+ext),y:vy+Math.sin(end)*(rad+ext)});
       add(g,'path',{d:`M ${p1.x} ${p1.y} A ${rad} ${rad} 0 ${delta>Math.PI?1:0} 1 ${p2.x} ${p2.y}`,fill:'none',stroke:color,'stroke-width':thin});
-      const deg=delta*180/Math.PI; addText(g,vx+Math.cos(a1+delta/2)*(rad+3),vy+Math.sin(a1+delta/2)*(rad+3),o.label||`${deg.toFixed(state.gost.precision??1)}°`,textSize,color);
+      const arcLen=rad*delta,aSize=Math.min(arrowSize,Math.max(1.4,arcLen*.32));
+      // Tangents of the dimension arc: both tips face into the measured sector.
+      arrow(g,p1.x,p1.y,-Math.sin(start),Math.cos(start),color,aSize);
+      arrow(g,p2.x,p2.y,Math.sin(end),-Math.cos(end),color,aSize);
+      const mid=start+delta/2,rr=rad+textSize*.8+1.5;
+      const label=dimensionNumber(o,delta*180/Math.PI)+'°';
+      dimensionLabel(g,vx+Math.cos(mid)*rr,vy+Math.sin(mid)*rr,label,textSize,color);
       return;
     }
-    const dx=o.x2-o.x,dy=o.y2-o.y,len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len;
-    const off=o.offset??5;let ax,ay,bx,by,tx,ty,value;
+
+    const x1=Number(o.x),y1=Number(o.y),x2=Number(o.x2),y2=Number(o.y2);
+    const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+    if(!Number.isFinite(len)||len<.01)return;
+    let ax,ay,bx,by,ux,uy,nx,ny,labelNx,labelNy,value,extA,extB,labelRotation=0;
+    const rawOffset=Number.isFinite(Number(o.offset))?Number(o.offset):10;
+    const off=(Math.sign(rawOffset)||1)*Math.max(10,Math.abs(rawOffset));
     if(kind==='horizontal'){
-      const dimY=Math.max(o.y,o.y2)+off;ax=o.x;bx=o.x2;ay=by=dimY;tx=1;ty=0;value=Math.abs(dx);
-    } else if(kind==='vertical'){
-      const dimX=Math.max(o.x,o.x2)+off;ay=o.y;by=o.y2;ax=bx=dimX;tx=0;ty=1;value=Math.abs(dy);
-    } else {
-      const nx=-uy,ny=ux;ax=o.x+nx*off;ay=o.y+ny*off;bx=o.x2+nx*off;by=o.y2+ny*off;tx=ux;ty=uy;value=len;
+      const side=off>=0?1:-1,base=side>0?Math.max(y1,y2):Math.min(y1,y2),dimY=base+side*Math.abs(off);
+      ax=x1;bx=x2;ay=by=dimY;ux=Math.sign(bx-ax)||1;uy=0;nx=0;ny=side;labelNx=nx;labelNy=ny;
+      extA={x:ax,y:dimY+side*extension};extB={x:bx,y:dimY+side*extension};value=Math.abs(dx);
+    }else if(kind==='vertical'){
+      const side=off>=0?1:-1,base=side>0?Math.max(x1,x2):Math.min(x1,x2),dimX=base+side*Math.abs(off);
+      ax=bx=dimX;ay=y1;by=y2;ux=0;uy=Math.sign(by-ay)||1;nx=-side;ny=0;labelNx=nx;labelNy=ny;
+      extA={x:dimX+side*extension,y:ay};extB={x:dimX+side*extension,y:by};value=Math.abs(dy);
+      labelRotation=90;
+    }else{
+      ux=dx/len;uy=dy/len;nx=-uy;ny=ux;
+      ax=x1+nx*off;ay=y1+ny*off;bx=x2+nx*off;by=y2+ny*off;
+      const side=Math.sign(off)||1;extA={x:ax+nx*side*extension,y:ay+ny*side*extension};extB={x:bx+nx*side*extension,y:by+ny*side*extension};value=len;
+      labelRotation=Math.atan2(uy,ux)*180/Math.PI;if(labelRotation>90||labelRotation<-90){labelRotation+=180;labelNx=-nx;labelNy=-ny;}else{labelNx=nx;labelNy=ny;}
     }
-    add(g,'line',{x1:o.x,y1:o.y,x2:ax,y2:ay,stroke:color,'stroke-width':thin});
-    add(g,'line',{x1:o.x2,y1:o.y2,x2:bx,y2:by,stroke:color,'stroke-width':thin});
-    add(g,'line',{x1:ax,y1:ay,x2:bx,y2:by,stroke:color,'stroke-width':thin});
-    arrow(g,ax,ay,tx,ty,color,arrowSize); arrow(g,bx,by,-tx,-ty,color,arrowSize);
-    addText(g,(ax+bx)/2,(ay+by)/2-1.3,o.label||value.toFixed(state.gost.precision??1),textSize,color);
+    // Extension lines run 1–5 mm beyond the dimension line (5.10).
+    makeLine({x:x1,y:y1},extA);makeLine({x:x2,y:y2},extB);
+    const label=dimensionNumber(o,value),labelWidth=Math.max(textSize*1.5,label.length*textSize*.62+1.8);
+    const lineLen=Math.hypot(bx-ax,by-ay),tooShort=lineLen<(2*arrowSize+labelWidth+1);
+    if(tooShort){
+      // ГОСТ 2.307-2011, 5.21: extend the dimension line beyond extension lines;
+      // arrow tips stay at the measured points and point into the dimension.
+      const start={x:ax-ux*(arrowSize+1),y:ay-uy*(arrowSize+1)},end={x:bx+ux*(arrowSize+1),y:by+uy*(arrowSize+1)};
+      makeLine(start,end);
+      arrow(g,ax,ay,ux,uy,color,arrowSize);arrow(g,bx,by,-ux,-uy,color,arrowSize);
+    }else{
+      makeLine({x:ax,y:ay},{x:bx,y:by});
+      arrow(g,ax,ay,ux,uy,color,arrowSize);arrow(g,bx,by,-ux,-uy,color,arrowSize);
+    }
+    // Dimension value is above the line and has a white mask for legibility.
+    const midX=(ax+bx)/2,midY=(ay+by)/2,labelOffset=textSize*.75+1;
+    const lx=midX-labelNx*labelOffset,ly=midY-labelNy*labelOffset;
+    dimensionLabel(g,lx,ly,label,textSize,color,labelRotation);
   }
   function renderObject(o){
     if(o.hidden)return;
@@ -175,10 +265,10 @@
     else if(o.type==='section'){
       const dx=o.x2-o.x,dy=o.y2-o.y,len=Math.hypot(dx,dy)||1;
       add(g,'line',{x1:o.x,y1:o.y,x2:o.x2,y2:o.y2,stroke:c,'stroke-width':state.gost.mainLine});
-      arrow(g,o.x,o.y,-dx/len,-dy/len,c,2.2);arrow(g,o.x2,o.y2,dx/len,dy/len,c,2.2);
+      const sectionArrowSize=clamp(Number(state.gost.arrowLength)||2.5,2,10);arrow(g,o.x,o.y,-dx/len,-dy/len,c,sectionArrowSize);arrow(g,o.x2,o.y2,dx/len,dy/len,c,sectionArrowSize);
       addText(g,o.x-2,o.y-2,o.label||'А',3.5,c);addText(g,o.x2+2,o.y2-2,o.label||'А',3.5,c);
     } else if(o.type==='leader'){
-      const pts=o.points||[];if(pts.length>=2){const d=pts.map((p,i)=>(i?'L':'M')+` ${p.x} ${p.y}`).join(' ');add(g,'path',{d,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});const a=pts[0],b=pts[1],len=Math.hypot(b.x-a.x,b.y-a.y)||1;arrow(g,a.x,a.y,(b.x-a.x)/len,(b.y-a.y)/len,c,1.8);const end=pts[pts.length-1];add(g,'line',{x1:end.x,y1:end.y,x2:end.x+12,y2:end.y,stroke:c,'stroke-width':state.gost.thinLine});addText(g,end.x+1,end.y-1,o.text||'Примечание',2.5,c,'start');}
+      const pts=o.points||[];if(pts.length>=2){const d=pts.map((p,i)=>(i?'L':'M')+` ${p.x} ${p.y}`).join(' ');add(g,'path',{d,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});const a=pts[0],b=pts[1],len=Math.hypot(b.x-a.x,b.y-a.y)||1;arrow(g,a.x,a.y,-(b.x-a.x)/len,-(b.y-a.y)/len,c,clamp(Number(state.gost.arrowLength)||2.5,2,10));const end=pts[pts.length-1];add(g,'line',{x1:end.x,y1:end.y,x2:end.x+12,y2:end.y,stroke:c,'stroke-width':state.gost.thinLine});addText(g,end.x+1,end.y-1,o.text||'Примечание',2.5,c,'start');}
     } else if(o.type==='centerMark'){
       const s=o.size||5;add(g,'line',{x1:o.x-s,y1:o.y,x2:o.x+s,y2:o.y,stroke:c,'stroke-width':state.gost.thinLine});add(g,'line',{x1:o.x,y1:o.y-s,x2:o.x,y2:o.y+s,stroke:c,'stroke-width':state.gost.thinLine});
     } else if(o.type==='hatch'){
@@ -198,7 +288,7 @@
     } else if(o.type==='roughness'){
       const s=o.size||5;add(g,'path',{d:`M ${o.x-s*.45} ${o.y+s*.25} L ${o.x} ${o.y-s*.45} L ${o.x+s*.45} ${o.y+s*.25} L ${o.x+s*1.8} ${o.y+s*.25}`,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});if(o.label)addText(g,o.x+s*.8,o.y-s*.5,o.label,2.5,c,'middle');
     } else if(o.type==='tolerance'){
-      const w=Math.max(16,(o.text||'⌀0.05 | A').length*2.6+4),h=6;add(g,'rect',{x:o.x,y:o.y-h,width:w,height:h,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});addText(g,o.x+w/2,o.y-2,o.text||'⌀0.05 | A',2.5,c);
+      const w=Math.max(16,(o.text||'Ø0.05 | A').length*2.6+4),h=6;add(g,'rect',{x:o.x,y:o.y-h,width:w,height:h,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});addText(g,o.x+w/2,o.y-2,o.text||'Ø0.05 | A',2.5,c);
     } else if(o.type==='weld'){
       add(g,'line',{x1:o.x,y1:o.y,x2:o.x+18,y2:o.y,stroke:c,'stroke-width':state.gost.thinLine});add(g,'path',{d:`M ${o.x+5} ${o.y} L ${o.x+9} ${o.y-5} L ${o.x+13} ${o.y} Z`,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});addText(g,o.x+19,o.y-1,o.text||'a4',2.5,c,'start');
     } else if(o.type==='table'){
@@ -321,12 +411,12 @@
     if(!oldB||![x,y,w,h].every(Number.isFinite)||w<=0||h<=0){setMessage('Проверьте координаты и размеры: ширина и высота должны быть больше нуля');return;}
     commit();const i=state.objects.findIndex(q=>q.id===o.id);if(i<0)return;state.objects[i]=scaleObjectToBounds(o,oldB,{x,y,w,h});renderAll();setMessage(`Размер объекта задан: ${w.toFixed(2)} × ${h.toFixed(2)} мм`);
   }
-  function snapshot(){return{format:state.format,objects:deep(state.objects),title:deep(state.title),titleForm:state.titleForm,fileName:state.fileName,projectId:state.projectId,ruler:deep(state.ruler),rulerMode:state.rulerMode,rulerVisible:state.rulerVisible,gost:deep(state.gost),viewPan:deep(state.viewPan),template:state.template,visible:deep(visible)};}
+  function snapshot(){return{format:state.format,objects:deep(state.objects),title:deep(state.title),titleForm:state.titleForm,fileName:state.fileName,projectId:state.projectId,ruler:deep(state.ruler),rulerMode:state.rulerMode,rulerVisible:state.rulerVisible,gost:deep(state.gost),assignmentDimensions:state.assignmentDimensions||'',viewPan:deep(state.viewPan),template:state.template,visible:deep(visible)};}
   function persistAutosave(){try{localStorage.setItem('kompasOnlineAutosave',JSON.stringify(snapshot()));}catch(e){setMessage('Автосохранение недоступно: память браузера заполнена или отключена');}}
   function updateHistoryButtons(){const u=$('undoBtn'),r=$('redoBtn');if(u)u.disabled=state.history.length===0;if(r)r.disabled=state.redo.length===0;}
   function recordHistory(before){if(!before)return;state.history.push(deep(before));if(state.history.length>100)state.history.shift();state.redo=[];state.dirty=true;$('saveState').textContent='Есть несохранённые изменения';updateHistoryButtons();Promise.resolve().then(persistAutosave);}
   function commit(before=snapshot()){recordHistory(before);}
-  function restore(s){state.format=s.format;state.objects=deep(s.objects||[]);state.title=deep(s.title||state.title);state.titleForm=(!s.titleForm||s.titleForm==='form1')?'user-template':s.titleForm;state.projectId=s.projectId??state.projectId;state.fileName=s.fileName||state.fileName;state.ruler=deep(s.ruler||null);state.rulerMode=s.rulerMode||'off';state.rulerVisible=s.rulerVisible!==false;state.gost=Object.assign({},state.gost,s.gost||{});state.viewPan=deep(s.viewPan||{x:0,y:0});if(typeof s.template==='boolean')state.template=s.template;if(s.visible)Object.assign(visible,s.visible);$('templateToggle').checked=state.template;$('templateVisible').checked=visible.template;$('geometryVisible').checked=visible.geometry;$('dimensionsVisible').checked=visible.dimensions;$('constructionVisible').checked=visible.construction;$('referenceVisibleToggle').checked=visible.reference;$('referenceVisibleToggleSecondary').checked=visible.reference;applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.selectedIds=[];syncTitleInputs();$('paperFormat').value=state.format;renderTemplate();renderAll();updateHistoryButtons();}
+  function restore(s){state.format=s.format;state.objects=deep(s.objects||[]);state.title=deep(s.title||state.title);state.titleForm=(!s.titleForm||s.titleForm==='form1')?'user-template':s.titleForm;state.projectId=s.projectId??state.projectId;state.fileName=s.fileName||state.fileName;state.ruler=deep(s.ruler||null);state.rulerMode=s.rulerMode||'off';state.rulerVisible=s.rulerVisible!==false;state.assignmentDimensions=String(s.assignmentDimensions||'');$('assignmentDimensions').value=state.assignmentDimensions;mergeSavedGost(s.gost||{});state.viewPan=deep(s.viewPan||{x:0,y:0});if(typeof s.template==='boolean')state.template=s.template;if(s.visible)Object.assign(visible,s.visible);$('templateToggle').checked=state.template;$('templateVisible').checked=visible.template;$('geometryVisible').checked=visible.geometry;$('dimensionsVisible').checked=visible.dimensions;$('constructionVisible').checked=visible.construction;$('referenceVisibleToggle').checked=visible.reference;$('referenceVisibleToggleSecondary').checked=visible.reference;applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.selectedIds=[];syncTitleInputs();$('paperFormat').value=state.format;renderTemplate();renderAll();updateHistoryButtons();}
   function undo(){if(state.rotateDrag||state.resize){setMessage('Сначала завершите или отмените текущее преобразование');return;}if(!state.history.length){setMessage('Нет действий для отмены');return;}const current=snapshot(),previous=state.history.pop();state.redo.push(deep(current));if(state.redo.length>100)state.redo.shift();restore(previous);state.dirty=true;updateHistoryButtons();persistAutosave();$('saveState').textContent='Есть несохранённые изменения';setMessage('Действие отменено · Ctrl+Y или Ctrl+Shift+Z — повторить');}
   function redo(){if(state.rotateDrag||state.resize){setMessage('Сначала завершите или отмените текущее преобразование');return;}if(!state.redo.length){setMessage('Нет действий для повтора');return;}const current=snapshot(),next=state.redo.pop();state.history.push(deep(current));if(state.history.length>100)state.history.shift();restore(next);state.dirty=true;updateHistoryButtons();persistAutosave();$('saveState').textContent='Есть несохранённые изменения';setMessage('Действие повторено · Ctrl+Z — отменить');}
   function addObject(o){const before=snapshot();o.id=`obj_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;o.name=o.name||'';o.color=o.color||(o.type==='construction'?'#8c969d':'#20252a');o.width=o.width??(annotationTypes.has(o.type)||constructionTypes.has(o.type)||['freehand','breakline'].includes(o.type)?state.gost.thinLine:state.gost.mainLine);o.layer=o.layer|| (annotationTypes.has(o.type)?'annotation':constructionTypes.has(o.type)?'construction':'geometry');if(o.type==='centerline'&&!o.dash)o.dash='12 3 1 3';if(o.type==='construction'&&!o.dash)o.dash='';if(['text','techReq'].includes(o.type)){o.size=o.size??state.gost.textHeight??3.5;o.lettering=o.lettering||state.gost.lettering||'B-V';o.font=o.font||state.gost.fontFamily||'Arial,sans-serif';}state.objects.push(o);state.selectedIds=[o.id];commit(before);renderAll();setMessage('Объект добавлен');}
@@ -377,46 +467,135 @@
   function applyGostProfile(quiet=false){
     commit();
     const selected=$('standardProfile').value;
-    state.gost={profile:selected==='custom'?'custom':(selected==='dstu-gost-ua'?'dstu-gost-ua':'eskd-study'),mainLine:.5,thinLine:.25,textHeight:3.5,arrowLength:3.5,precision:1,lettering:'B-V',fontFamily:'GOST type B,Arial,sans-serif'};
+    state.gost={profile:selected==='custom'?'custom':(selected==='dstu-gost-ua'?'dstu-gost-ua':'eskd-study'),mainLine:.5,thinLine:.25,textHeight:3.5,arrowLength:2.5,dimensionArrowVersion:1,precision:1,lettering:'B-V',fontFamily:'GOST type B,Arial,sans-serif'};
     applyGostControls();$('standardCustomFields').classList.toggle('hidden',selected!=='custom');
-    $('dimensionOffset').value='5';
+    $('dimensionOffset').value='10';
     if(!quiet)setMessage(selected==='dstu-gost-ua'?'Профіль ДСТУ ГОСТ 2.104:2006 застосовано до нових об’єктів (межі чинності див. у довідці)':'Навчальний профіль ЄСКД застосовано до нових об’єктів');
   }
   function readGostSettings(){
-    commit();state.gost={profile:$('standardProfile').value,mainLine:clamp(Number($('gostMainLine').value)||.5,.13,2),thinLine:clamp(Number($('gostThinLine').value)||.25,.13,1),textHeight:GOST_TEXT_HEIGHTS.includes(Number($('gostTextHeight').value))?Number($('gostTextHeight').value):3.5,arrowLength:clamp(Number($('gostArrowLength').value)||3.5,2,10),precision:clamp(Number.isFinite(Number($('gostPrecision').value))?Number($('gostPrecision').value):1,0,3),lettering:$('gostLettering').value||'B-V',fontFamily:(String($('gostLettering').value||'B-V').startsWith('A')?'GOST type A,Arial,sans-serif':'GOST type B,Arial,sans-serif')};
+    commit();state.gost={profile:$('standardProfile').value,mainLine:clamp(Number($('gostMainLine').value)||.5,.13,2),thinLine:clamp(Number($('gostThinLine').value)||.25,.13,1),textHeight:GOST_TEXT_HEIGHTS.includes(Number($('gostTextHeight').value))?Number($('gostTextHeight').value):3.5,arrowLength:clamp(Number($('gostArrowLength').value)||2.5,2,10),dimensionArrowVersion:1,precision:clamp(Number.isFinite(Number($('gostPrecision').value))?Number($('gostPrecision').value):1,0,3),lettering:$('gostLettering').value||'B-V',fontFamily:(String($('gostLettering').value||'B-V').startsWith('A')?'GOST type A,Arial,sans-serif':'GOST type B,Arial,sans-serif')};
     applyGostControls();setMessage('Настройки оформления сохранены для новых объектов');
   }
   function normalizeSelectedToGost(){
     const selected=getSelected();if(!selected.length){setMessage('Сначала выделите объекты для приведения к профилю');return;}
     const thinTypes=new Set(['dimension','leader','centerMark','hatch','roughness','tolerance','weld','table','section','techReq','freehand','breakline']);
-    commit();selected.forEach(o=>{if(o.type==='reference')return;o.width=thinTypes.has(o.type)?state.gost.thinLine:state.gost.mainLine;if(o.type==='centerline')o.dash='12 3 1 3';if(o.type==='construction')o.dash='';if(['text','techReq'].includes(o.type)){o.size=state.gost.textHeight;o.lettering=state.gost.lettering||'B-V';o.font=state.gost.fontFamily||'Arial,sans-serif';o.bold=false;o.italic=false;o.widthFactor=1;o.letterSpacing=0;}if(o.type==='dimension')o.textSize=state.gost.textHeight;});
+    commit();selected.forEach(o=>{if(o.type==='reference')return;o.width=thinTypes.has(o.type)?state.gost.thinLine:state.gost.mainLine;if(o.type==='centerline')o.dash='12 3 1 3';if(o.type==='construction')o.dash='';if(['text','techReq'].includes(o.type)){o.size=state.gost.textHeight;o.lettering=state.gost.lettering||'B-V';o.font=state.gost.fontFamily||'Arial,sans-serif';o.bold=false;o.italic=false;o.widthFactor=1;o.letterSpacing=0;}if(o.type==='dimension'){o.textSize=state.gost.textHeight;const oldOffset=Number(o.offset)||10;o.offset=(Math.sign(oldOffset)||1)*Math.max(10,Math.abs(oldOffset));}});
     renderAll();setMessage('Выделенные объекты приведены к толщине и высоте текста профиля');
   }
   function checkGost(){
-    const issues=[],ok=[];
-    const d=dimensions();const allowedFmt={A4:[210,297],A3:[297,420],A2:[420,594],A1:[594,841],A0:[841,1189]};
-    const key=state.format.slice(0,2),expected=allowedFmt[key];
-    if(expected&&(Math.min(d.w,d.h)!==expected[0]||Math.max(d.w,d.h)!==expected[1]))issues.push('Размер листа не совпадает с выбранным форматом A-серии.');else ok.push(`Формат ${key}: размеры листа соответствуют ряду A.`);
-    if(!GOST_SCALES.includes(String(state.title.scale||'1:1')))issues.push(`Масштаб «${state.title.scale}» не входит в список рекомендованных масштабов ЕСКД. Проверьте ГОСТ 2.302.`);else ok.push(`Масштаб ${state.title.scale}: из стандартного ряда.`);
-    if(!state.template||!visible.template)ok.push('Чёрная рамка листа остаётся видимой; слой штампа временно скрыт.');else ok.push('Чёрная рамка и основная надпись отображаются.');
-    const badText=state.objects.filter(o=>['text','techReq'].includes(o.type)&&!GOST_TEXT_HEIGHTS.includes(Number(o.size||state.gost.textHeight)));
-    if(badText.length)issues.push(`Найдено ${badText.length} текстовых объектов с высотой вне ряда ISO 3098: 1,8; 2,5; 3,5; 5; 7; 10; 14; 20 мм.`);else ok.push('Высота текста в основных объектах соответствует принятому ряду высот.');
-    const linePairs=[[.25,.13],[.35,.18],[.5,.25],[.7,.35],[1,.5],[1.4,.7],[2,1]];if(!linePairs.some(([w,n])=>Math.abs(state.gost.mainLine-w)<.011&&Math.abs(state.gost.thinLine-n)<.011))issues.push('Пара товщин не збігається з рекомендованими парами ISO 128-24; виберіть групу в налаштуваннях.');else ok.push('Пара товщин відповідає вибраній групі ISO 128-24.');
-    const widthSeries=[.13,.18,.25,.35,.5,.7,1,1.4,2];const invalidWidths=state.objects.filter(o=>o.type!=='reference'&&o.width!==undefined&&!widthSeries.some(v=>Math.abs(v-Number(o.width))<.011));if(invalidWidths.length)issues.push(`${invalidWidths.length} об'єктів мають товщину поза рядом 0,13–2,0 мм.`);else ok.push('Товщини задані зі стандартного ряду 0,13–2,0 мм.');
-    const letteringBad=state.objects.filter(o=>['text','techReq'].includes(o.type)&&o.lettering&&!['A-V','A-S','B-V','B-S'].includes(o.lettering));if(letteringBad.length)issues.push('Є текст із невідомим типом креслярського шрифту.');else ok.push('Для тексту задано тип креслярського шрифту A/B і вертикальне/похиле начертання.');
-    const nonStandardText=state.objects.filter(o=>['text','techReq'].includes(o.type)&&(o.bold||o.italic||Math.abs((o.widthFactor??1)-1)>.01||Math.abs(Number(o.letterSpacing)||0)>.001));if(nonStandardText.length)issues.push(`${nonStandardText.length} текстових об’єктів мають жирність, курсив або змінені пропорції/інтервали; для стандартного креслярського напису нормалізуйте їх.`);else ok.push('Текст не має ручної жирності, курсиву або змінених пропорцій.');
-    const missingCenterline=state.objects.filter(o=>o.type==='centerline'&&!o.dash);
-    if(missingCenterline.length)issues.push(`${missingCenterline.length} осевых линий не имеют штрихпунктирного типа линии.`);else ok.push('Осевые линии имеют заданный штрихпунктирный стиль.');
+    const errors=[],warnings=[],passed=[],info=[];
+    const d=dimensions(),fmt=String(state.format||'A4P').replace(/[PL]$/,'');
+    const baseSizes={A0:[841,1189],A1:[594,841],A2:[420,594],A3:[297,420],A4:[210,297],A5:[148,210]};
+    const longSizes={'A0x2':[1189,1682],'A0x3':[1189,2523],'A1x3':[841,1783],'A1x4':[841,2378],'A2x3':[594,1261],'A2x4':[594,1682],'A2x5':[594,2102],'A3x3':[420,891],'A3x4':[420,1189],'A3x5':[420,1486],'A3x6':[420,1783],'A3x7':[420,2080],'A4x3':[297,630],'A4x4':[297,841],'A4x5':[297,1051],'A4x6':[297,1261],'A4x7':[297,1471],'A4x8':[297,1682],'A4x9':[297,1892]};
+    const expected=baseSizes[fmt]||longSizes[fmt];
+    if(!expected)errors.push(`Невідомий код формату аркуша «${state.format}».`);
+    else if(Math.min(d.w,d.h)!==expected[0]||Math.max(d.w,d.h)!==expected[1])errors.push(`Фактичний розмір аркуша ${d.w}×${d.h} мм не відповідає формату ${fmt}.`);
+    else passed.push(`Формат ${fmt}: ${d.w}×${d.h} мм відповідає ряду форматів ДСТУ EN ISO 5457:2022.`);
+    if(!GOST_SCALES.includes(String(state.title.scale||'1:1')))warnings.push(`Масштаб «${state.title.scale}» не знайдено в навчальному переліку масштабів. Перевірте ДСТУ EN ISO 5455:2022 та вимоги завдання.`);
+    else passed.push(`Масштаб ${state.title.scale}: значення входить до типового навчального ряду.`);
+    const titleBlockRequired=!['blank'].includes(state.titleForm);
+    if(titleBlockRequired){if(!state.title.title?.trim())warnings.push('Не заповнено назву документа в основному написі.');else passed.push('Назва документа заповнена.');if(!state.title.code?.trim())warnings.push('Не заповнено позначення документа.');else passed.push('Позначення документа заповнено.');}
+    if(state.titleForm==='lab5-template'&&state.format!=='A4P')warnings.push('Шаблон «Лабораторна робота 5» розроблений для книжкового A4; на іншому форматі компонування може не відповідати зразку.');
+    if(state.titleForm==='lab5-template'&&state.format==='A4P')passed.push('Власний шаблон лабораторної роботи використовується на A4 у книжковій орієнтації.');
+    if(state.template&&visible.template)passed.push('Шаблон і основний напис відображаються.');else warnings.push('Шаблон/основний напис приховано; перевірте, чи це допустимо для вашого завдання.');
+
+    const textObjects=state.objects.filter(o=>['text','techReq'].includes(o.type));
+    const badText=textObjects.filter(o=>!GOST_TEXT_HEIGHTS.includes(Number(o.size||state.gost.textHeight)));
+    if(badText.length)warnings.push(`${badText.length} текстових об’єктів мають висоту поза рядом 1,8; 2,5; 3,5; 5; 7; 10; 14; 20 мм (ДСТУ ISO 3098-0:2006).`);
+    else if(textObjects.length)passed.push(`Висота ${textObjects.length} текстових об’єктів входить до типового ряду ДСТУ ISO 3098-0:2006.`);
+    else info.push('Текстових об’єктів користувача поки немає.');
+    const letteringBad=textObjects.filter(o=>o.lettering&&!['A-V','A-S','B-V','B-S'].includes(o.lettering));
+    const styleBad=textObjects.filter(o=>o.bold||o.italic||Math.abs((o.widthFactor??1)-1)>.01||Math.abs(Number(o.letterSpacing)||0)>.001);
+    if(letteringBad.length)warnings.push(`${letteringBad.length} текстових об’єктів мають невідоме креслярське начертання.`);else if(textObjects.length)passed.push('Типи креслярського шрифту позначені як A/B, вертикальні або похилі.');
+    if(styleBad.length)warnings.push(`${styleBad.length} написів мають жирність/курсив/змінену ширину чи інтервали; перевірте їх за вимогами креслярського шрифту.`);
+
+    const linePairs=[[.25,.13],[.35,.18],[.5,.25],[.7,.35],[1,.5],[1.4,.7],[2,1]],widthSeries=[.13,.18,.25,.35,.5,.7,1,1.4,2];
+    if(!linePairs.some(([w,n])=>Math.abs(state.gost.mainLine-w)<.011&&Math.abs(state.gost.thinLine-n)<.011))warnings.push('Пара основної/тонкої товщини не відповідає типовій парі ряду ISO 128; перевірте налаштування профілю.');else passed.push(`Пара товщин ${state.gost.mainLine}/${state.gost.thinLine} мм входить до ряду рекомендованих пар.`);
+    const invalidWidths=state.objects.filter(o=>o.type!=='reference'&&o.width!==undefined&&!widthSeries.some(v=>Math.abs(v-Number(o.width))<.011));
+    if(invalidWidths.length)warnings.push(`${invalidWidths.length} об’єктів мають товщину поза рядом 0,13–2,0 мм.`);else passed.push('Товщини графічних об’єктів належать до стандартного ряду 0,13–2,0 мм.');
+    const centerNoDash=state.objects.filter(o=>o.type==='centerline'&&!o.dash);if(centerNoDash.length)warnings.push(`${centerNoDash.length} осьових ліній не мають штрихпунктирного типу.`);else if(state.objects.some(o=>o.type==='centerline'))passed.push('Осьові лінії мають штрихпунктирне оформлення.');
     const thinTypes=new Set(['dimension','leader','centerMark','hatch','roughness','tolerance','weld','table','section','techReq','freehand','breakline']);
-    const widthWarn=state.objects.filter(o=>o.type!=='reference'&&Math.abs((o.width??(thinTypes.has(o.type)?state.gost.thinLine:state.gost.mainLine))-(thinTypes.has(o.type)?state.gost.thinLine:state.gost.mainLine))>.06);
-    if(widthWarn.length)issues.push(`${widthWarn.length} объектов имеют толщину, отличающуюся от выбранного профиля (основная ${state.gost.mainLine} мм / тонкая ${state.gost.thinLine} мм).`);else ok.push('Толщины линий совпадают с заданными значениями профиля.');
-    const refs=state.objects.filter(o=>o.type==='reference'&&!o.exportable);
-    if(refs.length)ok.push(`${refs.length} референс(а) исключены из печати и SVG/PNG, как вспомогательные подложки.`);
-    if(!state.title.title?.trim())issues.push('Не заполнено наименование документа в основной надписи.');
-    if(!state.title.code?.trim())issues.push('Не заполнено обозначение документа в основной надписи.');
+    const widthWarn=state.objects.filter(o=>o.type!=='reference'&&o.width!==undefined&&Math.abs(Number(o.width)-(thinTypes.has(o.type)?state.gost.thinLine:state.gost.mainLine))>.061);
+    if(widthWarn.length)warnings.push(`${widthWarn.length} об’єктів відрізняються за товщиною від заданих значень профілю (основна ${state.gost.mainLine} мм / тонка ${state.gost.thinLine} мм).`);else passed.push('Товщини об’єктів узгоджені з поточною парою профілю.');
+
+    const dims=state.objects.filter(o=>o.type==='dimension');
+    state.assignmentDimensions=String($('assignmentDimensions')?.value||'').trim();
+    const assignmentLines=state.assignmentDimensions.split(/[\n;]+/).map(v=>v.trim()).filter(Boolean);
+    if(assignmentLines.length){
+      const actual=dims.map((o,index)=>{const k=o.kind||'linear',dx=Number(o.x2)-Number(o.x),dy=Number(o.y2)-Number(o.y);let value,type='length';if(k==='radius'){value=Math.hypot(dx,dy);type='radius';}else if(k==='diameter'){value=2*Math.hypot(dx,dy);type='diameter';}else if(k==='angular'){const a=Math.atan2(Number(o.y2)-Number(o.y),Number(o.x2)-Number(o.x)),b=Math.atan2(Number(o.y3)-Number(o.y),Number(o.x3)-Number(o.x));let delta=Math.abs((b-a)*180/Math.PI)%360;value=Math.min(delta,360-delta);type='angle';}else if(k==='horizontal')value=Math.abs(dx);else if(k==='vertical')value=Math.abs(dy);else value=Math.hypot(dx,dy);return{index,o,value,type,used:false};}).filter(v=>Number.isFinite(v.value));
+      let matched=0,missing=0,invalid=0;
+      assignmentLines.forEach(line=>{
+        const normalized=line.replace(/,/g,'.');
+        const prefix=(normalized.match(/^\s*(Ø|⌀|R|D|∠)/i)||[])[1]||'';
+        const suffixAngle=/°\s*$/.test(normalized);
+        const num=normalized.match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/);
+        if(!num){invalid++;warnings.push(`Не вдалося прочитати очікуваний розмір «${line}». Введіть число або префікс Ø, R чи кут у градусах.`);return;}
+        const expected=Number(num[0]),type=/^(Ø|⌀|D)$/i.test(prefix)?'diameter':/^R$/i.test(prefix)?'radius':(/^∠$/i.test(prefix)||suffixAngle)?'angle':'length';
+        const candidates=actual.filter(a=>!a.used&&(!type||a.type===type));
+        const tolerance=type==='angle'||suffixAngle?0.1:Math.max(.05,Math.abs(expected)*.0005);
+        let best=null,bestDiff=Infinity;candidates.forEach(a=>{const diff=Math.abs(a.value-expected);if(diff<bestDiff){best=a;bestDiff=diff;}});
+        if(best&&bestDiff<=tolerance){best.used=true;matched++;passed.push(`Размер из задания «${line}» найден: фактическое значение ${best.value.toFixed(type==='angle'?1:2)}${type==='angle'?'°':' мм'} (допуск сравнения ±${tolerance.toFixed(2)}).`);}
+        else{missing++;const available=candidates.length?candidates.map(a=>`${a.value.toFixed(2)}${a.type==='angle'?'°':' мм'}`).join(', '):'подходящих размерных объектов нет';warnings.push(`Размер из задания «${line}» не совпал с геометрией. Ближайшее значение: ${best?best.value.toFixed(2):'—'}; доступно: ${available}. Проверьте размер или геометрию.`);}
+      });
+      if(matched===assignmentLines.length)passed.push(`Проверка задания: совпали все ${matched} ожидаемых размеров.`);
+      else warnings.push(`Проверка задания: совпало ${matched} из ${assignmentLines.length} ожидаемых размеров; не совпало/не найдено ${missing}.`);
+      if(invalid)warnings.push(`В списке задания есть ${invalid} некорректных строк.`);
+    }else info.push('Размеры задания не заданы. Для сравнения с листом преподавателя внесите Ø, R, угловые и линейные значения в поле «Проверка размеров по заданию».');
+    const dimensionKinds=new Set(['linear','horizontal','vertical','radius','diameter','angular']);
+    const malformed=dims.filter(o=>!dimensionKinds.has(o.kind||'linear')||!Number.isFinite(Number(o.x))||!Number.isFinite(Number(o.y))||!Number.isFinite(Number(o.x2))||!Number.isFinite(Number(o.y2)));
+    if(malformed.length)errors.push(`${malformed.length} розмірів мають неповні координати або невідомий тип.`);
+    const zeroDims=dims.filter(o=>{const k=o.kind||'linear';if(k==='angular')return Math.abs(Number(o.x2)-Number(o.x))+Math.abs(Number(o.y2)-Number(o.y))<.01||Math.abs(Number(o.x3)-Number(o.x))+Math.abs(Number(o.y3)-Number(o.y))<.01;return Math.hypot(Number(o.x2)-Number(o.x),Number(o.y2)-Number(o.y))<.01;});
+    if(zeroDims.length)errors.push(`${zeroDims.length} розмірів мають нульову/вироджену геометрію.`);
+    // Separate exact X/Y page-boundary checks; dimensions with extension graphics near the edge need a margin.
+    const dimOut=dims.filter(o=>{const ps=[{x:o.x,y:o.y},{x:o.x2,y:o.y2}];if(o.kind==='angular')ps.push({x:o.x3,y:o.y3});return ps.some(p=>p.x<0||p.y<0||p.x>d.w||p.y>d.h);});
+    if(dimOut.length)warnings.push(`${dimOut.length} розмірів мають точки поза аркушем.`);
+    if(dims.length){
+      if(!visible.dimensions){warnings.push('Шар розмірів приховано; перевірка фактичного вигляду стрілок пропущена.');}
+      else {
+        const missingArrows=[];
+        const arrowTargets=o=>{
+          const k=o.kind||'linear',x=Number(o.x),y=Number(o.y),x2=Number(o.x2),y2=Number(o.y2),dx=x2-x,dy=y2-y,len=Math.hypot(dx,dy)||1;
+          if(k==='radius')return[{tip:{x:x2,y:y2},dir:{x:dx/len,y:dy/len}}];
+          if(k==='diameter'){const ux=dx/len,uy=dy/len;return[{tip:{x:x-ux*len,y:y-uy*len},dir:{x:-ux,y:-uy}},{tip:{x:x+ux*len,y:y+uy*len},dir:{x:ux,y:uy}}];}
+          if(k==='angular'){const a=Math.atan2(y2-y,x2-x),b=Math.atan2(Number(o.y3)-y,Number(o.x3)-x);let delta=(b-a+Math.PI*2)%(Math.PI*2),start=a,end=b;if(delta>Math.PI){delta=Math.PI*2-delta;start=b;end=a;}const r=clamp(Number(o.radius)||12,2,1000);return[{tip:{x:x+Math.cos(start)*r,y:y+Math.sin(start)*r},dir:{x:-Math.sin(start),y:Math.cos(start)}},{tip:{x:x+Math.cos(end)*r,y:y+Math.sin(end)*r},dir:{x:Math.sin(end),y:-Math.cos(end)}}];}
+          const raw=Number.isFinite(Number(o.offset))?Number(o.offset):10,off=(Math.sign(raw)||1)*Math.max(10,Math.abs(raw));let a,b,ux,uy;
+          if(k==='horizontal'){const side=off>=0?1:-1,base=side>0?Math.max(y,y2):Math.min(y,y2),dyDim=base+side*Math.abs(off);a={x,y:dyDim};b={x:x2,y:dyDim};ux=Math.sign(b.x-a.x)||1;uy=0;}
+          else if(k==='vertical'){const side=off>=0?1:-1,base=side>0?Math.max(x,x2):Math.min(x,x2),dxDim=base+side*Math.abs(off);a={x:dxDim,y};b={x:dxDim,y:y2};ux=0;uy=Math.sign(b.y-a.y)||1;}
+          else {ux=dx/len;uy=dy/len;const nx=-uy,ny=ux;a={x:x+nx*off,y:y+ny*off};b={x:x2+nx*off,y:y2+ny*off};}
+          return[{tip:a,dir:{x:ux,y:uy}},{tip:b,dir:{x:-ux,y:-uy}}];
+        };
+        const triangleInfo=path=>{const d=path.getAttribute('d')||'',nums=(d.match(/[-+]?(?:\d*\.)?\d+(?:[eE][-+]?\d+)?/g)||[]).map(Number);if(!/[zZ]\s*$/.test(d)||nums.length<6)return null;const [tx,ty,b1x,b1y,b2x,b2y]=nums,p1={x:tx,y:ty},p2={x:b1x,y:b1y},p3={x:b2x,y:b2y},base={x:(b1x+b2x)/2,y:(b1y+b2y)/2},vx=tx-base.x,vy=ty-base.y,length=Math.hypot(vx,vy),width=Math.hypot(b2x-b1x,b2y-b1y),area=Math.abs((b1x-tx)*(b2y-ty)-(b2x-tx)*(b1y-ty))/2;return{tip:p1,dir:{x:vx/(length||1),y:vy/(length||1)},length,width,area};};
+        dims.forEach(o=>{
+          const group=annotationLayer.querySelector(`[data-id="${o.id}"]`),paths=group?[...group.querySelectorAll('[data-dimension-arrow]')]:[],targets=arrowTargets(o),expectedCount=(o.kind==='radius')?1:2;
+          if(paths.length!==expectedCount||targets.length!==expectedCount){missingArrows.push(o);return;}
+          const infos=paths.map(triangleInfo);if(infos.some(v=>!v||v.length<.5||v.width<.2||v.area<.08)){missingArrows.push(o);return;}
+          infos.forEach((a,i)=>{const target=targets[i],tipError=Math.hypot(a.tip.x-target.tip.x,a.tip.y-target.tip.y),dot=a.dir.x*target.dir.x+a.dir.y*target.dir.y,expectedLen=clamp(Number(state.gost.arrowLength)||2.5,2,10);if(tipError>.15||dot<.92||a.length>expectedLen+.2)missingArrows.push(o);});
+        });
+        if(missingArrows.length)errors.push(`${new Set(missingArrows).size} розмірів мають відсутні, перекошені або неправильно спрямовані наконечники стрілок.`);else passed.push(`Стрілки ${dims.length} розмірних позначень мають правильну трикутну форму, напрямок і точки прив’язки.`);
+      }
+      if(!Number.isFinite(Number(state.gost.arrowLength))||Number(state.gost.arrowLength)<2||Number(state.gost.arrowLength)>10)warnings.push('Довжина розмірних стрілок виходить за робочий діапазон 2–10 мм; перевірте налаштування.');else passed.push(`Довжина наконечників задана: ${state.gost.arrowLength} мм; у коротких розмірів стрілки автоматично виносяться назовні.`);
+      const badDimText=dims.filter(o=>!GOST_TEXT_HEIGHTS.includes(Number(o.textSize||state.gost.textHeight)));if(badDimText.length)warnings.push(`${badDimText.length} розмірних написів мають висоту поза типовим рядом креслярських шрифтів.`);else passed.push('Висота тексту розмірів входить до типового ряду креслярських висот.');
+      const minOffset=dims.filter(o=>['linear','horizontal','vertical'].includes(o.kind||'linear')&&Math.abs(Number(o.offset)||10)<10);if(minOffset.length)warnings.push(`${minOffset.length} лінійних розмірів задані зі зміщенням менше 10 мм; відображення редактора збільшує його до 10 мм. Перевірте реальний інтервал.`);
+      const descriptors=[];dims.forEach(o=>{const k=o.kind||'linear';if(!['linear','horizontal','vertical'].includes(k))return;const x1=Number(o.x),y1=Number(o.y),x2=Number(o.x2),y2=Number(o.y2);let a,b;if(k==='horizontal'){const side=(Number(o.offset)||10)>=0?1:-1,y=(side>0?Math.max(y1,y2):Math.min(y1,y2))+side*Math.max(10,Math.abs(Number(o.offset)||10));a={x:x1,y};b={x:x2,y};}else if(k==='vertical'){const side=(Number(o.offset)||10)>=0?1:-1,x=(side>0?Math.max(x1,x2):Math.min(x1,x2))+side*Math.max(10,Math.abs(Number(o.offset)||10));a={x,y:y1};b={x,y:y2};}else{const len=Math.hypot(x2-x1,y2-y1)||1,nx=-(y2-y1)/len,ny=(x2-x1)/len,off=(Math.sign(Number(o.offset)||10)||1)*Math.max(10,Math.abs(Number(o.offset)||10));a={x:x1+nx*off,y:y1+ny*off};b={x:x2+nx*off,y:y2+ny*off};}const vx=b.x-a.x,vy=b.y-a.y,len=Math.hypot(vx,vy)||1;descriptors.push({a,b,ux:vx/len,uy:vy/len,len});});
+      let crowded=0;for(let i=0;i<descriptors.length;i++)for(let j=i+1;j<descriptors.length;j++){const a=descriptors[i],b=descriptors[j],cross=Math.abs(a.ux*b.uy-a.uy*b.ux);if(cross>.035)continue;const gap=Math.abs((b.a.x-a.a.x)*(-a.uy)+(b.a.y-a.a.y)*a.ux);const p1=(b.a.x-a.a.x)*a.ux+(b.a.y-a.a.y)*a.uy,p2=(b.b.x-a.a.x)*a.ux+(b.b.y-a.a.y)*a.uy,overlap=Math.min(a.len,Math.max(p1,p2))-Math.max(0,Math.min(p1,p2));if(gap<7&&overlap>1)crowded++;}
+      if(crowded)warnings.push(`${crowded} пар паралельних розмірних ліній розташовані ближче 7 мм одна до одної або перекриваються. Перевірте рознесення.`);
+      else passed.push('Перевірка проміжків між паралельними розмірами: явних інтервалів менше 7 мм не знайдено.');
+      passed.push('Виносні лінії формуються з виходом за наконечник; короткі розміри мають автоматичне зовнішнє розміщення стрілок.');
+    } else info.push('Розмірних позначень немає — перевірка розмірних стрілок пропущена.');
+
+    const hatch=state.objects.filter(o=>o.type==='hatch');
+    const invalidHatch=hatch.filter(o=>!['single','cross','solid'].includes(o.pattern||'single')||!Number.isFinite(Number(o.spacing||3))||Number(o.spacing||3)<.5);
+    if(invalidHatch.length)warnings.push(`${invalidHatch.length} штриховок мають невідомий шаблон або занадто малий крок.`);else if(hatch.length)passed.push(`Штриховки (${hatch.length}) мають підтримувані шаблони й допустимий крок.`);
+    const unboundedHatch=hatch.filter(o=>!o.boundaryOf&&!o.closed);if(unboundedHatch.length)warnings.push(`${unboundedHatch.length} штриховок не прив’язані до закритого контуру; перевірте, чи вони не виходять за межі.`);
+    const offPage=[];state.objects.filter(o=>o.type!=='reference'&&!o.hidden).forEach(o=>{const b=objectBounds(o);if(b&&(b.x<-.2||b.y<-.2||b.x+b.w>d.w+.2||b.y+b.h>d.h+.2))offPage.push(o);});if(offPage.length)warnings.push(`${offPage.length} видимих об’єктів частково виходять за межі листа.`);else passed.push('Видимі об’єкти не виходять за фізичні межі аркуша.');
+    const refs=state.objects.filter(o=>o.type==='reference'&&!o.exportable);if(refs.length)info.push(`${refs.length} допоміжних референсів виключено з друку та обміну.`);
+    if(state.gost.profile==='dstu-gost-ua')info.push('Профіль ДСТУ/ISO має навчальний характер. Автоматична перевірка не замінює нормоконтроль і не підтверджує юридичну відповідність конкретному стандарту.');
+
     const list=$('gostCheckResults');list.innerHTML='';
-    [...issues.map(x=>({bad:true,text:x})),...ok.map(x=>({bad:false,text:x}))].forEach(item=>{const row=document.createElement('div');row.className='gost-result '+(item.bad?'bad':'good');row.textContent=(item.bad?'⚠ ':'✓ ')+item.text;list.appendChild(row);});
-    $('gostSummary').textContent=issues.length?`Найдено замечаний: ${issues.length}. Это предварительная проверка, не официальная сертификация.`:'Базовые автоматические проверки пройдены. Это не заменяет нормоконтроль.';
+    const groups=[...errors.map(text=>({level:'bad',text})),...warnings.map(text=>({level:'warn',text})),...passed.map(text=>({level:'good',text})),...info.map(text=>({level:'info',text}))];
+    groups.forEach(item=>{const row=document.createElement('div');row.className='gost-result '+item.level;const mark={bad:'✕',warn:'⚠',good:'✓',info:'ⓘ'}[item.level];row.textContent=mark+' '+item.text;list.appendChild(row);});
+    const total=errors.length+warnings.length;
+    $('gostSummary').textContent=errors.length?`Знайдено помилок: ${errors.length}; попереджень: ${warnings.length}. Виправте помилки та перегляньте попередження. Це попередній автоматичний контроль, не сертифікація.`:warnings.length?`Критичних помилок не знайдено; попереджень: ${warnings.length}. Перевірте їх за завданням і вимогами викладача.`:'Критичних помилок і попереджень за доступними автоматичними правилами не знайдено. Це не замінює нормоконтроль.';
     $('gostModal').classList.remove('hidden');
   }
   function importReference(file,placement=null){
@@ -480,7 +659,7 @@
     if(state.tool==='text'||state.tool==='roughness'||state.tool==='tolerance'||state.tool==='weld'||state.tool==='centerMark'||state.tool==='table'){
       if(state.tool==='text'){openTextDialog({x:p.x,y:p.y},null);}
       if(state.tool==='roughness'){const value=prompt('Обозначение шероховатости:','Ra 3,2');if(value!==null)addObject({type:'roughness',x:p.x,y:p.y,label:value,size:5,layer:'annotation'});}
-      if(state.tool==='tolerance'){const value=prompt('Значение допуска (например ⌀0.05 | A):','⌀0.05 | A');if(value!==null)addObject({type:'tolerance',x:p.x,y:p.y,text:value,layer:'annotation'});}
+      if(state.tool==='tolerance'){const value=prompt('Значение допуска (например Ø0.05 | A):','Ø0.05 | A');if(value!==null)addObject({type:'tolerance',x:p.x,y:p.y,text:value,layer:'annotation'});}
       if(state.tool==='weld'){const value=prompt('Параметр сварного шва:','a4');if(value!==null)addObject({type:'weld',x:p.x,y:p.y,text:value,layer:'annotation'});}
       if(state.tool==='centerMark')addObject({type:'centerMark',x:p.x,y:p.y,size:5,layer:'annotation'});
       if(state.tool==='table'){const rows=clamp(Number(prompt('Количество строк:','3'))||3,1,20),cols=clamp(Number(prompt('Количество столбцов:','3'))||3,1,12);addObject({type:'table',x:p.x,y:p.y,rows,cols,w:60,h:Math.max(10,rows*7),cells:Array(rows*cols).fill(''),layer:'annotation'});}
@@ -521,7 +700,9 @@
     else if(state.tool==='hatch')addObject({type:'hatch',x:a.x,y:a.y,x2:p.x,y2:p.y,layer:'annotation',spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),angle:Number($('hatchAngle').value)||45,pattern:$('hatchPattern').value,width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a'});
     else if(['dimension','dimAuto','dimH','dimV','dimRad','dimDia'].includes(state.tool)){
       const kind=state.tool==='dimAuto'?(Math.abs(p.x-a.x)>=Math.abs(p.y-a.y)*2?'horizontal':Math.abs(p.y-a.y)>=Math.abs(p.x-a.x)*2?'vertical':'linear'):state.tool==='dimH'?'horizontal':state.tool==='dimV'?'vertical':state.tool==='dimRad'?'radius':state.tool==='dimDia'?'diameter':'linear';
-      addObject({type:'dimension',kind,x:a.x,y:a.y,x2:p.x,y2:p.y,offset:clamp(Number($('dimensionOffset').value)||5,-100,100),layer:'annotation'});
+      const requestedOffset=Number($('dimensionOffset').value),offsetSign=requestedOffset<0?-1:1,offset=offsetSign*Math.max(10,Math.abs(Number.isFinite(requestedOffset)?requestedOffset:10));
+      if(Math.abs(requestedOffset||0)<10)setMessage('Для стандартного оформления отступ от контуру установлен не менее 10 мм');
+      addObject({type:'dimension',kind,x:a.x,y:a.y,x2:p.x,y2:p.y,offset:clamp(offset,-200,200),layer:'annotation'});
     }
   }
   function finishPath(){if((state.tool==='polyline'||state.tool==='spline')&&state.points.length>=2){addObject({type:state.tool==='spline'?'spline':'polyline',points:deep(state.points),closed:false});state.points=[];previewLayer.innerHTML='';}else if(state.tool==='polyline'||state.tool==='spline'){state.points=[];previewLayer.innerHTML='';setMessage('Нужно минимум две точки');}}
@@ -712,7 +893,7 @@
       return Object.values(all);
     }
   }
-  function makeDocument(){return{app:'Kompas Online',version:8,format:state.format,fileName:state.fileName,title:deep(state.title),titleForm:state.titleForm||'user-template',objects:deep(state.objects),ruler:deep(state.ruler),rulerMode:state.rulerMode,rulerVisible:state.rulerVisible,gost:deep(state.gost),viewPan:deep(state.viewPan),template:state.template,visible:deep(visible)};}
+  function makeDocument(){return{app:'Kompas Online',version:11,format:state.format,fileName:state.fileName,title:deep(state.title),titleForm:state.titleForm||'user-template',objects:deep(state.objects),ruler:deep(state.ruler),rulerMode:state.rulerMode,rulerVisible:state.rulerVisible,gost:deep(state.gost),assignmentDimensions:state.assignmentDimensions||'',viewPan:deep(state.viewPan),template:state.template,visible:deep(visible)};}
   function fileStamp(ms){try{return new Intl.DateTimeFormat('ru-RU',{dateStyle:'short',timeStyle:'short'}).format(new Date(ms));}catch(e){return new Date(ms).toLocaleString();}}
   async function saveProject(options={}){
     let name=String(options.name||$('filenameField')?.value||state.fileName||'Кресленик_1').trim();
@@ -740,7 +921,7 @@
     if(!doc||!Array.isArray(doc.objects)||!window.KompasTemplate.dimensions(doc.format||'A4P'))throw new Error('Неверный формат проекта');
     if(state.dirty&&!confirm('Есть несохранённые изменения. Открыть другой файл и заменить текущий чертёж?'))return false;
     state.format=doc.format||'A4P';$('paperFormat').value=state.format;state.fileName=nameOverride||doc.fileName||'Імпортований_кресленик';state.projectId=projectId;state.title=Object.assign({},state.title,doc.title||{});state.titleForm=(!doc.titleForm||doc.titleForm==='form1')?'user-template':doc.titleForm;
-    state.ruler=doc.ruler||null;state.rulerMode=doc.rulerMode||'off';state.rulerVisible=doc.rulerVisible!==false;state.gost=Object.assign({},state.gost,doc.gost||{});if(state.gost.profile==='dstu-gost-ua'&&Number(state.gost.thinLine)===.18)state.gost.thinLine=.25;if(!state.gost.lettering)state.gost.lettering='B-V';state.viewPan=deep(doc.viewPan||{x:0,y:0});if(typeof doc.template==='boolean')state.template=doc.template;if(doc.visible)Object.assign(visible,doc.visible);else{state.template=true;visible.template=true;}
+    state.ruler=doc.ruler||null;state.rulerMode=doc.rulerMode||'off';state.rulerVisible=doc.rulerVisible!==false;state.assignmentDimensions=String(doc.assignmentDimensions||'');$('assignmentDimensions').value=state.assignmentDimensions;mergeSavedGost(doc.gost||{});if(state.gost.profile==='dstu-gost-ua'&&Number(state.gost.thinLine)===.18)state.gost.thinLine=.25;if(!state.gost.lettering)state.gost.lettering='B-V';state.viewPan=deep(doc.viewPan||{x:0,y:0});if(typeof doc.template==='boolean')state.template=doc.template;if(doc.visible)Object.assign(visible,doc.visible);else{state.template=true;visible.template=true;}
     $('templateToggle').checked=state.template;$('templateVisible').checked=visible.template;$('geometryVisible').checked=visible.geometry;$('dimensionsVisible').checked=visible.dimensions;$('constructionVisible').checked=visible.construction;$('referenceVisibleToggle').checked=visible.reference;$('referenceVisibleToggleSecondary').checked=visible.reference;
     state.objects=doc.objects.filter(o=>o&&supportedTypes.has(o.type));state.selectedIds=[];state.history=[];state.redo=[];updateHistoryButtons();
     applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;syncTitleInputs();renderTemplate();renderAll();state.dirty=false;$('saveState').textContent=projectId?'Файл відкрито':'Импортированный файл';setMessage('Кресленик відкрито');return true;
@@ -794,10 +975,48 @@
   function exportCsv(){const rows=[csvFields.join(',')];state.objects.filter(o=>o.type!=='reference').forEach(o=>{const r={...o};if(o.type==='circle')r.r=Math.hypot(o.x2-o.x,o.y2-o.y);if(o.points)r.points=o.points.map(p=>`${p.x}:${p.y}`).join('|');rows.push(csvFields.map(k=>csvCell(r[k])).join(','));});downloadBlob(new Blob(['\ufeff'+rows.join('\r\n')],{type:'text/csv;charset=utf-8'}),`${state.fileName||'drawing'}.csv`);setMessage('CSV экспортирован; референсы и сложные вложенные данные исключены.');}
   function parseCsv(text){const rows=[];let row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){const ch=text[i];if(quoted){if(ch==='"'&&text[i+1]==='"'){cell+='"';i++;}else if(ch==='"')quoted=false;else cell+=ch;}else if(ch==='"')quoted=true;else if(ch===','){row.push(cell);cell='';}else if(ch==='\n'){row.push(cell);rows.push(row);row=[];cell='';}else if(ch!=='\r')cell+=ch;}if(cell.length||row.length){row.push(cell);rows.push(row);}return rows;}
   function importCsv(file){const reader=new FileReader();reader.onload=()=>{try{const rows=parseCsv(String(reader.result).replace(/^\ufeff/,''));if(rows.length<2)throw new Error('CSV пустой');const headers=rows.shift().map(x=>x.trim()),items=[];rows.forEach(row=>{const r={};headers.forEach((h,i)=>r[h]=row[i]??'');if(!r.type)return;const n=k=>Number(r[k]||0),o={type:r.type,color:r.color||'#20252a',width:n('width')||.35,layer:r.layer||'geometry'};['x','y','x2','y2','r','start','end','size','rotation'].forEach(k=>{if(r[k]!==undefined&&r[k]!=='')o[k]=n(k);});['text','label','dash','kind','font','lettering','linePattern'].forEach(k=>{if(r[k])o[k]=r[k];});if(r.closed)o.closed=r.closed==='true'||r.closed==='1';if(r.points)o.points=r.points.split('|').map(pair=>{const [x,y]=pair.split(':').map(Number);return{x,y};}).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));if(!supportedTypes.has(o.type)||o.type==='reference')return;if(o.type==='circle'&&r.r){o.x2=o.x+n('r');o.y2=o.y;}items.push(o);});if(!items.length)throw new Error('В CSV нет поддерживаемой геометрии');commit();items.forEach(o=>{o.id=newId();state.objects.push(o);});state.selectedIds=[];renderAll();setMessage(`Импортировано объектов CSV: ${items.length}`);}catch(e){alert('Ошибка импорта CSV: '+e.message);}};reader.readAsText(file);}
-  function printDocument(){const d=dimensions(),previous=state.selectedIds.slice(),rulerWasVisible=state.rulerVisible;state.selectedIds=[];renderAll();let style=document.getElementById('dynamicPrintStyle');if(!style){style=document.createElement('style');style.id='dynamicPrintStyle';document.head.appendChild(style);}style.textContent=`@page{size:${d.w}mm ${d.h}mm;margin:0}@media print{.drawing-area svg{width:${d.w}mm!important;height:${d.h}mm!important;transform:none!important}g[data-reference-exportable="false"]{display:none!important}#rulerLayer,#previewLayer{display:none!important}}`;window.print();state.selectedIds=previous;state.rulerVisible=rulerWasVisible;renderAll();}
+  function openPrintDialog(){
+    const d=dimensions(),fmt=String(state.format||'A4P').replace(/[PL]$/,'');
+    $('printPageDimensions').textContent=`Аркуш ${fmt}: ${d.w} × ${d.h} мм (${(d.w/25.4).toFixed(2)} × ${(d.h/25.4).toFixed(2)} дюйма).`;
+    $('printModal').classList.remove('hidden');
+  }
+  function printSvgStage(svgNode,w,h){
+    const old=document.getElementById('printStage');if(old)old.remove();
+    const stage=document.createElement('div');stage.id='printStage';stage.style.width=`${w}mm`;stage.style.height=`${h}mm`;stage.style.background='#fff';stage.style.margin='0';
+    svgNode.setAttribute('width',`${w}mm`);svgNode.setAttribute('height',`${h}mm`);svgNode.setAttribute('viewBox',`0 0 ${w} ${h}`);svgNode.setAttribute('preserveAspectRatio','none');svgNode.style.width=`${w}mm`;svgNode.style.height=`${h}mm`;svgNode.style.maxWidth='none';svgNode.style.maxHeight='none';svgNode.style.display='block';svgNode.style.margin='0';svgNode.style.transform='none';svgNode.style.boxShadow='none';stage.appendChild(svgNode);
+    document.body.appendChild(stage);document.body.classList.add('kompas-printing');
+    let style=document.getElementById('dynamicPrintStyle');if(!style){style=document.createElement('style');style.id='dynamicPrintStyle';document.head.appendChild(style);}
+    style.textContent=`@page{size:${w}mm ${h}mm;margin:0}@media print{html,body{width:${w}mm!important;height:${h}mm!important;margin:0!important;padding:0!important;background:#fff!important;overflow:hidden!important}body.kompas-printing>*:not(#printStage){display:none!important}body.kompas-printing>#printStage{display:block!important;position:static!important;width:${w}mm!important;height:${h}mm!important;margin:0!important;padding:0!important;overflow:hidden!important}#printStage svg{display:block!important;width:${w}mm!important;height:${h}mm!important;max-width:none!important;max-height:none!important;margin:0!important;transform:none!important;box-shadow:none!important}}`;
+    let cleaned=false;const cleanup=()=>{if(cleaned)return;cleaned=true;document.body.classList.remove('kompas-printing');stage.remove();style.textContent='';window.removeEventListener('afterprint',cleanup);};window.addEventListener('afterprint',cleanup,{once:true});
+    try{window.print();}finally{setTimeout(()=>{if(document.body.classList.contains('kompas-printing'))cleanup();},120000);}
+  }
+  function buildPrintableSvg(includeReferences=true){
+    const parser=new DOMParser(),doc=parser.parseFromString(exportSvgSource(),'image/svg+xml');if(doc.querySelector('parsererror'))throw new Error('Не вдалося підготувати SVG для друку.');const root=doc.documentElement;
+    root.querySelector('#previewLayer')?.remove();root.querySelector('#rulerLayer')?.remove();root.querySelector('#selectionLayer')?.remove();root.querySelector('#gridRect')?.setAttribute('visibility','hidden');root.querySelectorAll('[data-hit-area],[data-selection-outline]').forEach(n=>n.remove());
+    if(!includeReferences)root.querySelectorAll('[data-reference-exportable]').forEach(n=>n.remove());
+    root.querySelectorAll('[data-reference-exportable="false"]').forEach(n=>n.remove());
+    if(!state.template||!visible.template)root.querySelector('#templateLayer')?.setAttribute('data-print-hidden','true');
+    root.setAttribute('xmlns',NS);return root;
+  }
+  function doPrintDocument(){
+    try{const d=dimensions(),include=$('printIncludeReferences').checked,root=buildPrintableSvg(include);$('printModal').classList.add('hidden');printSvgStage(root,d.w,d.h);setMessage(`Підготовлено аркуш ${d.w}×${d.h} мм для друку/PDF. У діалозі друку встановіть масштаб 100%.`);}
+    catch(e){alert('Не вдалося підготувати друк: '+e.message);}
+  }
+  function printCalibrationSheet(){
+    const ns=NS,root=document.createElementNS(ns,'svg');root.setAttribute('xmlns',ns);root.setAttribute('viewBox','0 0 210 297');root.setAttribute('width','210mm');root.setAttribute('height','297mm');root.setAttribute('preserveAspectRatio','none');
+    const el=(tag,attrs,text)=>{const n=document.createElementNS(ns,tag);Object.entries(attrs||{}).forEach(([k,v])=>n.setAttribute(k,String(v)));if(text!==undefined)n.textContent=text;root.appendChild(n);return n;};
+    el('rect',{x:0,y:0,width:210,height:297,fill:'#fff'});el('rect',{x:5,y:5,width:200,height:287,fill:'none',stroke:'#777','stroke-width':.15});
+    const addScale=(x1,y1,x2,y2,label)=>{const vertical=Math.abs(x2-x1)<.01;el('line',{x1,y1,x2,y2,stroke:'#000','stroke-width':.35});if(vertical){el('line',{x1:x1-3,y1,x2:x1+3,y2:y1,stroke:'#000','stroke-width':.3});el('line',{x1:x2-3,y1:y2,x2:x2+3,y2:y2,stroke:'#000','stroke-width':.3});}else{el('line',{x1,y1:y1-3,x2:x1,y2:y1+3,stroke:'#000','stroke-width':.3});el('line',{x1:x2,y1:y2-3,x2:x2,y2:y2+3,stroke:'#000','stroke-width':.3});}el('text',{x:(x1+x2)/2+(vertical?6:0),y:(y1+y2)/2-4,'font-size':4,'font-family':'Arial,sans-serif','text-anchor':vertical?'start':'middle',fill:'#000'},label);};
+    el('text',{x:105,y:34,'font-size':6,'font-family':'Arial,sans-serif','text-anchor':'middle',fill:'#000'},'ПЕРЕВІРКА МАСШТАБУ ДРУКУ');el('text',{x:105,y:43,'font-size':3.5,'font-family':'Arial,sans-serif','text-anchor':'middle',fill:'#000'},'Друкуйте у режимі 100% / Actual size — без Fit to page');
+    addScale(55,100,155,100,'100 мм');addScale(80,150,80,250,'100 мм');addScale(55,70,105,70,'50 мм');
+    el('text',{x:105,y:270,'font-size':3.2,'font-family':'Arial,sans-serif','text-anchor':'middle',fill:'#000'},'Після друку виміряйте контрольні відрізки лінійкою.');el('text',{x:105,y:277,'font-size':3.2,'font-family':'Arial,sans-serif','text-anchor':'middle',fill:'#000'},'Якщо 100 мм не дорівнює 100 мм — перевірте масштаб у вікні друку.');
+    $('printModal').classList.add('hidden');printSvgStage(root,210,297);setMessage('Підготовлено контрольний аркуш A4 з відрізками 100 мм та 50 мм.');
+  }
+  function printDocument(){openPrintDialog();}
+
   function dxfPair(code,value){return`${code}\n${value}\n`;}
   function exportDxf(){
-    let s='0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n4\n9\n$MEASUREMENT\n70\n1\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLTYPE\n70\n5\n0\nLTYPE\n2\nCONTINUOUS\n70\n0\n3\nSolid line\n72\n65\n73\n0\n40\n0\n0\nLTYPE\n2\nDASHED\n70\n0\n3\nDashed __ __ __\n72\n65\n73\n2\n40\n9\n49\n6\n49\n-3\n0\nLTYPE\n2\nCENTER\n70\n0\n3\nCenter __ . __ . __\n72\n65\n73\n4\n40\n19\n49\n12\n49\n-3\n49\n1\n49\n-3\n0\nLTYPE\n2\nPHANTOM\n70\n0\n3\nPhantom __ . . __\n72\n65\n73\n6\n40\n23\n49\n12\n49\n-3\n49\n1\n49\n-3\n49\n1\n49\n-3\n0\nLTYPE\n2\nDOT\n70\n0\n3\nDotted line . . .\n72\n65\n73\n2\n40\n3\n49\n1\n49\n-2\n0\nENDTAB\n0\nTABLE\n2\nLAYER\n70\n3\n0\nLAYER\n2\ngeometry\n70\n0\n62\n7\n6\nCONTINUOUS\n0\nLAYER\n2\nannotation\n70\n0\n62\n7\n6\nCONTINUOUS\n0\nLAYER\n2\nconstruction\n70\n0\n62\n8\n6\nCONTINUOUS\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
+    let s='0\nSECTION\n2\nHEADER\n9\n$ACADVER\n1\nAC1021\n9\n$DWGCODEPAGE\n3\nUTF-8\n9\n$INSUNITS\n70\n4\n9\n$MEASUREMENT\n70\n1\n0\nENDSEC\n0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLTYPE\n70\n5\n0\nLTYPE\n2\nCONTINUOUS\n70\n0\n3\nSolid line\n72\n65\n73\n0\n40\n0\n0\nLTYPE\n2\nDASHED\n70\n0\n3\nDashed __ __ __\n72\n65\n73\n2\n40\n9\n49\n6\n49\n-3\n0\nLTYPE\n2\nCENTER\n70\n0\n3\nCenter __ . __ . __\n72\n65\n73\n4\n40\n19\n49\n12\n49\n-3\n49\n1\n49\n-3\n0\nLTYPE\n2\nPHANTOM\n70\n0\n3\nPhantom __ . . __\n72\n65\n73\n6\n40\n23\n49\n12\n49\n-3\n49\n1\n49\n-3\n49\n1\n49\n-3\n0\nLTYPE\n2\nDOT\n70\n0\n3\nDotted line . . .\n72\n65\n73\n2\n40\n3\n49\n1\n49\n-2\n0\nENDTAB\n0\nTABLE\n2\nLAYER\n70\n3\n0\nLAYER\n2\ngeometry\n70\n0\n62\n7\n6\nCONTINUOUS\n0\nLAYER\n2\nannotation\n70\n0\n62\n7\n6\nCONTINUOUS\n0\nLAYER\n2\nconstruction\n70\n0\n62\n8\n6\nCONTINUOUS\n0\nENDTAB\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n';
     const y=v=>-v;
     const dxfLtype=o=>!o||!o.dash||o.dash==='none'?'CONTINUOUS':String(o.dash).includes('1 2')?'DOT':String(o.dash).includes('1 3 1 3')?'PHANTOM':String(o.dash).includes('12 3 1 3')||String(o.dash).includes('24 3 1 3')?'CENTER':'DASHED';
     const dxfStyle=o=>{if(!o)return'';const hex=String(o.color||'').match(/^#([0-9a-f]{6})$/i);return dxfPair(6,dxfLtype(o))+dxfPair(370,Math.round((Number(o.width)||.35)*100))+(hex?dxfPair(420,parseInt(hex[1],16)):'');};
@@ -947,9 +1166,9 @@
   function createNewDocument(){
     if((state.objects.length||state.dirty)&&!confirm('Создать новый чертёж? Несохранённые изменения будут потеряны.'))return;
     const fmt=$('newDocFormat').value||'A4P',template=$('newDocTemplate').value||'user-template',name=$('newDocName').value.trim()||'Кресленик_1',profile=$('newDocProfile').value;
-    state.objects=[];state.selectedIds=[];state.ruler=null;state.rulerMode='off';state.rulerVisible=true;state.viewPan={x:0,y:0};state.projectId=null;state.titleForm=template;$('rulerMode').value='off';$('rulerVisible').checked=true;state.format=fmt;state.fileName=name;$('paperFormat').value=fmt;$('titleFormSelect').value=template;$('templateQuickSelect').value=template;$('filenameField').value=name;
+    state.objects=[];state.selectedIds=[];state.assignmentDimensions='';$('assignmentDimensions').value='';state.ruler=null;state.rulerMode='off';state.rulerVisible=true;state.viewPan={x:0,y:0};state.projectId=null;state.titleForm=template;$('rulerMode').value='off';$('rulerVisible').checked=true;state.format=fmt;state.fileName=name;$('paperFormat').value=fmt;$('titleFormSelect').value=template;$('templateQuickSelect').value=template;$('filenameField').value=name;
     state.title={title:template==='lab5-template'?'Лабораторна робота 5':'Найменування деталі',code:'КРЕСЛЕННЯ.001',material:'Матеріал не зазначено',scale:'1:1',sheet:'1',sheets:'1',company:'Навчальний кресленик',liter:'У',mass:'—',developer:template==='lab5-template'?'Щербенко М.':'',checker:'',technical:'',normative:'',approved:''};
-    state.gost={profile,mainLine:.5,thinLine:.25,textHeight:3.5,arrowLength:3.5,precision:1,lettering:'B-V',fontFamily:'GOST type B,Arial,sans-serif'};applyGostControls();
+    state.gost={profile,mainLine:.5,thinLine:.25,textHeight:3.5,arrowLength:2.5,dimensionArrowVersion:1,precision:1,lettering:'B-V',fontFamily:'GOST type B,Arial,sans-serif'};applyGostControls();
     state.history=[];state.redo=[];updateHistoryButtons();state.grid=$('newDocGrid').checked;$('gridToggle').checked=state.grid;const gp=svg.querySelector('#gridPattern');if(gp){const step=gridStep();gp.setAttribute('width',step);gp.setAttribute('height',step);gp.querySelector('path').setAttribute('d',`M ${step} 0 L 0 0 0 ${step}`);}$('gridRect').setAttribute('visibility',state.grid?'visible':'hidden');
     syncTitleInputs();renderTemplate();renderAll();state.dirty=false;$('saveState').textContent='Новий кресленик';$('newDocModal').classList.add('hidden');resetViewPan();const d=dimensions(),aw=drawingArea.clientWidth-90,ah=drawingArea.clientHeight-90;setZoom(clamp(Math.min(aw/d.w,ah/d.h),.25,6));setMessage(`Створено ${name}: ${fmt} · ${template}`);
   }
@@ -965,7 +1184,7 @@
     setMessage(`Принята точка X ${mm(x)} · Y ${mm(y)} мм`);
   }
   function restoreAutosave(){
-    try{const raw=localStorage.getItem('kompasOnlineAutosave');if(!raw){setMessage('Автосохранение не найдено');return;}const doc=JSON.parse(raw);if(!doc||!Array.isArray(doc.objects))throw new Error('Повреждённый файл автосохранения');commit();state.format=doc.format||'A4P';state.fileName=doc.fileName||'Автовідновлення';state.projectId=doc.projectId||null;state.titleForm=(!doc.titleForm||doc.titleForm==='form1')?'user-template':doc.titleForm;state.title=Object.assign({},state.title,doc.title||{});state.ruler=doc.ruler||null;state.rulerMode=doc.rulerMode||'off';state.rulerVisible=doc.rulerVisible!==false;state.gost=Object.assign({},state.gost,doc.gost||{});if(state.gost.profile==='dstu-gost-ua'&&Number(state.gost.thinLine)===.18)state.gost.thinLine=.25;if(!state.gost.lettering)state.gost.lettering='B-V';state.viewPan=deep(doc.viewPan||{x:0,y:0});if(typeof doc.template==='boolean')state.template=doc.template;if(doc.visible)Object.assign(visible,doc.visible);$('templateToggle').checked=state.template;$('templateVisible').checked=visible.template;$('geometryVisible').checked=visible.geometry;$('dimensionsVisible').checked=visible.dimensions;$('constructionVisible').checked=visible.construction;$('referenceVisibleToggle').checked=visible.reference;$('referenceVisibleToggleSecondary').checked=visible.reference;applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.objects=doc.objects.filter(o=>o&&supportedTypes.has(o.type));state.selectedIds=[];$('paperFormat').value=state.format;syncTitleInputs();renderTemplate();renderAll();setMessage('Автосохранение восстановлено');}catch(e){alert('Не удалось восстановить автосохранение: '+e.message);}
+    try{const raw=localStorage.getItem('kompasOnlineAutosave');if(!raw){setMessage('Автосохранение не найдено');return;}const doc=JSON.parse(raw);if(!doc||!Array.isArray(doc.objects))throw new Error('Повреждённый файл автосохранения');commit();state.format=doc.format||'A4P';state.fileName=doc.fileName||'Автовідновлення';state.projectId=doc.projectId||null;state.titleForm=(!doc.titleForm||doc.titleForm==='form1')?'user-template':doc.titleForm;state.title=Object.assign({},state.title,doc.title||{});state.ruler=doc.ruler||null;state.rulerMode=doc.rulerMode||'off';state.rulerVisible=doc.rulerVisible!==false;state.assignmentDimensions=String(doc.assignmentDimensions||'');$('assignmentDimensions').value=state.assignmentDimensions;mergeSavedGost(doc.gost||{});if(state.gost.profile==='dstu-gost-ua'&&Number(state.gost.thinLine)===.18)state.gost.thinLine=.25;if(!state.gost.lettering)state.gost.lettering='B-V';state.viewPan=deep(doc.viewPan||{x:0,y:0});if(typeof doc.template==='boolean')state.template=doc.template;if(doc.visible)Object.assign(visible,doc.visible);$('templateToggle').checked=state.template;$('templateVisible').checked=visible.template;$('geometryVisible').checked=visible.geometry;$('dimensionsVisible').checked=visible.dimensions;$('constructionVisible').checked=visible.construction;$('referenceVisibleToggle').checked=visible.reference;$('referenceVisibleToggleSecondary').checked=visible.reference;applyGostControls();$('rulerMode').value=state.rulerMode;$('rulerVisible').checked=state.rulerVisible;state.objects=doc.objects.filter(o=>o&&supportedTypes.has(o.type));state.selectedIds=[];$('paperFormat').value=state.format;syncTitleInputs();renderTemplate();renderAll();setMessage('Автосохранение восстановлено');}catch(e){alert('Не удалось восстановить автосохранение: '+e.message);}
   }
   function copySelected(){const objs=getSelected();if(!objs.length){setMessage('Сначала выберите объекты для копирования');return;}state.clipboard=deep(objs);setMessage(`Скопировано объектов: ${objs.length}`);}
   function pasteClipboard(){if(!state.clipboard.length){setMessage('Буфер обмена пуст');return;}commit();const clones=state.clipboard.map(o=>({...deep(o),id:newId()}));clones.forEach(o=>translateObject(o,5,5));state.objects.push(...clones);state.selectedIds=clones.map(o=>o.id);renderAll();setMessage(`Вставлено объектов: ${clones.length}`);}
@@ -982,7 +1201,7 @@
   $('templateToggle').addEventListener('change',e=>{const before=snapshot();state.template=e.target.checked;commit(before);renderTemplate();});$('geometryVisible').addEventListener('change',e=>{const before=snapshot();visible.geometry=e.target.checked;commit(before);renderAll();});$('dimensionsVisible').addEventListener('change',e=>{const before=snapshot();visible.dimensions=e.target.checked;commit(before);renderAll();});$('constructionVisible').addEventListener('change',e=>{const before=snapshot();visible.construction=e.target.checked;commit(before);renderAll();});$('templateVisible').addEventListener('change',e=>{const before=snapshot();visible.template=e.target.checked;commit(before);renderTemplate();});
   $('paperFormat').addEventListener('change',e=>setFormat(e.target.value));$('fitBtn').addEventListener('click',()=>{resetViewPan();const d=dimensions(),w=drawingArea.clientWidth-70,h=drawingArea.clientHeight-70;setZoom(Math.min(w/d.w,h/d.h));});$('zoomIn').addEventListener('click',()=>setZoom(state.zoom*1.15));$('zoomOut').addEventListener('click',()=>setZoom(state.zoom/1.15));
   ['titleField','codeField','materialField','scaleField','sheetField','sheetsField','companyField','literField','massField','developerField','checkerField','technicalField','normativeField','approvedField','filenameField'].forEach(id=>$(id).addEventListener('input',()=>{state.dirty=true;$('saveState').textContent='Є незбережені зміни';}));
-  $('applyTitleBtn').addEventListener('click',applyTitle);$('svgBtn').addEventListener('click',exportSvg);$('dxfBtn').addEventListener('click',exportDxf);$('exportDxfBtn').addEventListener('click',exportDxf);$('importDxfBtn').addEventListener('click',()=>$('dxfInput').click());$('dxfInput').addEventListener('change',e=>{if(e.target.files[0])importDxf(e.target.files[0]);e.target.value='';});$('svgInput').addEventListener('change',e=>{if(e.target.files[0])importSvg(e.target.files[0]);e.target.value='';});$('csvInput').addEventListener('change',e=>{if(e.target.files[0])importCsv(e.target.files[0]);e.target.value='';});$('importSvgBtn').addEventListener('click',()=>$('svgInput').click());$('importCsvBtn').addEventListener('click',()=>$('csvInput').click());$('exportCsvBtn').addEventListener('click',exportCsv);$('importHpglBtn').addEventListener('click',()=>$('hpglInput').click());$('hpglInput').addEventListener('change',e=>{if(e.target.files[0])importHpgl(e.target.files[0]);e.target.value='';});$('exportHpglBtn').addEventListener('click',exportHpgl);$('pngBtn').addEventListener('click',exportPng);$('exportJpgBtn').addEventListener('click',exportJpg);$('exportWebpBtn').addEventListener('click',exportWebp);$('exportBmpBtn').addEventListener('click',exportBmp);$('printBtn').addEventListener('click',printDocument);$('addTextBtn').addEventListener('click',()=>selectTool('text'));
+  $('applyTitleBtn').addEventListener('click',applyTitle);$('svgBtn').addEventListener('click',exportSvg);$('dxfBtn').addEventListener('click',exportDxf);$('exportDxfBtn').addEventListener('click',exportDxf);$('importDxfBtn').addEventListener('click',()=>$('dxfInput').click());$('dxfInput').addEventListener('change',e=>{if(e.target.files[0])importDxf(e.target.files[0]);e.target.value='';});$('svgInput').addEventListener('change',e=>{if(e.target.files[0])importSvg(e.target.files[0]);e.target.value='';});$('csvInput').addEventListener('change',e=>{if(e.target.files[0])importCsv(e.target.files[0]);e.target.value='';});$('importSvgBtn').addEventListener('click',()=>$('svgInput').click());$('importCsvBtn').addEventListener('click',()=>$('csvInput').click());$('exportCsvBtn').addEventListener('click',exportCsv);$('importHpglBtn').addEventListener('click',()=>$('hpglInput').click());$('hpglInput').addEventListener('change',e=>{if(e.target.files[0])importHpgl(e.target.files[0]);e.target.value='';});$('exportHpglBtn').addEventListener('click',exportHpgl);$('pngBtn').addEventListener('click',exportPng);$('exportJpgBtn').addEventListener('click',exportJpg);$('exportWebpBtn').addEventListener('click',exportWebp);$('exportBmpBtn').addEventListener('click',exportBmp);$('printBtn').addEventListener('click',printDocument);$('printNowBtn').addEventListener('click',doPrintDocument);$('printCalibrationBtn').addEventListener('click',printCalibrationSheet);$('printPreflightBtn').addEventListener('click',()=>{$('printModal').classList.add('hidden');checkGost();});$('closePrintModal').addEventListener('click',()=>$('printModal').classList.add('hidden'));$('printModal').addEventListener('click',e=>{if(e.target===$('printModal'))$('printModal').classList.add('hidden');});$('kompasBridgeBtn').addEventListener('click',()=>$('kompasBridgeModal').classList.remove('hidden'));$('closeKompasBridgeBtn').addEventListener('click',()=>$('kompasBridgeModal').classList.add('hidden'));$('closeBridgeBottomBtn').addEventListener('click',()=>$('kompasBridgeModal').classList.add('hidden'));$('kompasBridgeModal').addEventListener('click',e=>{if(e.target===$('kompasBridgeModal'))$('kompasBridgeModal').classList.add('hidden');});$('bridgeExportDxfBtn').addEventListener('click',()=>{exportDxf();$('kompasBridgeModal').classList.add('hidden');});$('addTextBtn').addEventListener('click',()=>selectTool('text'));
   $('applyObjectGeometryBtn').addEventListener('click',applySelectedGeometry);
   $('objectColor').addEventListener('change',e=>{const o=getSelected()[0];if(o){commit();getSelected().forEach(x=>x.color=e.target.value);renderAll();}});
   $('objectTextSize').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>{o.size=clamp(Number(e.target.value)||3,.5,50);o.textSize=o.size;});renderAll();}});
@@ -1018,7 +1237,7 @@
   $('standardProfile').addEventListener('change',e=>{if(e.target.value==='eskd-study'||e.target.value==='dstu-gost-ua')applyGostProfile(true);else $('standardCustomFields').classList.remove('hidden');});
   $('applyGostBtn').addEventListener('click',()=>applyGostProfile(false));$('gostLettering').addEventListener('change',e=>{state.gost.lettering=e.target.value;state.gost.fontFamily=String(e.target.value).startsWith('A')?'GOST type A,Arial,sans-serif':'GOST type B,Arial,sans-serif';state.dirty=true;$('saveState').textContent='Є незбережені зміни';persistAutosave();});$('textLettering').addEventListener('change',e=>{if(!$('textFontCustom').value.trim())$('textFont').value=String(e.target.value).startsWith('A')?'GOST type A,Arial,sans-serif':'GOST type B,Arial,sans-serif';});$('gostLineGroup').addEventListener('change',e=>{const wide=Number(e.target.value);$('gostMainLine').value=wide;$('gostThinLine').value=mm(wide/2);});
   $('saveGostSettingsBtn').addEventListener('click',readGostSettings);
-  $('checkGostBtn').addEventListener('click',checkGost);$('normalizeGostBtn').addEventListener('click',normalizeSelectedToGost);
+  $('checkGostBtn').addEventListener('click',checkGost);$('saveAssignmentDimensionsBtn').addEventListener('click',()=>{const next=String($('assignmentDimensions').value||'').trim();if(next!==state.assignmentDimensions){commit();state.assignmentDimensions=next;state.dirty=true;persistAutosave();$('saveState').textContent='Есть несохранённые изменения';}checkGost();setMessage('Список размеров задания сохранён и проверен');});$('assignmentDimensions').addEventListener('change',()=>{const next=String($('assignmentDimensions').value||'').trim();if(next!==state.assignmentDimensions){commit();state.assignmentDimensions=next;state.dirty=true;persistAutosave();$('saveState').textContent='Есть несохранённые изменения';}});$('normalizeGostBtn').addEventListener('click',normalizeSelectedToGost);
   $('closeGostModal').addEventListener('click',()=>$('gostModal').classList.add('hidden'));
   $('closeGostModalBottom').addEventListener('click',()=>$('gostModal').classList.add('hidden'));
   $('gostModal').addEventListener('click',e=>{if(e.target===$('gostModal'))$('gostModal').classList.add('hidden');});
