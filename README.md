@@ -1,4 +1,4 @@
-# КОМПАС Онлайн 2.1 — браузерный редактор 2D-чертежей
+# КОМПАС Онлайн 2.2 — браузерный редактор 2D-чертежей
 
 Автономный учебный редактор технических чертежей. Это самостоятельный браузерный CAD-прототип, вдохновлённый распространёнными инструментами КОМПАС-3D; он не является официальным продуктом АСКОН и не заменяет сам КОМПАС-3D.
 
@@ -323,3 +323,15 @@ DXF является обменным форматом. После преобр�
 Формат листа; допустимый учебный масштаб; заполнение названия/обозначения; высоты текста и тип A/B; типовые пары толщин; диапазон ширин линий; штрихпунктир для осевых; наличие и геометрия наконечников размерных стрелок; допустимая длина стрелки; высота текста размера; отступы и сближение параллельных размеров; шаг и тип штриховки; объекты за границами листа; сравнение размеров с введённым списком задания. Не выполняется полноценный анализ всех допусков/посадок, технических требований, материалов, символов шероховатости и технологического смысла модели.
 
 Контрольний PDF-лист також включён в `tools/print-calibration/A4-100mm-check.pdf`. Он содержит горизонтальные и вертикальные контрольные отрезки 100 мм и отрезок 50 мм. Печатайте на A4 в режиме Actual size / 100% без Fit to page и измеряйте линейкой.
+
+
+## Version 2.2 — larger text
+- Drawing text default raised from 3.5 mm to 5 mm (standard height series).
+- Legacy saved profile defaults of 3.5 mm migrate to 5 mm once; explicit settings with the new version marker are preserved.
+- Added a command to increase all existing annotation labels to 5 mm.
+- Increased interface typography and form control sizes for readability.
+- Lab 5 template labels are raised to the nearest comfortable standard lettering height while keeping its empty drawing field.
+
+- Version 2.2 uses 5 mm as the default height for new drawing text and dimensions; existing objects can be enlarged in one click from the ESKD/GOST panel.
+- Interface labels, controls, tool names, and help text were enlarged for readability.
+- Template text smaller than 1.8 mm is raised to 1.8 mm; the Lab 5 main title uses a 5 mm height.

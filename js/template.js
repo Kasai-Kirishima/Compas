@@ -7,7 +7,7 @@
   function esc(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c])); }
   function line(x1,y1,x2,y2,width=.22,color=BLUE){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" fill="none" vector-effect="non-scaling-stroke"/>`;}
   function rect(x,y,w,h,width=.25,color=BLUE){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${color}" stroke-width="${width}" vector-effect="non-scaling-stroke"/>`;}
-  function txt(x,y,value,size=2.25,anchor='start',rotate=0,opts={}){const tr=rotate?` transform="rotate(${rotate} ${x} ${y})"`:'';return `<text x="${x}" y="${y}" font-family="Arial,sans-serif" font-size="${size}" fill="${opts.color||TEXT}" text-anchor="${anchor}"${tr}${opts.weight?' font-weight="'+opts.weight+'"':''}${opts.italic?' font-style="italic"':''}>${esc(value)}</text>`;}
+  function txt(x,y,value,size=2.25,anchor='start',rotate=0,opts={}){const h=Math.max(1.8,Number(size)||2.25);const tr=rotate?` transform="rotate(${rotate} ${x} ${y})"`:'';return `<text x="${x}" y="${y}" font-family="Arial,sans-serif" font-size="${h}" fill="${opts.color||TEXT}" text-anchor="${anchor}"${tr}${opts.weight?' font-weight="'+opts.weight+'"':''}${opts.italic?' font-style="italic"':''}>${esc(value)}</text>`;}
   function cell(x1,x2,y,value,size=1.55){return txt((x1+x2)/2,y,value,size,'middle');}
   function vlabel(x,y1,y2,value,size=1.65){return txt(x,(y1+y2)/2,value,size,'middle',-90);}
   function addAuxFields(s, yTop=5, yBottom=292) {
@@ -185,7 +185,8 @@
     const Y=py=>(py-272)*(297/810);
     const ln=(x1,y1,x2,y2,sw=.24)=>line(X(x1),Y(y1),X(x2),Y(y2),sw,'#000000');
     const rc=(x1,y1,x2,y2,sw=.3)=>rect(X(x1),Y(y1),X(x2)-X(x1),Y(y2)-Y(y1),sw,'#000000');
-    const tx=(x,y,value,size=1.7,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,size,anchor,rotate,{...opts,color:'#000000'});
+    const labTextHeight=size=>size<=1.7?1.8:size<=2.2?2.5:size<=3?3.5:size<=4.6?5:size;
+    const tx=(x,y,value,size=1.7,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,labTextHeight(size),anchor,rotate,{...opts,color:'#000000'});
     let s=`<g transform="translate(${ox} ${oy}) scale(${scale})">`;
     // Main drawing frame and left archival columns.
     s+=rc(15,284,553,1068,.42);
