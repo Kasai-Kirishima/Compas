@@ -79,18 +79,30 @@
     el.setAttribute('fill',o.fill||'none'); el.setAttribute('stroke-linecap','round'); el.setAttribute('stroke-linejoin','round');
     if(o.dash) el.setAttribute('stroke-dasharray',o.dash);
   }
-  // Filled dimension arrow. Coordinates are absolute: using two relative `l`
-  // commands here used to displace the second base corner and made a malformed
-  // arrowhead. `ux,uy` always points from the arrow base towards its tip.
-  function arrow(g,x,y,ux,uy,color,size=2.5){
+  // ГОСТ 2.307: closed, filled triangular arrowhead for dimension lines.
+  // The included angle is 18 degrees (within the 15–20 degree range).
+  function dimensionArrow(g,x,y,ux,uy,color,size=2.5){
     const v=Math.hypot(ux,uy);
     if(!Number.isFinite(v)||v<1e-8||!Number.isFinite(size)||size<=0)return null;
     ux/=v; uy/=v;
-    const nx=-uy,ny=ux,half=Math.max(.45,size*.24),baseX=x-ux*size,baseY=y-uy*size;
+    const nx=-uy,ny=ux,half=size*Math.tan(9*Math.PI/180),baseX=x-ux*size,baseY=y-uy*size;
     return add(g,'path',{
       d:`M ${x} ${y} L ${baseX+nx*half} ${baseY+ny*half} L ${baseX-nx*half} ${baseY-ny*half} Z`,
       fill:color,stroke:color,'stroke-width':.12,'stroke-linejoin':'miter','vector-effect':'none',
-      'data-dimension-arrow':'true'
+      'data-dimension-arrow':'true','data-arrow-standard':'gost-2.307'
+    });
+  }
+  // ГОСТ 2.305: open V-shaped view-direction arrow, distinct from a dimension arrow.
+  function viewDirectionArrow(g,x,y,ux,uy,color,size=5){
+    const v=Math.hypot(ux,uy);
+    if(!Number.isFinite(v)||v<1e-8||!Number.isFinite(size)||size<=0)return null;
+    ux/=v; uy/=v;
+    const nx=-uy,ny=ux,half=size*Math.tan(9*Math.PI/180),baseX=x-ux*size,baseY=y-uy*size;
+    return add(g,'path',{
+      d:`M ${baseX+nx*half} ${baseY+ny*half} L ${x} ${y} L ${baseX-nx*half} ${baseY-ny*half}`,
+      fill:'none',stroke:color,'stroke-width':Math.max(.35,state.gost.mainLine||.5),
+      'stroke-linecap':'round','stroke-linejoin':'round','vector-effect':'none',
+      'data-view-arrow':'true','data-arrow-standard':'gost-2.305'
     });
   }
   function dimensionLabel(g,x,y,text,size,color,rotation=0){
@@ -145,14 +157,14 @@
         // Diameter arrows terminate at the two opposite points of the circle.
         // Their tips point from the centre out towards the circular contour.
         const aSize=Math.min(arrowSize,Math.max(1.8,r*.48));
-        arrow(g,p1.x,p1.y,-ux,-uy,color,aSize);
-        arrow(g,p2.x,p2.y,ux,uy,color,aSize);
+        dimensionArrow(g,p1.x,p1.y,-ux,-uy,color,aSize);
+        dimensionArrow(g,p2.x,p2.y,ux,uy,color,aSize);
         const label=dimensionNumber(o,2*r);
         // ГОСТ 2.307-2011, 5.25: move the diameter number away from the line centre.
         dimensionLabel(g,(cx-nx*(textSize*.85+1)),(cy-ny*(textSize*.85+1)),`Ø${label}`,textSize,color);
       }else{
         // A radius dimension has one arrowhead at the measured arc.
-        arrow(g,p2.x,p2.y,ux,uy,color,arrowSize);
+        dimensionArrow(g,p2.x,p2.y,ux,uy,color,arrowSize);
         const label=dimensionNumber(o,r);
         const mx=(cx+p2.x)/2-nx*(textSize*.75+1),my=(cy+p2.y)/2-ny*(textSize*.75+1);
         dimensionLabel(g,mx,my,`R${label}`,textSize,color);
@@ -172,8 +184,8 @@
       add(g,'path',{d:`M ${p1.x} ${p1.y} A ${rad} ${rad} 0 ${delta>Math.PI?1:0} 1 ${p2.x} ${p2.y}`,fill:'none',stroke:color,'stroke-width':thin});
       const arcLen=rad*delta,aSize=Math.min(arrowSize,Math.max(1.4,arcLen*.32));
       // Tangents of the dimension arc: both tips face into the measured sector.
-      arrow(g,p1.x,p1.y,-Math.sin(start),Math.cos(start),color,aSize);
-      arrow(g,p2.x,p2.y,Math.sin(end),-Math.cos(end),color,aSize);
+      dimensionArrow(g,p1.x,p1.y,-Math.sin(start),Math.cos(start),color,aSize);
+      dimensionArrow(g,p2.x,p2.y,Math.sin(end),-Math.cos(end),color,aSize);
       const mid=start+delta/2,rr=rad+textSize*.8+1.5;
       const label=dimensionNumber(o,delta*180/Math.PI)+'°';
       dimensionLabel(g,vx+Math.cos(mid)*rr,vy+Math.sin(mid)*rr,label,textSize,color);
@@ -210,10 +222,10 @@
       // arrow tips stay at the measured points and point into the dimension.
       const start={x:ax-ux*(arrowSize+1),y:ay-uy*(arrowSize+1)},end={x:bx+ux*(arrowSize+1),y:by+uy*(arrowSize+1)};
       makeLine(start,end);
-      arrow(g,ax,ay,ux,uy,color,arrowSize);arrow(g,bx,by,-ux,-uy,color,arrowSize);
+      dimensionArrow(g,ax,ay,ux,uy,color,arrowSize);dimensionArrow(g,bx,by,-ux,-uy,color,arrowSize);
     }else{
       makeLine({x:ax,y:ay},{x:bx,y:by});
-      arrow(g,ax,ay,ux,uy,color,arrowSize);arrow(g,bx,by,-ux,-uy,color,arrowSize);
+      dimensionArrow(g,ax,ay,ux,uy,color,arrowSize);dimensionArrow(g,bx,by,-ux,-uy,color,arrowSize);
     }
     // Dimension value is above the line and has a white mask for legibility.
     const midX=(ax+bx)/2,midY=(ay+by)/2,labelOffset=textSize*.75+1;
@@ -267,12 +279,23 @@
       lines.forEach((line,i)=>{const sp=add(t,'tspan',{x:0,dy:i===0?0:lh});sp.textContent=line;});
     } else if(o.type==='dimension') renderDimension(g,o,selected);
     else if(o.type==='section'){
-      const dx=o.x2-o.x,dy=o.y2-o.y,len=Math.hypot(dx,dy)||1;
+      const dx=o.x2-o.x,dy=o.y2-o.y,len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len;
       add(g,'line',{x1:o.x,y1:o.y,x2:o.x2,y2:o.y2,stroke:c,'stroke-width':state.gost.mainLine});
-      const sectionArrowSize=clamp(Number(state.gost.arrowLength)||2.5,2,10);arrow(g,o.x,o.y,-dx/len,-dy/len,c,sectionArrowSize);arrow(g,o.x2,o.y2,dx/len,dy/len,c,sectionArrowSize);
-      addText(g,o.x-2,o.y-2,o.label||'А',o.textSize||state.gost.textHeight,c);addText(g,o.x2+2,o.y2-2,o.label||'А',o.textSize||state.gost.textHeight,c);
+      // Both view-direction arrows point to the same selected side of the cutting plane.
+      // Their tips are offset 2.5 mm from the end marks as required by GOST 2.305.
+      const sectionArrowSize=clamp(Math.max(4.5,Number(state.gost.arrowLength)||2.5),4.5,6),gap=2.5;
+      const side=o.viewSide===-1?-1:1,nx=-uy*side,ny=ux*side;
+      viewDirectionArrow(g,o.x+nx*gap,o.y+ny*gap,nx,ny,c,sectionArrowSize);
+      viewDirectionArrow(g,o.x2+nx*gap,o.y2+ny*gap,nx,ny,c,sectionArrowSize);
+      addText(g,o.x+nx*(gap+3)-2,o.y+ny*(gap+3)-2,o.label||'А',o.textSize||state.gost.textHeight,c);
+      addText(g,o.x2+nx*(gap+3)+2,o.y2+ny*(gap+3)-2,o.label||'А',o.textSize||state.gost.textHeight,c);
     } else if(o.type==='leader'){
-      const pts=o.points||[];if(pts.length>=2){const d=pts.map((p,i)=>(i?'L':'M')+` ${p.x} ${p.y}`).join(' ');add(g,'path',{d,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});const a=pts[0],b=pts[1],len=Math.hypot(b.x-a.x,b.y-a.y)||1;arrow(g,a.x,a.y,-(b.x-a.x)/len,-(b.y-a.y)/len,c,clamp(Number(state.gost.arrowLength)||2.5,2,10));const end=pts[pts.length-1];add(g,'line',{x1:end.x,y1:end.y,x2:end.x+12,y2:end.y,stroke:c,'stroke-width':state.gost.thinLine});addText(g,end.x+1,end.y-1,o.text||'Примечание',o.textSize||state.gost.textHeight,c,'start');}
+      const pts=o.points||[];if(pts.length>=2){const d=pts.map((p,i)=>(i?'L':'M')+` ${p.x} ${p.y}`).join(' ');add(g,'path',{d,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});const a=pts[0],b=pts[1],len=Math.hypot(b.x-a.x,b.y-a.y)||1,termination=o.termination||'arrow';
+        // ГОСТ 2.316: a leader ends with an arrow, a dot, or no marker,
+        // depending on whether it refers to a contour/surface, an area, or another line.
+        if(termination==='dot')add(g,'circle',{cx:a.x,cy:a.y,r:.65,fill:c,stroke:'none','data-leader-terminal':'dot'});
+        else if(termination!=='none')dimensionArrow(g,a.x,a.y,-(b.x-a.x)/len,-(b.y-a.y)/len,c,clamp(Number(state.gost.arrowLength)||2.5,2,10));
+        const end=pts[pts.length-1];add(g,'line',{x1:end.x,y1:end.y,x2:end.x+12,y2:end.y,stroke:c,'stroke-width':state.gost.thinLine});addText(g,end.x+1,end.y-1,o.text||'Примечание',o.textSize||state.gost.textHeight,c,'start');}
     } else if(o.type==='centerMark'){
       const s=o.size||5;add(g,'line',{x1:o.x-s,y1:o.y,x2:o.x+s,y2:o.y,stroke:c,'stroke-width':state.gost.thinLine});add(g,'line',{x1:o.x,y1:o.y-s,x2:o.x,y2:o.y+s,stroke:c,'stroke-width':state.gost.thinLine});
     } else if(o.type==='hatch'){
@@ -688,7 +711,13 @@
       state.points.push(p);drawPreview(p);setMessage(`Точек: ${state.points.length}. Двойной щелчок или Enter — завершить`);return;
     }
     if(state.tool==='leader'){
-      state.points.push(p);if(state.points.length<3){setMessage(`Точка ${state.points.length+1} выноски`);return;}const label=prompt('Текст выноски:','Примечание')||'';if(label)addObject({type:'leader',points:deep(state.points),text:label,layer:'annotation'});state.points=[];previewLayer.innerHTML='';return;
+      state.points.push(p);if(state.points.length<3){setMessage(`Точка ${state.points.length+1} выноски`);return;}
+      const label=prompt('Текст выноски:','Примечание');
+      if(label&&label.trim()){
+        const choice=prompt('Окончание выноски по ГОСТ 2.316-2008:\n1 — стрелка (к контуру / поверхности)\n2 — точка (к участку изображения)\n3 — без маркера (от другой линии)','1');
+        if(choice!==null){const termination=String(choice).trim()==='2'?'dot':String(choice).trim()==='3'?'none':'arrow';addObject({type:'leader',points:deep(state.points),text:label.trim(),termination,layer:'annotation'});}
+      }
+      state.points=[];previewLayer.innerHTML='';return;
     }
     if(state.tool==='arc'){
       state.points.push(p);if(state.points.length<3){setMessage(['Укажите центр дуги','Укажите начальную точку дуги','Укажите конечную точку дуги'][state.points.length]);return;}const [c,s,t]=state.points,r=Math.hypot(s.x-c.x,s.y-c.y);if(r>.1)addObject({type:'arc',x:c.x,y:c.y,r,start:Math.atan2(s.y-c.y,s.x-c.x),end:Math.atan2(t.y-c.y,t.x-c.x),layer:'geometry'});state.points=[];return;
@@ -712,7 +741,10 @@
     else if(state.tool==='circle')addObject({type:'circle',x:a.x,y:a.y,x2:p.x,y2:p.y});
     else if(state.tool==='ellipse')addObject({type:'ellipse',x:a.x,y:a.y,x2:p.x,y2:p.y});
     else if(state.tool==='breakline')addObject({type:'breakline',points:[a,p]});
-    else if(state.tool==='section')addObject({type:'section',x:a.x,y:a.y,x2:p.x,y2:p.y,label:'А',layer:'annotation'});
+    else if(state.tool==='section'){
+      const direction=prompt('Направление взгляда для разреза:\n1 — со стороны слева от линии от первой точки ко второй\n2 — со стороны справа','1');
+      if(direction!==null)addObject({type:'section',x:a.x,y:a.y,x2:p.x,y2:p.y,label:'А',viewSide:String(direction).trim()==='2'?-1:1,layer:'annotation'});
+    }
     else if(state.tool==='hatch')addObject({type:'hatch',x:a.x,y:a.y,x2:p.x,y2:p.y,layer:'annotation',spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),angle:Number($('hatchAngle').value)||45,pattern:$('hatchPattern').value,width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a'});
     else if(['dimension','dimAuto','dimH','dimV','dimRad','dimDia'].includes(state.tool)){
       const kind=state.tool==='dimAuto'?(Math.abs(p.x-a.x)>=Math.abs(p.y-a.y)*2?'horizontal':Math.abs(p.y-a.y)>=Math.abs(p.x-a.x)*2?'vertical':'linear'):state.tool==='dimH'?'horizontal':state.tool==='dimV'?'vertical':state.tool==='dimRad'?'radius':state.tool==='dimDia'?'diameter':'linear';
