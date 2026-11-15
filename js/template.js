@@ -190,12 +190,18 @@
     const clean=v=>String(v??'').trim();
     // Use a GOST/ISO technical typeface where installed; the 75-degree slant is
     // applied geometrically so fallback sans-serif fonts retain technical lettering style.
-    const tx=(x,y,value,size=2.2,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,size,anchor,rotate,{
-      ...opts,
-      slanted:opts.slanted??true,
-      fontFamily:"'GOST type B','ISO 3098','DejaVu Sans',Arial,sans-serif",
-      color:'#000000'
-    }).replace(' text-rendering="geometricPrecision"','');
+    const tx=(x,y,value,size=2.2,anchor='start',rotate=0,opts={})=>{
+      let markup=txt(X(x),Y(y),value,size,anchor,rotate,{
+        ...opts,
+        slanted:opts.slanted??true,
+        fontFamily:"'GOST type B','ISO 3098','DejaVu Sans',Arial,sans-serif",
+        color:'#000000'
+      }).replace(' text-rendering="geometricPrecision"','');
+      if(Number.isFinite(Number(opts.textLength))&&Number(opts.textLength)>0){
+        markup=markup.replace('<text ','<text textLength="'+Number(opts.textLength)+'" lengthAdjust="spacingAndGlyphs" ');
+      }
+      return markup;
+    };
     const fitSize=(value,maxWidth,base=2.2,min=1.8)=>{
       const str=clean(value);
       const estimate=Math.max(1,str.length*.56);
@@ -239,31 +245,31 @@
     // is split lengthwise into the narrow label column and the adjacent blank column.
     const ax0=2.5, ax1=7.5, ax2=15;
     const upperBands=[
-      [5,65,'Перше застосування'],
-      [65,125,'Довідк. №']
+      [5,65,'Перш. застос.'],
+      [65,125,'Довід. №']
     ];
     upperBands.forEach(([a,b,label],i)=>{
       s+=ln(ax0,a,ax2,a,i===0?.5:.25)+ln(ax0,b,ax2,b,.25);
       s+=ln(ax0,a,ax0,b,.5)+ln(ax2,a,ax2,b,.5);
-      s+=tx((ax0+ax2)/2,(a+b)/2,label,1.8,'middle',-90);
+      s+=tx((ax0+ax2)/2,(a+b)/2,label,3.5,'middle',-90);
     });
     const lowerBands=[
-      [125,160,'Підпис і дата'],
+      [125,160,'Підп. і дата'],
       [160,186,'Інв. № дубл.'],
       [186,215,'Зам. інв. №'],
-      [215,256,'Підпис і дата'],
+      [215,256,'Підп. і дата'],
       [256,292,'Інв. № ориг.']
     ];
     lowerBands.forEach(([a,b,label],i)=>{
       s+=ln(ax0,a,ax2,a,.25)+ln(ax0,b,ax2,b,i===lowerBands.length-1?.5:.25);
       s+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.25)+ln(ax2,a,ax2,b,.5);
-      s+=tx((ax0+ax1)/2,(a+b)/2,label,1.8,'middle',-90);
+      s+=tx((ax0+ax1)/2,(a+b)/2,label,3.5,'middle',-90);
     });
 
     // Graph 26: continuous 70 x 14 mm rectangle. The reference duplicates
     // the document name in this field, rotated 180 degrees on portrait A4.
     s+=rc(20,5,90,19,.5);
-    s+=tx(55,12,titleValue,3.5,'middle',180);
+    s+=tx(55,12,titleValue,7,'middle',180,{textLength:65});
 
     // Form 1 title block: 185 x 55 mm, divided into eleven 5 mm rows.
     const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x6=155,x7=205;
@@ -298,33 +304,34 @@
     // The reference places the document name in the upper central cell;
     // the large lower central cell remains intentionally empty.
     s+=ln(x5,y1,x7,y1,.5);
-    s+=tx((x5+x6)/2,y0+9.6,titleValue,fitSize(titleValue,66,4.5,3.0),'middle');
+    s+=tx((x5+x6)/2,y0+9.6,titleValue,7,'middle',0,{textLength:65});
 
     // Right block: fixed graph widths 15 / 17 / 18 mm.
     const l1=x6+15, l2=x6+32;
-    s+=ln(x6,y1,x7,y1,.25)+ln(x6,y2,x7,y2,.25);
+    s+=ln(x6,y1,x7,y1,.5)+ln(x6,y2,x7,y2,.25);
     s+=ln(l1,y1,l1,y3,.25)+ln(l2,y1,l2,y3,.25);
     s+=ln(x6+5,y2,x6+5,y3,.25)+ln(x6+10,y2,x6+10,y3,.25);
     // Keep all three captions on one shared baseline, optically centered in the 5 mm header row.
-    const headerBaseline=y1+3.35;
-    s+=tx((x6+l1)/2,headerBaseline,'Літ.',1.8,'middle');
-    s+=tx((l1+l2)/2,headerBaseline,'Маса',1.8,'middle');
-    s+=tx((l2+x7)/2,headerBaseline,'Масштаб',1.8,'middle');
+    const headerBaseline=y1+3.0;
+    s+=tx((x6+l1)/2,headerBaseline,'Літ.',2.0,'middle');
+    s+=tx((l1+l2)/2,headerBaseline,'Маса',2.0,'middle');
+    s+=tx((l2+x7)/2,headerBaseline,'Масштаб',2.0,'middle');
     s+=tx(x6+2.5,y2+8.4,literValue,2.4,'middle');
     if(massValue)s+=tx((l1+l2)/2,y2+8.4,massValue,2.4,'middle');
     if(scaleValue)s+=tx((l2+x7)/2,y2+8.4,scaleValue,2.4,'middle');
 
     // Sheet number and total sheets share a 5 mm row; graph 7 stays empty on a one-sheet document.
     s+=ln(x6,y3,x7,y3,.25)+ln(x6,y4,x7,y4,.25)+ln(x6+25,y3,x6+25,y4,.5);
-    const sheetFont=1.8;
+    const sheetFont=2.0;
+    const sheetBaseline=y3+3.0; // vertically centered in the 5 mm sheet-information row
     // Distinct cells: 'Аркуш' on the left (no value for a single-sheet file),
     // and 'Аркушів 1' on the right.
-    s+=tx(x6+12.5,y3+3.35,'Аркуш',sheetFont,'middle');
-    s+=tx(x6+37.5,y3+3.35,`Аркушів ${totalSheets}`,sheetFont,'middle');
+    s+=tx(x6+12.5,sheetBaseline,'Аркуш',sheetFont,'middle');
+    s+=tx(x6+37.5,sheetBaseline,`Аркушів ${totalSheets}`,sheetFont,'middle');
 
     // Graph 9: two centered lines in the lower-right cell; no vertical-bar separator.
-    const yCompany=[282.0,288.2];
-    orgLines.forEach((line,i)=>{if(line)s+=tx((x6+x7)/2,yCompany[i],line,fitSize(line,48,2.35,2.0),'middle');});
+    const yCompany=[283.0,288.0];
+    orgLines.forEach((line,i)=>{if(line)s+=tx((x6+x7)/2,yCompany[i],line,3.5,'middle',0,{textLength:45});});
 
     // “Копіював” and “Формат А4” are captions in the 5 mm lower margin, below the frame.
     s+=tx(105,295.5,'Копіював',1.65,'middle');

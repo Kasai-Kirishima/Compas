@@ -68,8 +68,11 @@
     sheetFrameLayer.innerHTML='';
     // The page outline and drawing frame are independent from the title-block layer.
     // This prevents the frame disappearing when the user temporarily hides the template.
-    add(sheetFrameLayer,'rect',{x:0,y:0,width:d.w,height:d.h,fill:'none',stroke:'#000000','stroke-width':.25,'vector-effect':'non-scaling-stroke'});
-    if(state.titleForm!=='lab5-template') add(sheetFrameLayer,'rect',{x:20,y:5,width:Math.max(1,d.w-25),height:Math.max(1,d.h-10),fill:'none',stroke:'#000000','stroke-width':.32,'vector-effect':'non-scaling-stroke'});
+    const lab5Frame=state.titleForm==='lab5-template';
+    const pageOutline={x:0,y:0,width:d.w,height:d.h,fill:'none',stroke:'#000000','stroke-width':lab5Frame?.5:.25};
+    if(!lab5Frame)pageOutline['vector-effect']='non-scaling-stroke';
+    add(sheetFrameLayer,'rect',pageOutline);
+    if(!lab5Frame) add(sheetFrameLayer,'rect',{x:20,y:5,width:Math.max(1,d.w-25),height:Math.max(1,d.h-10),fill:'none',stroke:'#000000','stroke-width':.32,'vector-effect':'non-scaling-stroke'});
   }
   function svgEl(name,attrs={}){ const el=document.createElementNS(NS,name); Object.entries(attrs).forEach(([k,v])=>{if(v!==undefined&&v!==null)el.setAttribute(k,String(v));}); return el; }
   function add(parent,name,attrs){ const el=svgEl(name,attrs); parent.appendChild(el); return el; }
