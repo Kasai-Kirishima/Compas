@@ -249,10 +249,10 @@
     });
 
     // Graph 26: continuous 70 x 14 mm rectangle, no inner divider.
-    // Lab5 A4 portrait template: keep the designation upright for normal reading.
+    // Lab5 A4 portrait template: one 70 x 14 mm designation cell, no extended tail.
+    // The text is centered horizontally and vertically, and reads left-to-right.
     s+=rc(20,5,90,19,.5);
-    s+=tx(55,12,code,3.5,'middle',0);
-    s+=ln(20,19,205,19,.25);
+    s+=tx(55,13.2,code,3.5,'middle',0);
 
     // Form 1 title block: 185 x 55 mm, divided into eleven 5 mm rows.
     const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x6=155,x7=205;
@@ -295,17 +295,20 @@
     s+=ln(x6,y1,x7,y1,.25)+ln(x6,y2,x7,y2,.25);
     s+=ln(l1,y1,l1,y3,.25)+ln(l2,y1,l2,y3,.25);
     s+=ln(x6+5,y2,x6+5,y3,.25)+ln(x6+10,y2,x6+10,y3,.25);
-    s+=tx((x6+l1)/2,y1+3.65,'Літ.',1.8,'middle');
-    s+=tx((l1+l2)/2,y1+3.65,'Маса',1.8,'middle');
-    s+=tx((l2+x7)/2,y1+3.65,'Масштаб',1.8,'middle');
+    // Lower the entire three-caption header row slightly, keeping a common baseline.
+    s+=tx((x6+l1)/2,y1+4.45,'Літ.',1.8,'middle');
+    s+=tx((l1+l2)/2,y1+4.45,'Маса',1.8,'middle');
+    s+=tx((l2+x7)/2,y1+4.45,'Масштаб',1.8,'middle');
     s+=tx(x6+2.5,y2+8.4,literValue,2.4,'middle');
     if(massValue)s+=tx((l1+l2)/2,y2+8.4,massValue,2.4,'middle');
     if(scaleValue)s+=tx((l2+x7)/2,y2+8.4,scaleValue,2.4,'middle');
 
     // Sheet number and total sheets share a 5 mm row; graph 7 stays empty on a one-sheet document.
-    s+=ln(x6,y3,x7,y3,.25)+ln(x6,y4,x7,y4,.25)+ln(x6+25,y3,x6+25,y4,.25);
+    s+=ln(x6,y3,x7,y3,.25)+ln(x6,y4,x7,y4,.25)+ln(x6+25,y3,x6+25,y4,.5);
     const sheetFont=1.8;
-    s+=tx(x6+12.5,y3+3.35,sheetValue?`Аркуш ${sheetValue}`:'',sheetFont,'middle');
+    // Distinct cells: 'Аркуш' on the left (no value for a single-sheet file),
+    // and 'Аркушів 1' on the right.
+    s+=tx(x6+12.5,y3+3.35,'Аркуш',sheetFont,'middle');
     s+=tx(x6+37.5,y3+3.35,`Аркушів ${totalSheets}`,sheetFont,'middle');
 
     // Graph 9: two centered lines in the lower-right cell; no vertical-bar separator.
