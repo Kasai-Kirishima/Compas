@@ -1,3 +1,56 @@
+## Оновлення 2.5.3 — українська локалізація та сітка штампа лабораторної №5
+
+# КОМПАС Онлайн 2.5.3 — лабораторна робота №5
+
+Це точкове оновлення шаблону 2.5.2. Загальна структура редактора, геометричні інструменти та інші шаблони не змінювалися.
+
+## Внесені зміни
+- Українські підписи у всіх службових полях рамки та основного напису.
+- Лівий блок основного напису: 65 × 55 мм, 11 горизонтальних рядків по 5 мм; вертикальні межі розділяють графи таблиці змін та колонки посад, прізвищ/ініціалів, підпису й дати.
+- Рядки посад: «Розроб.», «Перевір.», «Т.контр.», «Н.контр.», «Затв.»; шостий рядок залишений вільним.
+- Прізвища/ініціали розміщуються в окремій колонці ліворуч від середини комірки, у власних рядках.
+- Графа матеріалу залишається порожньою, якщо матеріал не задано; масштаб також порожній для чистого аркуша.
+- Графи «Літ.», «Маса», «Масштаб» зберігають ширини 15, 17 та 18 мм. Для одного аркуша номер у графі «Аркуш» не виводиться, у графі «Аркушів» показано 1.
+- Найменування коледжу та група КТ-24 розміщуються у двох рядках нижньої правої комірки без символу вертикальної риски.
+- «Копіював» і «Формат А4» перенесені в нижнє поле під рамкою.
+- Додаткова графа 70 × 14 мм залишена суцільним прямокутником без внутрішньої перегородки. Позначення на А4 зберігає поворот 180°.
+- Товщина зовнішніх контурів та головних розділювальних ліній — 0,5 мм; допоміжних ліній таблиці — 0,25 мм.
+- До тексту шаблону застосовано похилий креслярський стиль; шрифт GOST Type B / ISO 3098 використовується за наявності в системі, інакше спрацьовує резервний шрифт.
+
+## Дані, які не вигадувалися
+- Прізвище перевіряючого залишене «Базиль Б.», оскільки другий ініціал не був наданий. Його можна доповнити в правій панелі після уточнення.
+- Геометрію деталі, розміри та штрихування не додавали — робоче поле навмисно порожнє.
+
+Шаблон є навчальною векторною реконструкцією, а не сертифікованим бланком. Перед поданням перевірте вимоги методички та друк у масштабі 100%.
+
+
+### Обновление 2.5.2 — исправления основной надписи лабораторной №5
+
+KOMPAS ONLINE — PATCH 2.5.2 (focused Lab 5 title-block correction)
+
+Base: restored v2.5.1. The existing application and other templates are preserved.
+
+Corrected in the Lab 5 template:
+- A4 portrait drawing frame uses the 20 mm left margin and 5 mm top/right/bottom margins.
+- The form 1 title block is positioned at 20,237 mm and measures exactly 185 x 55 mm.
+- The left revision/signature area is divided into 11 rows of 5 mm: five revision rows (four blank + captions) and six signature rows.
+- Role and name columns are explicitly divided; role captions use concise Ukrainian labels.
+- Right-hand columns use 15 / 17 / 18 mm widths; the literature column is divided into three 5 mm cells.
+- Sheet and total-sheet captions share a 5 mm band; a single-sheet document has no sheet number in graph 7 and shows 1 in graph 8 without crossing a border.
+- Organization and group are displayed on separate centered lines, with no pipe/middle-dot separator.
+- Scale is blank on the empty template; the user can enter it after adding geometry. Material remains blank unless the drawing is a part drawing with a specified material.
+- Side-field label “Габар. розмір” is replaced with “Перше застосування”; the side captions are no longer styled as italic text.
+- Template text requests GOST type B font first, with system fallback if that font is unavailable.
+
+Deliberately retained because ГОСТ 2.104-2006 requires/identifies them:
+- Graph 26 designation remains rotated 180 degrees on A4 (clause 6.1).
+- “Копіював” remains the caption of additional graph 31 (copying-person signature), not the material field (graph 3).
+
+Not invented: the checker remains “Базиль Б.” because only one initial is present in the supplied data. Add a second initial only after confirming the teacher's full initials.
+
+The central drawing field remains empty because no part sketch/geometry has been supplied.
+
+
 
 ### Обновление 2.5 — положение размерных стрелок и контроль геометрии
 

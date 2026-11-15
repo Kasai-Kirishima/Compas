@@ -181,128 +181,141 @@
   function lab5Template(w,h,d={}){
     const scale=Math.min(w/210,h/297);
     const ox=(w-210*scale)/2, oy=(h-297*scale)/2;
-    const X=px=>(px-8)*.375;
-    const Y=py=>(py-272)*(297/810);
-    const ln=(x1,y1,x2,y2,sw=.24)=>line(X(x1),Y(y1),X(x2),Y(y2),sw,'#000000');
-    const rc=(x1,y1,x2,y2,sw=.3)=>rect(X(x1),Y(y1),X(x2)-X(x1),Y(y2)-Y(y1),sw,'#000000');
-    const labTextHeight=size=>size<=2?1.8:size<=2.5?2.5:size<=3.5?3.5:size<=5?5:size<=7?7:size;
-    const tx=(x,y,value,size=2.5,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,labTextHeight(size),anchor,rotate,{...opts,slanted:opts.slanted===true,fontFamily:'Arial,DejaVu Sans,sans-serif',color:'#000000'});
+    const X=v=>v, Y=v=>v;
+    const ln=(x1,y1,x2,y2,sw=.25)=>line(X(x1),Y(y1),X(x2),Y(y2),sw,'#000000');
+    const rc=(x1,y1,x2,y2,sw=.5)=>rect(X(x1),Y(y1),X(x2)-X(x1),Y(y2)-Y(y1),sw,'#000000');
     const clean=v=>String(v??'').trim();
-    const wrap=(value,maxChars=34,maxLines=2)=>{
-      const words=clean(value).split(/\s+/).filter(Boolean);const lines=[];let line='';
-      for(const word of words){
-        const next=line?line+' '+word:word;
-        if(next.length>maxChars&&line){lines.push(line);line=word;}else line=next;
-      }
-      if(line)lines.push(line);
-      if(lines.length>maxLines){
-        const head=lines.slice(0,maxLines-1);head.push(lines.slice(maxLines-1).join(' '));return head;
-      }
-      return lines;
+    // Use a GOST/ISO technical typeface where installed; the 75-degree slant is
+    // applied geometrically so fallback sans-serif fonts retain technical lettering style.
+    const tx=(x,y,value,size=2.2,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,size,anchor,rotate,{
+      ...opts,
+      slanted:opts.slanted??true,
+      fontFamily:'GOST type B, ISO 3098, DejaVu Sans, Arial, sans-serif',
+      color:'#000000'
+    }).replace(' text-rendering="geometricPrecision"','');
+    const fitSize=(value,maxWidth,base=2.2,min=1.8)=>{
+      const str=clean(value);
+      const estimate=Math.max(1,str.length*.56);
+      return Math.max(min,Math.min(base,maxWidth/estimate));
     };
-    const drawLines=(x,ys,lines,size=2.5)=>lines.slice(0,ys.length).map((v,i)=>tx(x,ys[i],v,size,'middle',0,{slanted:false})).join('');
-    let s=`<g transform="translate(${ox} ${oy}) scale(${scale})" text-rendering="geometricPrecision">`;
-    // Keep the restored Lab 5 sheet layout; only correct its lettering/data placement.
-    s+=rc(15,284,553,1068,.42);
-    s+=ln(29,284,29,613,.28)+ln(48,284,48,1068,.42)+ln(553,284,553,1068,.42);
-    s+=ln(15,449,48,449,.28)+ln(15,613,48,613,.28);
-    s+=ln(15,671,48,671,.28)+ln(15,767,48,767,.28)+ln(15,836,48,836,.28)+ln(15,917,48,917,.28)+ln(15,1027,48,1027,.28);
-    s+=ln(29,671,29,1068,.28);
-    s+=rc(48,284,240,323,.28);
-    // Graph 26: designation duplicated in the upper-left additional field, rotated 180 degrees.
+    const orgDefault='Шосткинський фаховий коледж імені Івана Кожедуба СумДУ';
     const rawCode=clean(d.code);
     const code=(!rawCode||rawCode==='КРЕСЛЕННЯ.001')?'КТ-24.ЛР5.001':rawCode;
-    const orgDefault='Шосткинський фаховий коледж імені Івана Кожедуба СумДУ · КТ-24';
-    const orgValue=(!clean(d.company)||clean(d.company)==='Навчальний кресленик')?orgDefault:clean(d.company);
+    let orgValue=clean(d.company)||orgDefault;
+    orgValue=orgValue.replace(/[|·]/g,' ').replace(/\s+/g,' ').trim();
+    orgValue=orgValue.replace(/\bКТ\s*[-–]?\s*24\b/i,'').replace(/\s+/g,' ').trim()||orgDefault;
+    const orgWords=orgValue.split(' ').filter(Boolean);
+    let orgSplit=1,orgScore=Infinity;
+    for(let i=1;i<orgWords.length;i++){
+      const a=orgWords.slice(0,i).join(' ');
+      const b=orgWords.slice(i).join(' ')+' — КТ-24';
+      const score=Math.max(a.length,b.length)+Math.abs(a.length-b.length)*.08;
+      if(score<orgScore){orgScore=score;orgSplit=i;}
+    }
+    const orgLines=[orgWords.slice(0,orgSplit).join(' '),orgWords.slice(orgSplit).join(' ')+' — КТ-24'];
     const developerValue=clean(d.developer)||'Кушвид О.А.';
+    // Do not fabricate the checker's second initial; keep the supplied value.
     const checkerValue=clean(d.checker)||'Базиль Б.';
+    const titleValue=clean(d.title)||'Лабораторна робота 5';
     const materialValue=clean(d.material)==='Матеріал не зазначено'?'':clean(d.material);
-    s+=tx((48+240)/2,304,code,3.5,'middle',180,{slanted:false});
-    s+=ln(48,323,553,323,.28);
-    s+=ln(48,918,553,918,.42);
-
-    // Main title block: 185 x 55 mm, retained in the same position as the restored v2.5 sheet.
-    const x0=59.667, x1=78.334, x2=105.001, x3=166.334,
-          x4=206.334, x5=233.001, x6=419.668, x7=553;
-    const y0=918, y1=959, y2=973, y3=1014, y4=1028, y5=1068;
-    s+=ln(x0,y0,x0,y5,.28)+ln(x5,y0,x5,y5,.28)+ln(x6,y0,x6,y5,.28);
-    s+=ln(x0,y0,x7,y0,.28)+ln(x0,y5,x7,y5,.28);
-    s+=ln(x5,y1,x7,y1,.28)+ln(x5,y4,x7,y4,.28);
-    [x1,x2,x3,x4,x5].forEach(x=>s+=ln(x,y0,x,y1,.23));
-    [y0+13.667,y0+27.333].forEach(y=>s+=ln(x0,y,x5,y,.23));
-    s+=ln(x2,y1,x2,y3,.23)+ln(x3,y1,x3,y3,.23)+ln(x4,y1,x4,y3,.23)+ln(x5,y1,x5,y3,.23);
-    s+=ln(x0,y1,x5,y1,.23)+ln(x0,(y1+y3)/2,x5,(y1+y3)/2,.23)+ln(x0,y3,x5,y3,.23);
-    [x1,x2,x3,x4,x5].forEach(x=>s+=ln(x,y4,x,y5,.23));
-    s+=ln(x0,y4,x5,y4,.23);
-
-    const rx=x6, rw=x7-x6, k=rw/136, r=v=>rx+v*k;
-    // Right-hand standard data fields: literature, mass, scale, sheet and sheet count.
-    s+=ln(rx,y2,x7,y2,.23)+ln(rx,y3,x7,y3,.23);
-    s+=ln(r(27),y1,r(27),y2,.23)+ln(r(87),y1,r(87),y2,.23);
-    // Literature has three cells; the учебная letter is entered in the left cell only.
-    s+=ln(r(9),y2,r(9),y3,.18)+ln(r(18),y2,r(18),y3,.18);
-    s+=ln(r(40),y2,r(40),y3,.23)+ln(r(70),y2,r(70),y3,.23);
-    s+=ln(rx,y3,x7,y3,.23);
-    // Sheet heading and values are separated; for a single-sheet document graph 7 stays blank.
-    const sheetSplit=1021;
-    s+=ln(rx,sheetSplit,x7,sheetSplit,.18);
-    s+=ln(r(70),y3,r(70),y4,.18);
-    // Lower information band: graph 3 (material) and graph 9 (organization), then copy/format strip.
-    const lowerSplit=1054;
-    s+=ln(x5,lowerSplit,x7,lowerSplit,.18);
-    s+=ln(x5,lowerSplit,x5,y5,.18)+ln(x6,lowerSplit,x6,y5,.18)+ln(x7,lowerSplit,x7,y5,.18);
-
-    // Archival labels along the left side.
-    s+=tx(22,366,'Габар. розмір',1.8,'middle',-90,{italic:true,slanted:false});
-    s+=tx(22,531,'Справ. №',1.8,'middle',-90,{italic:true,slanted:false});
-    s+=tx(22,720,'Підп. і дата',1.8,'middle',-90,{italic:true,slanted:false});
-    s+=tx(22,802,'Інв. № дубл.',1.8,'middle',-90,{italic:true,slanted:false});
-    s+=tx(22,876,'Взам. інв. №',1.8,'middle',-90,{italic:true,slanted:false});
-    s+=tx(22,975,'Підпис і дата',1.8,'middle',-90,{italic:true,slanted:false});
-    s+=tx(22,1048,'Інв. № ориг.',1.8,'middle',-90,{italic:true,slanted:false});
-
-    // Revision register captions.
-    s+=tx((x0+x1)/2,946,'Зм.',2.5,'middle');
-    s+=tx((x1+x2)/2,946,'Арк.',2.5,'middle');
-    s+=tx((x2+x3)/2,946,'№ докум.',2.5,'middle');
-    s+=tx((x3+x4)/2,946,'Підп.',2.5,'middle');
-    s+=tx((x4+x5)/2,946,'Дата',2.5,'middle');
-
-    // Role labels and readable, centered names. Short two-line wrapping prevents overflow.
-    s+=tx((x0+x2)/2,980,'Виконав',2.5,'middle',0,{slanted:false});
-    s+=tx((x0+x2)/2,1007,'Перевірив',2.5,'middle',0,{slanted:false});
-    const devLines=wrap(developerValue,14,2),checkLines=wrap(checkerValue,14,2);
-    s+=drawLines((x2+x3)/2,[978,985],devLines,2.5);
-    s+=drawLines((x2+x3)/2,[1000,1007],checkLines,2.5);
-
-    // Form 1 order: graph 2 (designation) above graph 1 (name); graph 3 is material below.
-    s+=tx((x5+x6)/2,946,code,3.5,'middle',0,{slanted:false});
-    const title=clean(d.title)||'Лабораторна робота 5';
-    const titleLines=wrap(title,28,2);
-    s+=drawLines((x5+x6)/2,[985,1001],titleLines,5);
-    if(materialValue)s+=tx((x5+x6)/2,1048,materialValue,2.5,'middle',0,{slanted:false});
-
-    // Literature / mass / scale labels and their values.
-    s+=tx(r(13),969,'Літ.',1.8,'middle',0,{italic:true,slanted:false});
-    s+=tx(r(57),969,'Маса',1.8,'middle',0,{italic:true,slanted:false});
-    s+=tx(r(111),969,'Масштаб',1.8,'middle',0,{italic:true,slanted:false});
-    s+=tx(r(4.5),1001,clean(d.liter)||'У',2.5,'middle',0,{slanted:false});
-    s+=tx(r(57),1001,clean(d.mass)||'—',2.5,'middle',0,{slanted:false});
-    s+=tx(r(111),1001,clean(d.scale)||'1:1',2.5,'middle',0,{slanted:false});
-    s+=tx(r(35),1019,'Аркуш',1.8,'middle',0,{slanted:false});
-    s+=tx(r(103),1019,'Аркушів',1.8,'middle',0,{slanted:false});
+    const literValue=clean(d.liter)||'У';
+    const massValue=clean(d.mass)||'—';
+    const scaleValue=clean(d.scale);
     const totalSheets=Math.max(1,parseInt(d.sheets||'1',10)||1);
-    const sheetNo=totalSheets>1?(clean(d.sheet)||'1'):'';
-    if(sheetNo)s+=tx(r(35),1027,sheetNo,2.5,'middle',0,{slanted:false});
-    s+=tx(r(103),1027,String(totalSheets),2.5,'middle',0,{slanted:false});
+    const sheetValue=totalSheets>1?(clean(d.sheet)||'1'):'';
 
-    // Graph 9: organization name, wrapped across two readable lines. Group is included in the second line.
-    const orgLines=wrap(orgValue,36,2);
-    if(orgLines.length)s+=drawLines((x6+x7)/2,[1040,1050],orgLines,2.5);
+    let s=`<g transform="translate(${ox} ${oy}) scale(${scale})">`;
 
-    // Bottom graph 31/32 captions; these do not contain user-entered pseudo-data.
-    s+=tx((x5+x6)/2,1064,'Копіював',1.8,'middle',0,{italic:true,slanted:false});
-    s+=tx((x6+x7)/2,1064,'Формат  А4',1.8,'middle',0,{italic:true,slanted:false});
+    // A4 portrait frame: 20 mm binding margin, 5 mm on top/right/bottom.
+    s+=rc(20,5,205,292,.5);
+
+    // Additional archival fields in the left binding margin, all in Ukrainian.
+    const ax0=2.5, ax1=7.5, ax2=15;
+    const bands=[
+      [5,65,'Перше застосування'],
+      [65,125,'Довідк. №'],
+      [146,181,'Інв. № ориг.'],
+      [181,207,'Підпис і дата'],
+      [207,236,'Взам. інв. №'],
+      [236,277,'Інв. № дубл.'],
+      [277,292,'Підпис і дата']
+    ];
+    bands.forEach(([a,b,label],i)=>{
+      // Strong outside edges, thin internal separators.
+      s+=ln(ax0,a,ax2,a,i===0?.5:.25)+ln(ax0,b,ax2,b,i===bands.length-1?.5:.25);
+      s+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.25)+ln(ax2,a,ax2,b,.5);
+      const size=label==='Перше застосування'?1.8:1.8;
+      s+=tx((ax0+ax1)/2,(a+b)/2,label,size,'middle',-90);
+    });
+
+    // Graph 26: continuous 70 x 14 mm rectangle, no inner divider.
+    // On A4, the duplicated designation is rotated by 180 degrees.
+    s+=rc(20,5,90,19,.5);
+    s+=tx(55,12,code,3.5,'middle',180);
+    s+=ln(20,19,205,19,.25);
+
+    // Form 1 title block: 185 x 55 mm, divided into eleven 5 mm rows.
+    const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x6=155,x7=205;
+    const y0=237,y1=252,y2=257,y3=272,y4=277,y6=292;
+    s+=rc(x0,y0,x7,y6,.5);
+
+    // Left 65 mm register: 4 empty revision rows and a fifth header row.
+    [x1,x2,x3,x4].forEach(x=>s+=ln(x,y0,x,y0+25,.25));
+    s+=ln(x5,y0,x5,y6,.5);
+    for(let i=1;i<=5;i++)s+=ln(x0,y0+i*5,x5,y0+i*5,i===5?.5:.25);
+    const headY=y0+23.45;
+    s+=tx((x0+x1)/2,headY,'Зм.',1.8,'middle');
+    s+=tx((x1+x2)/2,headY,'Арк.',1.8,'middle');
+    s+=tx((x2+x3)/2,headY,'№ докум.',1.8,'middle');
+    s+=tx((x3+x4)/2,headY,'Підп.',1.8,'middle');
+    s+=tx((x4+x5)/2,headY,'Дата',1.8,'middle');
+
+    // Six signature rows, 5 mm each: role, surname/initials, signature and date.
+    [x2,x3,x4].forEach(x=>s+=ln(x,y0+25,x,y6,.25));
+    for(let i=1;i<=6;i++)s+=ln(x0,y0+25+i*5,x5,y0+25+i*5,.25);
+    const roles=['Розроб.','Перевір.','Т.контр.','Н.контр.','Затв.',''];
+    const names=[developerValue,checkerValue,'','','',''];
+    roles.forEach((role,i)=>{
+      const cy=y0+25+i*5+3.35;
+      if(role)s+=tx(x0+1,cy,role,fitSize(role,15,2.0,1.8),'start');
+      if(names[i])s+=tx(x2+1.2,cy,names[i],fitSize(names[i],21,2.2,1.8),'start');
+    });
+
+    // Main vertical divisions are heavy; internal table rules remain thin.
+    s+=ln(x6,y0,x6,y6,.5);
+    // Graph 2 designation and graph 1 document name; material cell remains blank unless specified.
+    s+=ln(x5,y1,x7,y1,.5);
+    s+=ln(x5,y3,x7,y3,.5);
+    s+=tx((x5+x6)/2,y0+9.6,code,3.5,'middle');
+    s+=tx((x5+x6)/2,y1+14.7,titleValue,fitSize(titleValue,66,4.5,3.0),'middle');
+    if(materialValue)s+=tx((x5+x6)/2,y3+3.65,materialValue,fitSize(materialValue,65,2.2,1.8),'middle');
+
+    // Right block: fixed graph widths 15 / 17 / 18 mm.
+    const l1=x6+15, l2=x6+32;
+    s+=ln(x6,y1,x7,y1,.25)+ln(x6,y2,x7,y2,.25);
+    s+=ln(l1,y1,l1,y3,.25)+ln(l2,y1,l2,y3,.25);
+    s+=ln(x6+5,y2,x6+5,y3,.25)+ln(x6+10,y2,x6+10,y3,.25);
+    s+=tx((x6+l1)/2,y1+3.65,'Літ.',1.8,'middle');
+    s+=tx((l1+l2)/2,y1+3.65,'Маса',1.8,'middle');
+    s+=tx((l2+x7)/2,y1+3.65,'Масштаб',1.8,'middle');
+    s+=tx(x6+2.5,y2+8.4,literValue,2.4,'middle');
+    if(massValue)s+=tx((l1+l2)/2,y2+8.4,massValue,2.4,'middle');
+    if(scaleValue)s+=tx((l2+x7)/2,y2+8.4,scaleValue,2.4,'middle');
+
+    // Sheet number and total sheets share a 5 mm row; graph 7 stays empty on a one-sheet document.
+    s+=ln(x6,y3,x7,y3,.25)+ln(x6,y4,x7,y4,.25)+ln(x6+25,y3,x6+25,y4,.25);
+    const sheetFont=1.8;
+    s+=tx(x6+12.5,y3+3.35,sheetValue?`Аркуш ${sheetValue}`:'',sheetFont,'middle');
+    s+=tx(x6+37.5,y3+3.35,`Аркушів ${totalSheets}`,sheetFont,'middle');
+
+    // Graph 9: two centered lines in the lower-right cell; no vertical-bar separator.
+    const yCompany=[282.2,288.0];
+    orgLines.forEach((line,i)=>{if(line)s+=tx((x6+x7)/2,yCompany[i],line,fitSize(line,48,1.8,1.5),'middle');});
+
+    // “Копіював” and “Формат А4” are captions in the 5 mm lower margin, below the frame.
+    s+=tx(105,295.5,'Копіював',1.65,'middle');
+    s+=tx(204,295.5,'Формат А4',1.65,'end');
+
     s+='</g>';
     return s;
   }
