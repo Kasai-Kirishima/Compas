@@ -34,7 +34,7 @@
     // Upper document-index cell shown in the user's reference sheet.
     s+=rect(20,5,70,14,.22);s+=line(20,19,90,19,.18);
     // Form 1: main inscription is 185 x 55 mm, in the lower-right corner.
-    const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x7=205;
+    const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x6=155,x7=205;
     const y0=237,y1=242,y2=247,y3=252,y4=257,y5=262,y6=267,y7=272,y8=277,y9=282,y10=287,y11=292;
     s+=rect(x0,y0,185,55,.32);
     // Revision columns: 7 / 10 / 23 / 15 / 10 mm.
@@ -274,16 +274,16 @@
     s+=tx(55,12,titleValue,7,'middle',180,{textLength:65});
 
     // Form 1 title block: 185 x 55 mm, divided into eleven 5 mm rows.
-    const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x7=205;
+    const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x6=155,x7=205;
     const y0=237,y1=252,y2=257,y3=272,y4=277,y6=292;
     s+=rc(x0,y0,x7,y6,.5);
 
     // Left 65 mm register: exactly 11 rows of 5 mm total: four blank
     // revision rows, one header row, then six 5 mm signature/approval rows.
     [x1,x2,x3,x4].forEach(x=>s+=ln(x,y0,x,y0+25,.25));
-    // Leave the left edge of the title band open as requested; the divider
-    // resumes below the title and frames the lower central blank fields.
-    s+=ln(x5,y1,x5,y6,.5);
+    // Restore the left divider beside the title; remove the right divider
+    // through the title band so the title field continues to the sheet edge.
+    s+=ln(x5,y0,x5,y6,.5);
     [1,2,3,4,5].forEach(i=>s+=ln(x0,y0+i*5,x5,y0+i*5,i===5?.5:.25));
     const headY=y0+23.45;
     s+=tx((x0+x1)/2,headY,'Зм.',1.8,'middle');
@@ -303,17 +303,43 @@
       if(names[i])s+=tx(x2+1.2,cy,names[i],fitSize(names[i],21,2.2,1.8),'start');
     });
 
-    // The entire area below the title is one broad field, not split into a
-    // separate right-hand metadata column. Divide it horizontally only:
-    // a large blank upper cell (y=252..277) and a shorter institution row
-    // (y=277..292). The separator aligns with the top of the college-name row.
+    // Main vertical division starts below the title band; the title area
+    // remains open to the right, with its left boundary restored.
+    s+=ln(x6,y1,x6,y6,.5);
+    // Divide the large lower field horizontally, aligned with the top of
+    // the college-information cell on the right.
+    s+=ln(x5,y4,x6,y4,.25);
+    // The reference places the document name in the upper central cell;
+    // the large lower central cell remains intentionally empty.
     s+=ln(x5,y1,x7,y1,.5);
     s+=tx((x5+x7)/2,y0+9.6,titleValue,7,'middle',0,{textLength:65});
-    s+=ln(x5,y4,x7,y4,.25);
 
-    // College and group are centered in the full-width lower cell.
+    // Right block: fixed graph widths 15 / 17 / 18 mm.
+    const l1=x6+15, l2=x6+32;
+    s+=ln(x6,y1,x7,y1,.5)+ln(x6,y2,x7,y2,.25);
+    s+=ln(l1,y1,l1,y3,.25)+ln(l2,y1,l2,y3,.25);
+    s+=ln(x6+5,y2,x6+5,y3,.25)+ln(x6+10,y2,x6+10,y3,.25);
+    // Keep all three captions on one shared baseline, optically centered in the 5 mm header row.
+    const headerBaseline=y1+3.0;
+    s+=tx((x6+l1)/2,headerBaseline,'Літ.',2.0,'middle');
+    s+=tx((l1+l2)/2,headerBaseline,'Маса',2.0,'middle');
+    s+=tx((l2+x7)/2,headerBaseline,'Масштаб',2.0,'middle');
+    s+=tx(x6+2.5,y2+8.4,literValue,2.4,'middle');
+    if(massValue)s+=tx((l1+l2)/2,y2+8.4,massValue,2.4,'middle');
+    if(scaleValue)s+=tx((l2+x7)/2,y2+8.4,scaleValue,2.4,'middle');
+
+    // Sheet number and total sheets share a 5 mm row; graph 7 stays empty on a one-sheet document.
+    s+=ln(x6,y3,x7,y3,.25)+ln(x6,y4,x7,y4,.25)+ln(x6+25,y3,x6+25,y4,.5);
+    const sheetFont=2.0;
+    const sheetBaseline=y3+3.0; // vertically centered in the 5 mm sheet-information row
+    // Distinct cells: 'Аркуш' on the left (no value for a single-sheet file),
+    // and 'Аркушів 1' on the right.
+    s+=tx(x6+12.5,sheetBaseline,'Аркуш',sheetFont,'middle');
+    s+=tx(x6+37.5,sheetBaseline,`Аркушів ${totalSheets}`,sheetFont,'middle');
+
+    // Graph 9: two centered lines in the lower-right cell; no vertical-bar separator.
     const yCompany=[283.0,288.0];
-    orgLines.forEach((line,i)=>{if(line)s+=tx((x5+x7)/2,yCompany[i],line,3.5,'middle',0,{textLength:88});});
+    orgLines.forEach((line,i)=>{if(line)s+=tx((x6+x7)/2,yCompany[i],line,3.5,'middle',0,{textLength:45});});
 
     // “Копіював” and “Формат А4” are captions in the 5 mm lower margin, below the frame.
     s+=tx(105,295.5,'Копіював',1.65,'middle');
