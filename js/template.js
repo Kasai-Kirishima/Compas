@@ -182,15 +182,18 @@
     const scale=Math.min(w/210,h/297);
     const ox=(w-210*scale)/2, oy=(h-297*scale)/2;
     const X=v=>v, Y=v=>v;
-    const ln=(x1,y1,x2,y2,sw=.25)=>line(X(x1),Y(y1),X(x2),Y(y2),sw,'#000000');
-    const rc=(x1,y1,x2,y2,sw=.5)=>rect(X(x1),Y(y1),X(x2)-X(x1),Y(y2)-Y(y1),sw,'#000000');
+    // Lab5 stroke widths are physical drawing millimetres. Do not apply
+    // vector-effect="non-scaling-stroke" here: it would turn 0.5/0.25 mm
+    // lines into screen-pixel hairlines in preview and exported SVG/PDF.
+    const ln=(x1,y1,x2,y2,sw=.25)=>`<line x1="${X(x1)}" y1="${Y(y1)}" x2="${X(x2)}" y2="${Y(y2)}" stroke="#000000" stroke-width="${sw}" fill="none"/>`;
+    const rc=(x1,y1,x2,y2,sw=.5)=>`<rect x="${X(x1)}" y="${Y(y1)}" width="${X(x2)-X(x1)}" height="${Y(y2)-Y(y1)}" fill="none" stroke="#000000" stroke-width="${sw}"/>`;
     const clean=v=>String(v??'').trim();
     // Use a GOST/ISO technical typeface where installed; the 75-degree slant is
     // applied geometrically so fallback sans-serif fonts retain technical lettering style.
     const tx=(x,y,value,size=2.2,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,size,anchor,rotate,{
       ...opts,
       slanted:opts.slanted??true,
-      fontFamily:'GOST type B, ISO 3098, DejaVu Sans, Arial, sans-serif',
+      fontFamily:"'GOST type B','ISO 3098','DejaVu Sans',Arial,sans-serif",
       color:'#000000'
     }).replace(' text-rendering="geometricPrecision"','');
     const fitSize=(value,maxWidth,base=2.2,min=1.8)=>{
@@ -218,9 +221,10 @@
     const checkerValue=clean(d.checker)||'Базиль Б.';
     const titleValue=clean(d.title)||'Лабораторна робота 5';
     const materialValue=clean(d.material)==='Матеріал не зазначено'?'':clean(d.material);
-    const literValue=clean(d.liter)||'У';
-    const massValue=clean(d.mass)||'—';
-    const scaleValue=clean(d.scale);
+    // The user's reference sample leaves Literature and Mass empty; scale is 1:1.
+    const literValue=clean(d.liter);
+    const massValue=clean(d.mass);
+    const scaleValue=clean(d.scale)||'1:1';
     const totalSheets=Math.max(1,parseInt(d.sheets||'1',10)||1);
     const sheetValue=totalSheets>1?(clean(d.sheet)||'1'):'';
 
@@ -259,10 +263,11 @@
     const y0=237,y1=252,y2=257,y3=272,y4=277,y6=292;
     s+=rc(x0,y0,x7,y6,.5);
 
-    // Left 65 mm register: 4 empty revision rows and a fifth header row.
+    // Left 65 mm register: exactly 11 rows of 5 mm total: four blank
+    // revision rows, one header row, then six 5 mm signature/approval rows.
     [x1,x2,x3,x4].forEach(x=>s+=ln(x,y0,x,y0+25,.25));
     s+=ln(x5,y0,x5,y6,.5);
-    for(let i=1;i<=5;i++)s+=ln(x0,y0+i*5,x5,y0+i*5,i===5?.5:.25);
+    [1,2,3,4,5].forEach(i=>s+=ln(x0,y0+i*5,x5,y0+i*5,i===5?.5:.25));
     const headY=y0+23.45;
     s+=tx((x0+x1)/2,headY,'Зм.',1.8,'middle');
     s+=tx((x1+x2)/2,headY,'Арк.',1.8,'middle');
@@ -295,10 +300,11 @@
     s+=ln(x6,y1,x7,y1,.25)+ln(x6,y2,x7,y2,.25);
     s+=ln(l1,y1,l1,y3,.25)+ln(l2,y1,l2,y3,.25);
     s+=ln(x6+5,y2,x6+5,y3,.25)+ln(x6+10,y2,x6+10,y3,.25);
-    // Lower the entire three-caption header row slightly, keeping a common baseline.
-    s+=tx((x6+l1)/2,y1+4.45,'Літ.',1.8,'middle');
-    s+=tx((l1+l2)/2,y1+4.45,'Маса',1.8,'middle');
-    s+=tx((l2+x7)/2,y1+4.45,'Масштаб',1.8,'middle');
+    // Keep all three captions on one shared baseline and centered in the 5 mm header row.
+    const headerBaseline=y1+4.55;
+    s+=tx((x6+l1)/2,headerBaseline,'Літ.',1.8,'middle');
+    s+=tx((l1+l2)/2,headerBaseline,'Маса',1.8,'middle');
+    s+=tx((l2+x7)/2,headerBaseline,'Масштаб',1.8,'middle');
     s+=tx(x6+2.5,y2+8.4,literValue,2.4,'middle');
     if(massValue)s+=tx((l1+l2)/2,y2+8.4,massValue,2.4,'middle');
     if(scaleValue)s+=tx((l2+x7)/2,y2+8.4,scaleValue,2.4,'middle');
