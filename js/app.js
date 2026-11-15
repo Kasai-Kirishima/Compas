@@ -107,7 +107,20 @@
     const label=String(text??''),w=Math.max(size*1.5,label.length*size*.62+1.8),h=size*1.25;
     const group=add(g,'g',rotation?{transform:`rotate(${rotation} ${x} ${y})`}:{});
     add(group,'rect',{x:x-w/2,y:y-size*.92,width:w,height:h,fill:'#ffffff',stroke:'none','data-dimension-text-mask':'true'});
-    return addText(group,x,y+size*.08,label,size,color,'middle');
+    const textEl=addText(group,x,y+size*.08,label,size,color,'middle');
+    textEl.setAttribute('data-dimension-label','true');
+    textEl.setAttribute('data-label-anchor','center');
+    return textEl;
+  }
+  // Автоматически размещаем стрелки внутри, если между выносными линиями
+  // есть место для обеих головок; иначе выносим их наружу.
+  function effectiveArrowPlacement(o,lineLength,arrowSize){
+    const requested=['inside','outside','auto'].includes(o.arrowPlacement)?o.arrowPlacement:'auto';
+    if(requested!=='auto')return requested;
+    const textSize=clamp(Number(o.textSize)||state.gost.textHeight||5,.8,20);
+    const value=dimensionNumber(o,lineLength);
+    const labelWidth=Math.max(textSize*1.5,String(value).length*textSize*.62+1.8);
+    return lineLength >= (2*arrowSize + labelWidth + 1) ? 'inside' : 'outside';
   }
   function dimensionNumber(o,value){
     if(o.label!==undefined&&o.label!==null&&String(o.label).trim()!=='')return String(o.label);
@@ -214,19 +227,23 @@
     }
     // Extension lines run 1–5 mm beyond the dimension line (5.10).
     makeLine({x:x1,y:y1},extA);makeLine({x:x2,y:y2},extB);
-    const label=dimensionNumber(o,value),labelWidth=Math.max(textSize*1.5,label.length*textSize*.62+1.8);
-    const lineLen=Math.hypot(bx-ax,by-ay),tooShort=lineLen<(2*arrowSize+labelWidth+1);
-    if(tooShort){
-      // ГОСТ 2.307-2011, 5.21: extend the dimension line beyond extension lines;
-      // arrow tips stay at the measured points and point into the dimension.
+    const label=dimensionNumber(o,value);
+    const lineLen=Math.hypot(bx-ax,by-ay),placement=effectiveArrowPlacement(o,lineLen,arrowSize);
+    if(placement==='outside'){
+      // Наружное размещение: наконечники стоят за пределами выносных линий,
+      // а размерная линия продолжается за ними.
       const start={x:ax-ux*(arrowSize+1),y:ay-uy*(arrowSize+1)},end={x:bx+ux*(arrowSize+1),y:by+uy*(arrowSize+1)};
       makeLine(start,end);
-      dimensionArrow(g,ax,ay,ux,uy,color,arrowSize);dimensionArrow(g,bx,by,-ux,-uy,color,arrowSize);
+      dimensionArrow(g,ax,ay,ux,uy,color,arrowSize);
+      dimensionArrow(g,bx,by,-ux,-uy,color,arrowSize);
     }else{
+      // Внутреннее размещение: основания стрелок обращены к середине размера.
       makeLine({x:ax,y:ay},{x:bx,y:by});
-      dimensionArrow(g,ax,ay,ux,uy,color,arrowSize);dimensionArrow(g,bx,by,-ux,-uy,color,arrowSize);
+      dimensionArrow(g,ax,ay,-ux,-uy,color,arrowSize);
+      dimensionArrow(g,bx,by,ux,uy,color,arrowSize);
     }
-    // Dimension value is above the line and has a white mask for legibility.
+    // Размерное число строго центрируется относительно размерной линии.
+    // Для вертикального размера labelNx=1, поэтому надпись располагается слева.
     const midX=(ax+bx)/2,midY=(ay+by)/2,labelOffset=textSize*.75+1;
     const lx=midX-labelNx*labelOffset,ly=midY-labelNy*labelOffset;
     dimensionLabel(g,lx,ly,label,textSize,color,labelRotation);
@@ -428,7 +445,7 @@
     $('noSelection').classList.toggle('hidden',arr.length>0);$('selectionFields').classList.toggle('hidden',arr.length===0);const refsOnly=arr.length>0&&arr.every(x=>x.type==='reference'),allRefsLocked=refsOnly&&arr.every(x=>x.locked);$('quickReferenceLockBtn').disabled=!refsOnly;$('quickReferenceLockBtn').innerHTML=refsOnly?(allRefsLocked?'<span>🔓</span>Разрешить движение':'<span>🔒</span>Запретить движение'):'<span>🔒</span>Блокировка';$('quickReferenceLockBtn').setAttribute('aria-pressed',String(!!allRefsLocked));$('quickReferenceLockBtn').title=refsOnly?(allRefsLocked?'Разблокировать выбранные референсы':'Закрепить выбранные референсы'):'Выберите референс, чтобы переключить перемещение';
     if(arr.length>1)$('noSelection').textContent=`Выбрано объектов: ${arr.length}`;
     else $('noSelection').textContent='Объект не выбран';
-    $('editTextFormatBtn').classList.toggle('hidden',!(o&&['text','techReq'].includes(o.type)));$('referenceSelectionFields').classList.toggle('hidden',!(o&&o.type==='reference'));$('objectLocked').checked=!!(o&&o.locked);$('objectGeometryFields').classList.toggle('hidden',!o);if(o){const derivedRotation=(o.type==='line'||o.type==='centerline'||o.type==='construction')?Math.atan2(o.y2-o.y,o.x2-o.x)*180/Math.PI:0;$('objectRotationAngle').value=mm(o.rotationTotal??o.rotation??derivedRotation);$('objectColor').value=o.color||'#20252a';$('objectWidth').value=o.width||.35;$('objectDash').value=o.linePattern==='wave'?'WAVE':o.linePattern==='zigzag'?'ZIGZAG':(o.dash||'');$('objectLayer').value=layerFor(o)==='reference'?'geometry':layerFor(o);$('objectName').value=o.name||'';$('objectTextSize').value=o.size||o.textSize||state.gost.textHeight||5;const box=objectBounds(o);if(box){$('objectBoxX').value=mm(box.x);$('objectBoxY').value=mm(box.y);$('objectBoxW').value=mm(Math.max(.1,box.w));$('objectBoxH').value=mm(Math.max(.1,box.h));}if(o.type==='reference'){$('referenceOpacity').value=Math.round((o.opacity??.35)*100);$('referenceOpacityValue').textContent=$('referenceOpacity').value+'%';$('referenceWidth').value=o.w||100;$('referenceHeight').value=o.h||60;$('referenceX').value=o.x||0;$('referenceY').value=o.y||0;$('referenceRotation').value=o.rotation||0;$('referenceLockStatus').textContent=o.locked?'🔒 Переміщення заборонено':'● Переміщення дозволено';$('referenceLockStatus').classList.toggle('locked',!!o.locked);$('referenceLockStatus').classList.toggle('unlocked',!o.locked);$('referenceLockBtn').textContent=o.locked?'🔓 Дозволити переміщення':'🔒 Заборонити переміщення';$('referenceLockBtn').setAttribute('aria-pressed',String(!!o.locked));$('quickReferenceLockBtn').disabled=false;$('quickReferenceLockBtn').innerHTML=o.locked?'<span>🔓</span>Дозволити рух':'<span>🔒</span>Заборонити рух';$('quickReferenceLockBtn').setAttribute('aria-pressed',String(!!o.locked));$('quickReferenceLockBtn').title=o.locked?'Клацніть, щоб дозволити переміщення референсу':'Клацніть, щоб заборонити переміщення референсу';$('referenceExportable').checked=!!o.exportable;$('referenceKeepAspect').checked=o.keepAspect!==false;}}
+    $('editTextFormatBtn').classList.toggle('hidden',!(o&&['text','techReq'].includes(o.type)));$('referenceSelectionFields').classList.toggle('hidden',!(o&&o.type==='reference'));$('dimensionSelectionFields').classList.toggle('hidden',!(o&&o.type==='dimension'));$('objectLocked').checked=!!(o&&o.locked);$('objectGeometryFields').classList.toggle('hidden',!o);if(o){$('dimensionArrowPlacement').value=['inside','outside','auto'].includes(o.arrowPlacement)?o.arrowPlacement:'auto';const derivedRotation=(o.type==='line'||o.type==='centerline'||o.type==='construction')?Math.atan2(o.y2-o.y,o.x2-o.x)*180/Math.PI:0;$('objectRotationAngle').value=mm(o.rotationTotal??o.rotation??derivedRotation);$('objectColor').value=o.color||'#20252a';$('objectWidth').value=o.width||.35;$('objectDash').value=o.linePattern==='wave'?'WAVE':o.linePattern==='zigzag'?'ZIGZAG':(o.dash||'');$('objectLayer').value=layerFor(o)==='reference'?'geometry':layerFor(o);$('objectName').value=o.name||'';$('objectTextSize').value=o.size||o.textSize||state.gost.textHeight||5;const box=objectBounds(o);if(box){$('objectBoxX').value=mm(box.x);$('objectBoxY').value=mm(box.y);$('objectBoxW').value=mm(Math.max(.1,box.w));$('objectBoxH').value=mm(Math.max(.1,box.h));}if(o.type==='reference'){$('referenceOpacity').value=Math.round((o.opacity??.35)*100);$('referenceOpacityValue').textContent=$('referenceOpacity').value+'%';$('referenceWidth').value=o.w||100;$('referenceHeight').value=o.h||60;$('referenceX').value=o.x||0;$('referenceY').value=o.y||0;$('referenceRotation').value=o.rotation||0;$('referenceLockStatus').textContent=o.locked?'🔒 Переміщення заборонено':'● Переміщення дозволено';$('referenceLockStatus').classList.toggle('locked',!!o.locked);$('referenceLockStatus').classList.toggle('unlocked',!o.locked);$('referenceLockBtn').textContent=o.locked?'🔓 Дозволити переміщення':'🔒 Заборонити переміщення';$('referenceLockBtn').setAttribute('aria-pressed',String(!!o.locked));$('quickReferenceLockBtn').disabled=false;$('quickReferenceLockBtn').innerHTML=o.locked?'<span>🔓</span>Дозволити рух':'<span>🔒</span>Заборонити рух';$('quickReferenceLockBtn').setAttribute('aria-pressed',String(!!o.locked));$('quickReferenceLockBtn').title=o.locked?'Клацніть, щоб дозволити переміщення референсу':'Клацніть, щоб заборонити переміщення референсу';$('referenceExportable').checked=!!o.exportable;$('referenceKeepAspect').checked=o.keepAspect!==false;}}
   }
   function applySelectedGeometry(){
     const selected=getSelected();if(selected.length!==1){setMessage('Для точного ввода габаритов выберите один объект');return;}
@@ -557,6 +574,16 @@
     if(widthWarn.length)warnings.push(`${widthWarn.length} об’єктів відрізняються за товщиною від заданих значень профілю (основна ${state.gost.mainLine} мм / тонка ${state.gost.thinLine} мм).`);else passed.push('Товщини об’єктів узгоджені з поточною парою профілю.');
 
     const dims=state.objects.filter(o=>o.type==='dimension');
+    const geometryObjects=state.objects.filter(o=>!o.hidden&&layerFor(o)==='geometry'&&['line','rect','circle','ellipse','arc','polyline','spline','freehand'].includes(o.type));
+    if(dims.length&&!geometryObjects.length)errors.push('На листе есть размерные обозначения, но нет геометрии детали: добавьте реальные отрезки, дуги и окружности. Сейчас размеры «висят» без контура.');
+    else if(!geometryObjects.length)info.push('Геометрия детали пока не построена — лист-шаблон остаётся пустым.');
+    else passed.push(`Найдена геометрия детали: ${geometryObjects.length} графических объектов.`);
+    const circleObjects=geometryObjects.filter(o=>o.type==='circle');
+    const unbackedDiameters=dims.filter(o=>o.kind==='diameter').filter(o=>{
+      const cx=Number(o.x),cy=Number(o.y),r=Math.hypot(Number(o.x2)-cx,Number(o.y2)-cy);
+      return !circleObjects.some(c=>Math.hypot(Number(c.x)-cx,Number(c.y)-cy)<=1.5&&Math.abs(Math.hypot(Number(c.x2)-Number(c.x),Number(c.y2)-Number(c.y))-r)<=1.5);
+    });
+    if(unbackedDiameters.length)warnings.push(`${unbackedDiameters.length} диаметральных размеров не привязаны к соответствующим окружностям. Постройте окружность детали и проверьте центр/радиус размера.`);
     // Reserve the lower-right title block and a 10 mm clear margin on the Lab 5 A4 sheet.
     if(state.titleForm==='lab5-template' && state.format==='A4P'){
       const protectedZone={x:10,y:227,w:200,h:70};
@@ -621,7 +648,10 @@
           if(k==='horizontal'){const side=off>=0?1:-1,base=side>0?Math.max(y,y2):Math.min(y,y2),dyDim=base+side*Math.abs(off);a={x,y:dyDim};b={x:x2,y:dyDim};ux=Math.sign(b.x-a.x)||1;uy=0;}
           else if(k==='vertical'){const side=off>=0?1:-1,base=side>0?Math.max(x,x2):Math.min(x,x2),dxDim=base+side*Math.abs(off);a={x:dxDim,y};b={x:dxDim,y:y2};ux=0;uy=Math.sign(b.y-a.y)||1;}
           else {ux=dx/len;uy=dy/len;const nx=-uy,ny=ux;a={x:x+nx*off,y:y+ny*off};b={x:x2+nx*off,y:y2+ny*off};}
-          return[{tip:a,dir:{x:ux,y:uy}},{tip:b,dir:{x:-ux,y:-uy}}];
+          const lineLen=Math.hypot(b.x-a.x,b.y-a.y),placement=effectiveArrowPlacement(o,lineLen,clamp(Number(state.gost.arrowLength)||3.5,2.5,5));
+          return placement==='inside'
+            ?[{tip:a,dir:{x:-ux,y:-uy}},{tip:b,dir:{x:ux,y:uy}}]
+            :[{tip:a,dir:{x:ux,y:uy}},{tip:b,dir:{x:-ux,y:-uy}}];
         };
         const triangleInfo=path=>{const d=path.getAttribute('d')||'',nums=(d.match(/[-+]?(?:\d*\.)?\d+(?:[eE][-+]?\d+)?/g)||[]).map(Number);if(!/[zZ]\s*$/.test(d)||nums.length<6)return null;const [tx,ty,b1x,b1y,b2x,b2y]=nums,p1={x:tx,y:ty},p2={x:b1x,y:b1y},p3={x:b2x,y:b2y},base={x:(b1x+b2x)/2,y:(b1y+b2y)/2},vx=tx-base.x,vy=ty-base.y,length=Math.hypot(vx,vy),width=Math.hypot(b2x-b1x,b2y-b1y),area=Math.abs((b1x-tx)*(b2y-ty)-(b2x-tx)*(b1y-ty))/2;return{tip:p1,dir:{x:vx/(length||1),y:vy/(length||1)},length,width,area};};
         dims.forEach(o=>{
@@ -632,13 +662,38 @@
         });
         if(missingArrows.length)errors.push(`${new Set(missingArrows).size} розмірів мають відсутні, перекошені або неправильно спрямовані наконечники стрілок.`);else passed.push(`Стрілки ${dims.length} розмірних позначень мають правильну трикутну форму, напрямок і точки прив’язки.`);
       }
-      if(!Number.isFinite(Number(state.gost.arrowLength))||Number(state.gost.arrowLength)<2.5||Number(state.gost.arrowLength)>5)warnings.push('Довжина розмірних стрілок виходить за робочий діапазон 2,5–5 мм; перевірте налаштування.');else passed.push(`Довжина наконечників задана: ${state.gost.arrowLength} мм; у коротких розмірів стрілки автоматично виносяться назовні.`);
+      if(!Number.isFinite(Number(state.gost.arrowLength))||Number(state.gost.arrowLength)<2.5||Number(state.gost.arrowLength)>5)warnings.push('Довжина розмірних стрілок виходить за робочий діапазон 2,5–5 мм; перевірте налаштування.');else passed.push(`Довжина стрілок: ${state.gost.arrowLength} мм; режим розміщення перевіряється для кожного розміру окремо.`);
+      const forcedInsideShort=dims.filter(o=>['linear','horizontal','vertical'].includes(o.kind||'linear')&&o.arrowPlacement==='inside'&&effectiveArrowPlacement({...o,arrowPlacement:'auto'},Math.hypot(Number(o.x2)-Number(o.x),Number(o.y2)-Number(o.y)),Number(state.gost.arrowLength)||3.5)==='outside');
+      if(forcedInsideShort.length)warnings.push(`${forcedInsideShort.length} коротких розмірів примусово мають стрілки всередині; наконечники можуть перекриватися. Виберіть «Авто» або «Снаружи».`);
+      const forcedOutside=dims.filter(o=>['linear','horizontal','vertical'].includes(o.kind||'linear')&&o.arrowPlacement==='outside');
+      const autoOutside=dims.filter(o=>['linear','horizontal','vertical'].includes(o.kind||'linear')&&effectiveArrowPlacement(o,Math.hypot(Number(o.x2)-Number(o.x),Number(o.y2)-Number(o.y)),Number(state.gost.arrowLength)||3.5)==='outside'&&o.arrowPlacement!=='outside');
+      if(forcedOutside.length||autoOutside.length)passed.push(`Наружное размещение стрелок: ${forcedOutside.length} вручную и ${autoOutside.length} автоматически.`);
       const badDimText=dims.filter(o=>!GOST_TEXT_HEIGHTS.includes(Number(o.textSize||state.gost.textHeight)));if(badDimText.length)warnings.push(`${badDimText.length} розмірних написів мають висоту поза типовим рядом креслярських шрифтів.`);else passed.push('Висота тексту розмірів входить до типового ряду креслярських висот.');
       const minOffset=dims.filter(o=>['linear','horizontal','vertical'].includes(o.kind||'linear')&&Math.abs(Number(o.offset)||10)<10);if(minOffset.length)warnings.push(`${minOffset.length} лінійних розмірів задані зі зміщенням менше 10 мм; відображення редактора збільшує його до 10 мм. Перевірте реальний інтервал.`);
       const descriptors=[];dims.forEach(o=>{const k=o.kind||'linear';if(!['linear','horizontal','vertical'].includes(k))return;const x1=Number(o.x),y1=Number(o.y),x2=Number(o.x2),y2=Number(o.y2);let a,b;if(k==='horizontal'){const side=(Number(o.offset)||10)>=0?1:-1,y=(side>0?Math.max(y1,y2):Math.min(y1,y2))+side*Math.max(10,Math.abs(Number(o.offset)||10));a={x:x1,y};b={x:x2,y};}else if(k==='vertical'){const side=(Number(o.offset)||10)>=0?1:-1,x=(side>0?Math.max(x1,x2):Math.min(x1,x2))+side*Math.max(10,Math.abs(Number(o.offset)||10));a={x,y:y1};b={x,y:y2};}else{const len=Math.hypot(x2-x1,y2-y1)||1,nx=-(y2-y1)/len,ny=(x2-x1)/len,off=(Math.sign(Number(o.offset)||10)||1)*Math.max(10,Math.abs(Number(o.offset)||10));a={x:x1+nx*off,y:y1+ny*off};b={x:x2+nx*off,y:y2+ny*off};}const vx=b.x-a.x,vy=b.y-a.y,len=Math.hypot(vx,vy)||1;descriptors.push({a,b,ux:vx/len,uy:vy/len,len});});
       let crowded=0;for(let i=0;i<descriptors.length;i++)for(let j=i+1;j<descriptors.length;j++){const a=descriptors[i],b=descriptors[j],cross=Math.abs(a.ux*b.uy-a.uy*b.ux);if(cross>.035)continue;const gap=Math.abs((b.a.x-a.a.x)*(-a.uy)+(b.a.y-a.a.y)*a.ux);const p1=(b.a.x-a.a.x)*a.ux+(b.a.y-a.a.y)*a.uy,p2=(b.b.x-a.a.x)*a.ux+(b.b.y-a.a.y)*a.uy,overlap=Math.min(a.len,Math.max(p1,p2))-Math.max(0,Math.min(p1,p2));if(gap<7&&overlap>1)crowded++;}
       if(crowded)warnings.push(`${crowded} пар паралельних розмірних ліній розташовані ближче 7 мм одна до одної або перекриваються. Перевірте рознесення.`);
       else passed.push('Перевірка проміжків між паралельними розмірами: явних інтервалів менше 7 мм не знайдено.');
+      // Проверяем фактические линии выносок/размеров на пересечения между разными размерами.
+      const drawnSegments=[];
+      dims.filter(o=>['linear','horizontal','vertical'].includes(o.kind||'linear')).forEach(o=>{
+        const group=annotationLayer.querySelector(`[data-id="${o.id}"]`);
+        if(!group)return;
+        group.querySelectorAll('line').forEach(el=>{
+          const a={x:Number(el.getAttribute('x1')),y:Number(el.getAttribute('y1'))},b={x:Number(el.getAttribute('x2')),y:Number(el.getAttribute('y2'))};
+          if([a.x,a.y,b.x,b.y].every(Number.isFinite)&&Math.hypot(b.x-a.x,b.y-a.y)>.5)drawnSegments.push({id:o.id,a,b});
+        });
+      });
+      const crossingPairs=new Set();
+      for(let i=0;i<drawnSegments.length;i++)for(let j=i+1;j<drawnSegments.length;j++){
+        const a=drawnSegments[i],b=drawnSegments[j];if(a.id===b.id)continue;
+        const rx=a.b.x-a.a.x,ry=a.b.y-a.a.y,sx=b.b.x-b.a.x,sy=b.b.y-b.a.y,den=rx*sy-ry*sx;
+        if(Math.abs(den)<1e-8)continue;
+        const qx=b.a.x-a.a.x,qy=b.a.y-a.a.y,t=(qx*sy-qy*sx)/den,u=(qx*ry-qy*rx)/den;
+        if(t>.03&&t<.97&&u>.03&&u<.97)crossingPairs.add([a.id,b.id].sort().join('|'));
+      }
+      if(crossingPairs.size)warnings.push(`${crossingPairs.size} пар размерных/выносных линий пересекаются между собой. Разнесите размеры, чтобы убрать пересечения.`);
+      else passed.push('Явных пересечений между линиями разных размерных объектов не найдено.');
       let unalignedChains=0;
       for(let i=0;i<dims.length;i++)for(let j=i+1;j<dims.length;j++){
         const a=dims[i],b=dims[j],ka=a.kind||'linear',kb=b.kind||'linear';
@@ -785,7 +840,7 @@
       const kind=state.tool==='dimAuto'?(Math.abs(p.x-a.x)>=Math.abs(p.y-a.y)*2?'horizontal':Math.abs(p.y-a.y)>=Math.abs(p.x-a.x)*2?'vertical':'linear'):state.tool==='dimH'?'horizontal':state.tool==='dimV'?'vertical':state.tool==='dimRad'?'radius':state.tool==='dimDia'?'diameter':'linear';
       const requestedOffset=Number($('dimensionOffset').value),offsetSign=requestedOffset<0?-1:1,offset=offsetSign*Math.max(10,Math.abs(Number.isFinite(requestedOffset)?requestedOffset:10));
       if(Math.abs(requestedOffset||0)<10)setMessage('Для стандартного оформления отступ от контуру установлен не менее 10 мм');
-      addObject({type:'dimension',kind,x:a.x,y:a.y,x2:p.x,y2:p.y,offset:clamp(offset,-200,200),layer:'annotation'});
+      addObject({type:'dimension',kind,x:a.x,y:a.y,x2:p.x,y2:p.y,offset:clamp(offset,-200,200),arrowPlacement:'auto',layer:'annotation'});
     }
   }
   function finishPath(){if((state.tool==='polyline'||state.tool==='spline')&&state.points.length>=2){addObject({type:state.tool==='spline'?'spline':'polyline',points:deep(state.points),closed:false});state.points=[];previewLayer.innerHTML='';}else if(state.tool==='polyline'||state.tool==='spline'){state.points=[];previewLayer.innerHTML='';setMessage('Нужно минимум две точки');}}
@@ -1288,6 +1343,7 @@
   $('applyObjectGeometryBtn').addEventListener('click',applySelectedGeometry);
   $('objectColor').addEventListener('change',e=>{const o=getSelected()[0];if(o){commit();getSelected().forEach(x=>x.color=e.target.value);renderAll();}});
   $('objectTextSize').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>{const v=clamp(Number(e.target.value)||5,.5,50);if(['text','techReq'].includes(o.type))o.size=v;else o.textSize=v;});renderAll();}});
+  $('dimensionArrowPlacement').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension');if(!dims.length)return;commit();dims.forEach(o=>o.arrowPlacement=e.target.value);renderAll();setMessage(`Размещение стрелок: ${e.target.value==='auto'?'автоматически':e.target.value==='inside'?'внутри':'снаружи'}`);});
   $('editContentBtn').addEventListener('click',()=>{const objs=getSelected().filter(o=>['text','techReq','leader','roughness','tolerance','weld','dimension','section'].includes(o.type));if(!objs.length){setMessage('Выберите надпись или обозначение для редактирования');return;}const o=objs[0];if(o.type==='text'||o.type==='techReq'){openTextDialog(o,o);return;}const key=['roughness','section','dimension'].includes(o.type)?'label':'text',value=o[key]??(o.type==='roughness'?'Ra 3,2':o.type==='section'?'А':'');const edited=prompt('Новое содержимое:',value);if(edited===null)return;commit();objs.forEach(x=>x[key]=edited);renderAll();setMessage('Содержимое обозначения изменено');});
   $('editTextFormatBtn').addEventListener('click',()=>{const o=getSelected().find(x=>x.type==='text'||x.type==='techReq');if(o)openTextDialog(o,o);else setMessage('Выберите текстовый объект');});
   $('addReferenceBtn').addEventListener('click',()=>$('referenceInput').click());

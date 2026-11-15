@@ -237,6 +237,13 @@ R17
           </div>
           <label class="check-row"><input type="checkbox" id="objectLocked"> Заблокировать объект от изменений</label>
           <label class="field-label">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label>
+          <div id="dimensionSelectionFields" class="dimension-selection-fields hidden">
+            <div class="panel-heading spaced">ПАРАМЕТРЫ РАЗМЕРА</div>
+            <label class="field-label">Размещение стрелок
+              <select id="dimensionArrowPlacement"><option value="auto">Авто — внутри, если хватает места</option><option value="inside">Внутри</option><option value="outside">Снаружи</option></select>
+            </label>
+            <div class="muted-hint">В режиме «Авто» короткие размерные линии автоматически получают наружные стрелки. Число остаётся по центру размерной линии.</div>
+          </div>
           <button class="secondary-btn" id="editContentBtn">Изменить текст / значение</button>
           <button class="secondary-btn" id="editTextFormatBtn">Все параметры текста</button>
           <div id="referenceSelectionFields" class="reference-fields hidden">
