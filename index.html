@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>КОМПАС Онлайн 2.5.3.9 — креслення</title>
+  <title>КОМПАС Онлайн 2.5.4.2 — креслення</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -24,7 +24,7 @@
       <button class="ribbon-btn" id="redoBtn" disabled title="Ctrl+Y"><span>↷</span>Повторить</button>
     </div>
     <div class="ribbon-group">
-      <button class="ribbon-btn" data-tool="select"><span>↖</span>Выбор</button>
+      <button class="ribbon-btn" data-tool="select"><span>↖</span>Выбор</button><button class="ribbon-btn" data-tool="eraser"><span>⌫</span>Ластик</button>
       <button class="ribbon-btn" data-tool="line"><span>／</span>Отрезок</button>
       <button class="ribbon-btn" data-tool="ruler"><span>▤</span>Линейка</button>
       <button class="ribbon-btn" data-tool="freehand"><span>✎</span>Свободная</button>
@@ -57,9 +57,21 @@
     <aside class="left-panel">
       <div class="panel-tabs"><button class="panel-tab active" data-panel="tools">Инструменты</button><button class="panel-tab" data-panel="tree">Документ</button></div>
       <section class="panel-content" id="toolsPanel">
+        <div class="tool-category-tabs" id="toolCategoryTabs" role="tablist" aria-label="Категории инструментов">
+          <button type="button" class="tool-category-tab active" data-tool-category="geometry" role="tab" aria-selected="true">Геометрия</button>
+          <button type="button" class="tool-category-tab" data-tool-category="dimensions" role="tab" aria-selected="false">Размеры</button>
+          <button type="button" class="tool-category-tab" data-tool-category="annotations" role="tab" aria-selected="false">Обозначения</button>
+          <button type="button" class="tool-category-tab" data-tool-category="editing" role="tab" aria-selected="false">Редактирование</button>
+          <button type="button" class="tool-category-tab" data-tool-category="precision" role="tab" aria-selected="false">Точность</button>
+          <button type="button" class="tool-category-tab" data-tool-category="standards" role="tab" aria-selected="false">ЕСКД / ГОСТ</button>
+          <button type="button" class="tool-category-tab" data-tool-category="reference" role="tab" aria-selected="false">Подложка</button>
+          <button type="button" class="tool-category-tab" data-tool-category="sheet" role="tab" aria-selected="false">Лист и слои</button>
+          <button type="button" class="tool-category-tab" data-tool-category="all" role="tab" aria-selected="false">Все</button>
+        </div>
         <div class="panel-heading">ВЫБОР И ГЕОМЕТРИЯ</div>
         <div class="tool-grid">
           <button class="tool-tile active" data-tool="select"><span>↖</span>Выбор</button>
+          <button class="tool-tile" data-tool="eraser"><span>⌫</span>Ластик</button>
           <button class="tool-tile" data-tool="point"><span>·</span>Точка</button>
           <button class="tool-tile" data-tool="line"><span>／</span>Отрезок</button>
           <button class="tool-tile" data-tool="ruler"><span>▤</span>Линейка</button>
@@ -125,6 +137,8 @@
           <button class="secondary-btn" data-action="group">Сгруппировать</button>
           <button class="secondary-btn" data-action="ungroup">Разгруппировать</button>
           <button class="secondary-btn" data-action="toggleLock">Блокировать / снять</button>
+          <button class="secondary-btn" id="lockAllObjectsBtn" type="button">🔒 Заблокировать всё</button>
+          <button class="secondary-btn" id="unlockAllObjectsBtn" type="button">🔓 Разблокировать всё</button>
           <button class="secondary-btn" data-action="hideSelected">Скрыть выбранное</button>
           <button class="secondary-btn" data-action="showAll">Показать все</button>
           <button class="secondary-btn" data-action="bringFront">На передний план</button>
@@ -186,6 +200,8 @@ R17
         <label class="field-label">Шаг фиксации угла при Shift, °<input id="angleStep" type="number" min="1" max="90" step="1" value="15"></label>
         <button class="secondary-btn" id="clearRulerBtn">Убрать линейку</button>
         <div class="two-fields"><label class="field-label">Отступ от контура, мм (по умолчанию 10)<input id="dimensionOffset" type="number" min="-200" max="200" step="0.5" value="10"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label></div>
+        <label class="field-label">Высота цифр новых размеров — ГОСТ 2.304, тип Б<select id="defaultDimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5">2,5 мм</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7" selected>7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select></label>
+        <div class="muted-hint">Высота цифр размерных чисел выбирается из стандартного ряда шрифта типа Б. Для обычных размеров чаще используют 3,5 или 5 мм; 7 мм и больше применяйте, если это оправдано масштабом и компоновкой чертежа.</div>
         <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.25"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
         <div class="panel-heading">ШТРИХОВКА</div>
         <label class="field-label">Тип штриховки<select id="hatchPattern"><option value="single">Одинарная</option><option value="cross">Перекрёстная</option><option value="solid">Заливка</option></select></label>
@@ -230,19 +246,30 @@ R17
             <div class="two-fields"><label class="field-label">Ширина, мм<input id="objectBoxW" type="number" min="0.1" step="0.1"></label><label class="field-label">Высота, мм<input id="objectBoxH" type="number" min="0.1" step="0.1"></label></div>
             <button class="secondary-btn" id="applyObjectGeometryBtn">Применить положение и размер</button>
             <div class="panel-heading spaced">ПОВОРОТ</div>
-            <div class="two-fields"><label class="field-label">Угол, °<input id="objectRotationAngle" type="number" step="1" value="15"></label><button class="secondary-btn" id="applyObjectRotationBtn" type="button">Повернуть</button></div>
-            <div class="quick-rotate-row"><button type="button" data-rotate-step="-90">−90°</button><button type="button" data-rotate-step="-15">−15°</button><button type="button" data-rotate-step="15">+15°</button><button type="button" data-rotate-step="90">+90°</button></div>
+            <div class="two-fields"><label class="field-label">Угол поворота, °<input id="objectRotationAngle" type="number" step="1" value="15"></label><button class="secondary-btn" id="applyObjectRotationBtn" type="button">Повернуть</button></div>
+            <label class="field-label">Быстрый угол<input id="objectRotationSlider" type="range" min="-180" max="180" step="1" value="0"></label>
+            <div class="quick-rotate-row"><button type="button" data-rotate-step="-90">−90°</button><button type="button" data-rotate-step="-45">−45°</button><button type="button" data-rotate-step="-15">−15°</button><button type="button" data-rotate-step="15">+15°</button><button type="button" data-rotate-step="45">+45°</button><button type="button" data-rotate-step="90">+90°</button></div>
             <div class="muted-hint">Перетащите круглую ручку над рамкой выделения для поворота мышью. Shift фиксирует угол с заданным шагом.</div>
             <div class="muted-hint">Можно тянуть маркеры по углам и сторонам объекта. Shift при перетягивании углового маркера сохраняет пропорции.</div>
           </div>
           <label class="check-row"><input type="checkbox" id="objectLocked"> Заблокировать объект от изменений</label>
-          <label class="field-label">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label>
+          <label class="field-label" id="objectTextSizeField">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label>
           <div id="dimensionSelectionFields" class="dimension-selection-fields hidden">
             <div class="panel-heading spaced">ПАРАМЕТРЫ РАЗМЕРА</div>
+            <label class="field-label">Высота размерного числа — ГОСТ 2.304, тип Б
+              <select id="dimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5">2,5 мм</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7" selected>7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select>
+            </label>
+            <label class="check-row"><input type="checkbox" id="dimensionShowValue" checked> Показывать числовое значение размера</label>
             <label class="field-label">Размещение стрелок
               <select id="dimensionArrowPlacement"><option value="auto">Авто — внутри, если хватает места</option><option value="inside">Внутри</option><option value="outside">Снаружи</option></select>
             </label>
-            <div class="muted-hint">В режиме «Авто» короткие размерные линии автоматически получают наружные стрелки. Число остаётся по центру размерной линии.</div>
+            <label class="field-label">Положение размерного числа
+              <select id="dimensionTextOrientation"><option value="horizontal">Горизонтально, с ответвлением</option><option value="aligned">Параллельно размерной линии</option></select>
+            </label>
+            <div class="two-fields"><label class="field-label">Отступ размера, мм<input id="dimensionSelectedOffset" type="number" min="10" max="200" step="0.5" value="10"></label><label class="field-label">Зазор ножек, мм<input id="dimensionExtensionGap" type="number" min="0" max="5" step="0.5" value="1"></label></div>
+            <label class="field-label">Продолжение выносных линий за размерную, мм<input id="dimensionExtensionBeyond" type="number" min="1" max="5" step="0.5" value="2"></label>
+            <div class="two-fields"><label class="field-label">Смещение числа X, мм<input id="dimensionLabelDx" type="number" step="0.5" value="0"></label><label class="field-label">Смещение числа Y, мм<input id="dimensionLabelDy" type="number" step="0.5" value="0"></label></div>
+            <div class="muted-hint">Размерное число можно перетащить за голубую ручку. В горизонтальном режиме наклонный размер получает полку-ответвление; длина продолжения обеих выносных линий задаётся одинаково.</div>
           </div>
           <button class="secondary-btn" id="editContentBtn">Изменить текст / значение</button>
           <button class="secondary-btn" id="editTextFormatBtn">Все параметры текста</button>

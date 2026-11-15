@@ -224,3 +224,11 @@ html,body{font-size:15px;}
 /* Template labels are directly editable: double-click opens the text editor. */
 #templateLayer text[data-template-text-id]{cursor:text;pointer-events:all;}
 #templateLayer text[data-template-text-id]:hover{filter:drop-shadow(0 0 .45px #087fa0);}
+
+
+/* v2.5.4.2 — categorized tool tabs */
+.tool-category-tabs{position:sticky;top:0;z-index:6;display:flex;gap:5px;overflow-x:auto;padding:7px 0 9px;margin:-2px 0 11px;background:#30353a;border-bottom:1px solid #4b5259;scrollbar-width:thin;}
+.tool-category-tab{flex:0 0 auto;min-height:29px;padding:5px 8px;border:1px solid #515b63;border-radius:4px;background:#252b2f;color:#c9d2d8;font-size:10px;white-space:nowrap;}
+.tool-category-tab:hover{border-color:var(--accent);background:#35434a;}
+.tool-category-tab.active{background:#075e75;border-color:#159abb;color:#fff;font-weight:700;}
+@media(max-width:700px){.tool-category-tabs{top:0;margin:0 0 7px;padding:5px 0 7px;}.tool-category-tab{font-size:9px;min-height:27px;padding:4px 7px;}}
