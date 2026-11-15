@@ -4,10 +4,38 @@
 (function () {
   const BLUE = '#000000';
   const TEXT = '#000000';
+  let templateTextCoordinateCounts = {};
+  let activeTemplateTextOverrides = {};
   function esc(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c])); }
   function line(x1,y1,x2,y2,width=.22,color=BLUE){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" fill="none" vector-effect="non-scaling-stroke"/>`;}
   function rect(x,y,w,h,width=.25,color=BLUE){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${color}" stroke-width="${width}" vector-effect="non-scaling-stroke"/>`;}
-  function txt(x,y,value,size=2.25,anchor='start',rotate=0,opts={}){const h=Math.max(1.8,Number(size)||2.25);const transforms=(rotate||opts.slanted)?`translate(${x} ${y}) ${rotate?`rotate(${rotate}) `:''}${opts.slanted?'skewX(-15) ':''}translate(${-x} ${-y})`:'';const tr=transforms?` transform="${transforms}"`:'';return `<text x="${x}" y="${y}" font-family="${opts.fontFamily||'GOST type B,Arial,sans-serif'}" font-size="${h}" fill="${opts.color||TEXT}" text-anchor="${anchor}" text-rendering="geometricPrecision"${tr}${opts.weight?' font-weight="'+opts.weight+'"':''}${opts.italic?' font-style="italic"':''}>${esc(value)}</text>`;}
+  function txt(x,y,value,size=2.25,anchor='start',rotate=0,opts={}){
+    const coordKey=[x,y,anchor,rotate].join('|');
+    const occurrence=templateTextCoordinateCounts[coordKey]||0;
+    templateTextCoordinateCounts[coordKey]=occurrence+1;
+    const id=`tpltext-${coordKey.replace(/[^a-zA-Z0-9_-]/g,'_')}-${occurrence}`;
+    const candidate=activeTemplateTextOverrides[id]||{};
+    const sourceText=String(value??'');
+    const over=candidate.source===sourceText?candidate:{};
+    const px=Number.isFinite(Number(over.x))?Number(over.x):x;
+    const py=Number.isFinite(Number(over.y))?Number(over.y):y;
+    const shown=Object.prototype.hasOwnProperty.call(over,'text')?over.text:value;
+    const h=Math.max(1.8,Number(over.size??size)||2.25);
+    const a=over.anchor||anchor;
+    const r=Number.isFinite(Number(over.rotation))?Number(over.rotation):rotate;
+    const widthFactor=Math.max(.25,Math.min(3,Number(over.widthFactor)||1));
+    const slanted=typeof over.slanted==='boolean'?over.slanted:!!opts.slanted;
+    const font=over.font||opts.fontFamily||'GOST type B,Arial,sans-serif';
+    const color=over.color||opts.color||TEXT;
+    const bold=typeof over.bold==='boolean'?over.bold:!!opts.weight;
+    const italic=typeof over.italic==='boolean'?over.italic:!!opts.italic;
+    const underline=!!over.underline,overline=!!over.overline,strike=!!over.strike;
+    const decoration=[underline?'underline':'',overline?'overline':'',strike?'line-through':''].filter(Boolean).join(' ');
+    const letterSpacing=Number.isFinite(Number(over.letterSpacing))?Number(over.letterSpacing):Number(opts.letterSpacing)||0;
+    const transforms=(r||slanted||widthFactor!==1)?`translate(${px} ${py}) ${r?`rotate(${r}) `:''}${slanted?'skewX(-15) ':''}${widthFactor!==1?`scale(${widthFactor} 1) `:''}translate(${-px} ${-py})`:'';
+    const tr=transforms?` transform="${transforms}"`:'';
+    return `<text data-template-text-id="${id}" data-template-source="${esc(sourceText)}" data-template-x="${px}" data-template-y="${py}" data-template-size="${h}" data-template-width-factor="${widthFactor}" data-template-anchor="${a}" data-template-rotation="${r}" data-template-slanted="${slanted}" data-template-font="${esc(font)}" data-template-color="${color}" data-template-bold="${bold}" data-template-italic="${italic}" x="${px}" y="${py}" font-family="${esc(font)}" font-size="${h}" fill="${color}" text-anchor="${a}"${letterSpacing?` letter-spacing="${letterSpacing}"`:''}${decoration?` text-decoration="${decoration}"`:''}${tr}${bold?' font-weight="bold"':''}${italic?' font-style="italic"':''}>${esc(shown)}</text>`;
+  }
   function cell(x1,x2,y,value,size=1.55){return txt((x1+x2)/2,y,value,size,'middle');}
   function vlabel(x,y1,y2,value,size=1.65){return txt(x,(y1+y2)/2,value,size,'middle',-90);}
   function addAuxFields(s, yTop=5, yBottom=292) {
@@ -360,6 +388,8 @@
     },
     markup(format,data,form){
       const {w,h}=this.dimensions(format),d=data||{},f=form||'user-template';
+      templateTextCoordinateCounts={};
+      activeTemplateTextOverrides=d.templateTextOverrides&&typeof d.templateTextOverrides==='object'?d.templateTextOverrides:{};
       if(f==='lab5-template')return lab5Template(w,h,d);
       if(f==='blank')return blankSheet(w,h);
       if(f==='gost-form1')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
