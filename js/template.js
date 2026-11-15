@@ -234,29 +234,36 @@
     s+=rc(20,5,205,292,.5);
 
     // Additional archival fields in the left binding margin, all in Ukrainian.
+    // The two upper fields touch one another and use the full strip width.
+    // The lower five fields continue directly below them; only this lower group
+    // is split lengthwise into the narrow label column and the adjacent blank column.
     const ax0=2.5, ax1=7.5, ax2=15;
-    const bands=[
+    const upperBands=[
       [5,65,'Перше застосування'],
-      [65,125,'Довідк. №'],
-      [146,181,'Інв. № ориг.'],
-      [181,207,'Підпис і дата'],
-      [207,236,'Взам. інв. №'],
-      [236,277,'Інв. № дубл.'],
-      [277,292,'Підпис і дата']
+      [65,125,'Довідк. №']
     ];
-    bands.forEach(([a,b,label],i)=>{
-      // Strong outside edges, thin internal separators.
-      s+=ln(ax0,a,ax2,a,i===0?.5:.25)+ln(ax0,b,ax2,b,i===bands.length-1?.5:.25);
+    upperBands.forEach(([a,b,label],i)=>{
+      s+=ln(ax0,a,ax2,a,i===0?.5:.25)+ln(ax0,b,ax2,b,.25);
+      s+=ln(ax0,a,ax0,b,.5)+ln(ax2,a,ax2,b,.5);
+      s+=tx((ax0+ax2)/2,(a+b)/2,label,1.8,'middle',-90);
+    });
+    const lowerBands=[
+      [125,160,'Підпис і дата'],
+      [160,186,'Інв. № дубл.'],
+      [186,215,'Зам. інв. №'],
+      [215,256,'Підпис і дата'],
+      [256,292,'Інв. № ориг.']
+    ];
+    lowerBands.forEach(([a,b,label],i)=>{
+      s+=ln(ax0,a,ax2,a,.25)+ln(ax0,b,ax2,b,i===lowerBands.length-1?.5:.25);
       s+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.25)+ln(ax2,a,ax2,b,.5);
-      const size=label==='Перше застосування'?1.8:1.8;
-      s+=tx((ax0+ax1)/2,(a+b)/2,label,size,'middle',-90);
+      s+=tx((ax0+ax1)/2,(a+b)/2,label,1.8,'middle',-90);
     });
 
-    // Graph 26: continuous 70 x 14 mm rectangle, no inner divider.
-    // Lab5 A4 portrait template: one 70 x 14 mm designation cell, no extended tail.
-    // The text is centered horizontally and vertically, and reads left-to-right.
+    // Graph 26: continuous 70 x 14 mm rectangle. The reference duplicates
+    // the document name in this field, rotated 180 degrees on portrait A4.
     s+=rc(20,5,90,19,.5);
-    s+=tx(55,13.2,code,3.5,'middle',0);
+    s+=tx(55,12,titleValue,3.5,'middle',180);
 
     // Form 1 title block: 185 x 55 mm, divided into eleven 5 mm rows.
     const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x6=155,x7=205;
@@ -278,7 +285,7 @@
     // Six signature rows, 5 mm each: role, surname/initials, signature and date.
     [x2,x3,x4].forEach(x=>s+=ln(x,y0+25,x,y6,.25));
     for(let i=1;i<=6;i++)s+=ln(x0,y0+25+i*5,x5,y0+25+i*5,.25);
-    const roles=['Розроб.','Перевір.','Т.контр.','Н.контр.','Затв.',''];
+    const roles=['Розроб.','Перевір.','Т.контр.','','Н.контр.','Затв.'];
     const names=[developerValue,checkerValue,'','','',''];
     roles.forEach((role,i)=>{
       const cy=y0+25+i*5+3.35;
@@ -288,20 +295,18 @@
 
     // Main vertical divisions are heavy; internal table rules remain thin.
     s+=ln(x6,y0,x6,y6,.5);
-    // Graph 2 designation and graph 1 document name; material cell remains blank unless specified.
+    // The reference places the document name in the upper central cell;
+    // the large lower central cell remains intentionally empty.
     s+=ln(x5,y1,x7,y1,.5);
-    s+=ln(x5,y3,x7,y3,.5);
-    s+=tx((x5+x6)/2,y0+9.6,code,3.5,'middle');
-    s+=tx((x5+x6)/2,y1+14.7,titleValue,fitSize(titleValue,66,4.5,3.0),'middle');
-    if(materialValue)s+=tx((x5+x6)/2,y3+3.65,materialValue,fitSize(materialValue,65,2.2,1.8),'middle');
+    s+=tx((x5+x6)/2,y0+9.6,titleValue,fitSize(titleValue,66,4.5,3.0),'middle');
 
     // Right block: fixed graph widths 15 / 17 / 18 mm.
     const l1=x6+15, l2=x6+32;
     s+=ln(x6,y1,x7,y1,.25)+ln(x6,y2,x7,y2,.25);
     s+=ln(l1,y1,l1,y3,.25)+ln(l2,y1,l2,y3,.25);
     s+=ln(x6+5,y2,x6+5,y3,.25)+ln(x6+10,y2,x6+10,y3,.25);
-    // Keep all three captions on one shared baseline and centered in the 5 mm header row.
-    const headerBaseline=y1+4.55;
+    // Keep all three captions on one shared baseline, optically centered in the 5 mm header row.
+    const headerBaseline=y1+3.35;
     s+=tx((x6+l1)/2,headerBaseline,'Літ.',1.8,'middle');
     s+=tx((l1+l2)/2,headerBaseline,'Маса',1.8,'middle');
     s+=tx((l2+x7)/2,headerBaseline,'Масштаб',1.8,'middle');
@@ -318,8 +323,8 @@
     s+=tx(x6+37.5,y3+3.35,`Аркушів ${totalSheets}`,sheetFont,'middle');
 
     // Graph 9: two centered lines in the lower-right cell; no vertical-bar separator.
-    const yCompany=[282.2,288.0];
-    orgLines.forEach((line,i)=>{if(line)s+=tx((x6+x7)/2,yCompany[i],line,fitSize(line,48,1.8,1.5),'middle');});
+    const yCompany=[282.0,288.2];
+    orgLines.forEach((line,i)=>{if(line)s+=tx((x6+x7)/2,yCompany[i],line,fitSize(line,48,2.35,2.0),'middle');});
 
     // “Копіював” and “Формат А4” are captions in the 5 mm lower margin, below the frame.
     s+=tx(105,295.5,'Копіював',1.65,'middle');
