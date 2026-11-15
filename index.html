@@ -283,16 +283,16 @@ R17
       <div class="right-panel-title">ОФОРМЛЕНИЕ ЛИСТА</div>
       <p class="right-desc">Виберіть шаблон. Геометрія та референси креслення збережуться під час перемикання.</p>
       <label class="field-label">Бібліотека шаблонів<select id="titleFormSelect"><optgroup label="Мої шаблони"><option value="user-template">Мій шаблон із надісланого зображення</option><option value="lab5-template">Лабораторна робота 5 — чистий шаблон без моделі</option></optgroup><optgroup label="ДСТУ ГОСТ 2.104:2006 / ЄСКД — креслення, схеми та наступні аркуші"><option value="gost-form1">Форма 1 — перший аркуш графічного документа</option><option value="form2a">Форма 2а — наступний аркуш</option></optgroup><optgroup label="ДСТУ ГОСТ 2.104:2006 / ЄСКД — текстові документи"><option value="form2">Форма 2 — перший аркуш текстового документа</option><option value="form2b-odd">Форма 2б — додаткові графи ліворуч</option><option value="form2b-even">Форма 2б — додаткові графи праворуч</option></optgroup><optgroup label="ГОСТ 2.106-96 — специфікації"><option value="spec-form1">Специфікація — форма 1, перший аркуш</option><option value="spec-form1a">Специфікація — форма 1а, наступні аркуші</option></optgroup><option value="blank">Чистий аркуш із рамкою без штампа</option></select></label><p class="right-desc" id="templateDescription">Ваш початковий шаблон: бокові службові графи, верхня комірка й нижній основний напис.</p>
-      <label class="field-label">Найменування виробу / документа<input id="titleField" value="Найменування деталі"></label>
-      <label class="field-label">Позначення документа<input id="codeField" value="КРЕСЛЕННЯ.001"></label>
-      <label class="field-label">Матеріал деталі<input id="materialField" value="Матеріал не зазначено"></label>
+      <label class="field-label">Найменування виробу / документа<input id="titleField" value="Лабораторна робота 5"></label>
+      <label class="field-label">Позначення документа<input id="codeField" value="КТ-24.ЛР5.001"></label>
+      <label class="field-label">Матеріал деталі<input id="materialField" value="" placeholder="Лише якщо матеріал задано"></label>
       <div class="two-fields"><label class="field-label">Літера<input id="literField" value="У"></label><label class="field-label">Маса<input id="massField" value="—"></label></div>
-      <div class="two-fields"><label class="field-label">Масштаб<input id="scaleField" value="1:1" list="scaleSuggestions"><datalist id="scaleSuggestions"><option value="1:1"><option value="1:2"><option value="1:2.5"><option value="1:4"><option value="1:5"><option value="1:10"><option value="1:20"><option value="1:25"><option value="1:50"><option value="1:100"><option value="2:1"><option value="2.5:1"><option value="4:1"><option value="5:1"><option value="10:1"></datalist></label><label class="field-label">Аркуш<input id="sheetField" value="1"></label></div>
+      <div class="two-fields"><label class="field-label">Масштаб<input id="scaleField" value="1:1" list="scaleSuggestions"><datalist id="scaleSuggestions"><option value="1:1"><option value="1:2"><option value="1:2.5"><option value="1:4"><option value="1:5"><option value="1:10"><option value="1:20"><option value="1:25"><option value="1:50"><option value="1:100"><option value="2:1"><option value="2.5:1"><option value="4:1"><option value="5:1"><option value="10:1"></datalist></label><label class="field-label">Аркуш<input id="sheetField" value="" placeholder="Порожньо для одного аркуша"></label></div>
       <label class="field-label">Усього аркушів<input id="sheetsField" value="1"></label>
-      <label class="field-label">Організація<input id="companyField" value="Навчальний кресленик"></label>
+      <label class="field-label">Організація<input id="companyField" value="Шосткинський фаховий коледж імені Івана Кожедуба СумДУ · КТ-24"></label>
       <div class="panel-heading spaced">ПІДПИСИ</div>
-      <label class="field-label">Розробив<input id="developerField" placeholder="Прізвище"></label>
-      <label class="field-label">Перевірив<input id="checkerField" placeholder="Прізвище"></label>
+      <label class="field-label">Розробив<input id="developerField" value="Кушвид О.А." placeholder="Прізвище та ініціали"></label>
+      <label class="field-label">Перевірив<input id="checkerField" value="Базиль Б." placeholder="Прізвище та ініціали"></label>
       <label class="field-label">Технічний контроль<input id="technicalField" placeholder="Прізвище"></label>
       <label class="field-label">Нормоконтроль<input id="normativeField" placeholder="Прізвище"></label>
       <label class="field-label">Затвердив<input id="approvedField" placeholder="Прізвище"></label>
