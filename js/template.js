@@ -303,15 +303,15 @@
       if(names[i])s+=tx(x2+1.2,cy,names[i],fitSize(names[i],21,2.2,1.8),'start');
     });
 
-    // Main vertical divisions are heavy; internal table rules remain thin.
-    s+=ln(x6,y0,x6,y6,.5);
-    // Split the lower middle field into two unequal cells: a wider main cell
-    // and a narrower companion cell. This line begins below the title band.
-    s+=ln(x5+42,y1,x5+42,y6,.25);
-    // The reference places the document name in the upper central cell;
-    // the large lower central cell remains intentionally empty.
+    // Main vertical divider starts below the title band: the title row is
+    // one continuous cell across the middle and right blocks.
+    s+=ln(x6,y1,x6,y6,.5);
+    // The lower central field is split horizontally, not vertically. Its
+    // divider aligns with the top edge of the educational-institution cell.
+    s+=ln(x5,y4,x6,y4,.25);
+    // The document name is centered across the full title row.
     s+=ln(x5,y1,x7,y1,.5);
-    s+=tx((x5+x6)/2,y0+9.6,titleValue,7,'middle',0,{textLength:65});
+    s+=tx((x5+x7)/2,y0+9.6,titleValue,7,'middle',0,{textLength:65});
 
     // Right block: fixed graph widths 15 / 17 / 18 mm.
     const l1=x6+15, l2=x6+32;
