@@ -239,30 +239,32 @@
     // A4 portrait frame: 20 mm binding margin, 5 mm on top/right/bottom.
     s+=rc(20,5,205,292,.5);
 
-    // Additional archival fields in the left binding margin, all in Ukrainian.
-    // The two upper fields touch one another and use the full strip width.
-    // The lower five fields continue directly below them; only this lower group
-    // is split lengthwise into the narrow label column and the adjacent blank column.
-    const ax0=2.5, ax1=7.5, ax2=15;
+    // Archival strip outside the left frame. It now touches the frame itself:
+    // left edge at 7.5 mm, label column to 13.75 mm, blank companion column to 20 mm.
+    // The two upper labelled fields are followed by a clear unruled gap, then
+    // the five lower archival fields, matching the supplied KOMPAS reference.
+    const ax0=7.5, ax1=13.75, ax2=20;
     const upperBands=[
       [5,65,'Перш. застос.'],
       [65,125,'Довід. №']
     ];
     upperBands.forEach(([a,b,label],i)=>{
       s+=ln(ax0,a,ax2,a,i===0?.5:.25)+ln(ax0,b,ax2,b,.25);
-      s+=ln(ax0,a,ax0,b,.5)+ln(ax2,a,ax2,b,.5);
-      s+=tx((ax0+ax2)/2,(a+b)/2,label,3.5,'middle',-90);
+      s+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.25);
+      s+=tx((ax0+ax1)/2,(a+b)/2,label,3.5,'middle',-90);
     });
+    // Blank interval from y=125 to y=145: the strip visibly pauses here;
+    // the page frame at x=20 continues uninterrupted beside it.
     const lowerBands=[
-      [125,160,'Підп. і дата'],
-      [160,186,'Інв. № дубл.'],
-      [186,215,'Зам. інв. №'],
-      [215,256,'Підп. і дата'],
+      [145,180,'Підп. і дата'],
+      [180,206,'Інв. № дубл.'],
+      [206,231,'Зам. інв. №'],
+      [231,256,'Підп. і дата'],
       [256,292,'Інв. № ориг.']
     ];
     lowerBands.forEach(([a,b,label],i)=>{
       s+=ln(ax0,a,ax2,a,.25)+ln(ax0,b,ax2,b,i===lowerBands.length-1?.5:.25);
-      s+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.25)+ln(ax2,a,ax2,b,.5);
+      s+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.25);
       s+=tx((ax0+ax1)/2,(a+b)/2,label,3.5,'middle',-90);
     });
 
@@ -279,7 +281,9 @@
     // Left 65 mm register: exactly 11 rows of 5 mm total: four blank
     // revision rows, one header row, then six 5 mm signature/approval rows.
     [x1,x2,x3,x4].forEach(x=>s+=ln(x,y0,x,y0+25,.25));
-    s+=ln(x5,y0,x5,y6,.5);
+    // Leave the left edge of the title band open as requested; the divider
+    // resumes below the title and frames the lower central blank fields.
+    s+=ln(x5,y1,x5,y6,.5);
     [1,2,3,4,5].forEach(i=>s+=ln(x0,y0+i*5,x5,y0+i*5,i===5?.5:.25));
     const headY=y0+23.45;
     s+=tx((x0+x1)/2,headY,'Зм.',1.8,'middle');
@@ -301,6 +305,9 @@
 
     // Main vertical divisions are heavy; internal table rules remain thin.
     s+=ln(x6,y0,x6,y6,.5);
+    // Split the lower middle field into two unequal cells: a wider main cell
+    // and a narrower companion cell. This line begins below the title band.
+    s+=ln(x5+42,y1,x5+42,y6,.25);
     // The reference places the document name in the upper central cell;
     // the large lower central cell remains intentionally empty.
     s+=ln(x5,y1,x7,y1,.5);
