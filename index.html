@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>КОМПАС Онлайн 2.3 — креслення</title>
+  <title>КОМПАС Онлайн 2.4 — креслення</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -163,8 +163,8 @@
           <label class="field-label">Група товщин ліній<select id="gostLineGroup"><option value="0.25">0,25 / 0,13 мм</option><option value="0.35">0,35 / 0,18 мм</option><option value="0.5" selected>0,50 / 0,25 мм — рекомендована</option><option value="0.7">0,70 / 0,35 мм</option><option value="1">1,00 / 0,50 мм</option><option value="1.4">1,40 / 0,70 мм</option><option value="2">2,00 / 1,00 мм</option></select></label>
           <div class="two-fields"><label class="field-label">Основна (широка), мм<input id="gostMainLine" type="number" min="0.13" max="2" step="0.01" value="0.5" list="lineWidths"></label><label class="field-label">Вузька, мм<input id="gostThinLine" type="number" min="0.13" max="1" step="0.01" value="0.25" list="lineWidths"></label></div>
           <datalist id="lineWidths"><option value="0.13"><option value="0.18"><option value="0.25"><option value="0.35"><option value="0.5"><option value="0.7"><option value="1"><option value="1.4"><option value="2"></datalist>
-          <div class="two-fields"><label class="field-label">Висота шрифту, мм<input id="gostTextHeight" type="number" list="isoTextHeights" value="5" step="0.1"><datalist id="isoTextHeights"><option value="1.8"><option value="2.5"><option value="3.5"><option value="5"><option value="7"><option value="10"><option value="14"><option value="20"><option value="28"><option value="40"></datalist></label><label class="field-label">Довжина стрілки, мм<input id="gostArrowLength" type="number" min="2" max="10" step="0.5" value="2.5"></label></div>
-          <label class="field-label">Креслярський шрифт<select id="gostLettering"><option value="B-V">Тип B — вертикальний (переважний)</option><option value="B-S">Тип B — похилий 75°</option><option value="A-V">Тип A — вертикальний</option><option value="A-S">Тип A — похилий 75°</option></select></label><div class="muted-hint">Профіль задає тип A/B, висоту та нахил 75°. Точний контур символів залежить від встановленого CAD-шрифту ISO 3098; якщо його немає, браузер використовує резервний шрифт.</div>
+          <div class="two-fields"><label class="field-label">Висота шрифту, мм<input id="gostTextHeight" type="number" list="isoTextHeights" value="5" step="0.1"><datalist id="isoTextHeights"><option value="1.8"><option value="2.5"><option value="3.5"><option value="5"><option value="7"><option value="10"><option value="14"><option value="20"><option value="28"><option value="40"></datalist></label><label class="field-label">Довжина стрілки, мм<input id="gostArrowLength" type="number" min="2.5" max="5" step="0.5" value="3.5"></label></div>
+          <label class="field-label">Креслярський шрифт<select id="gostLettering"><option value="B-V">Тип B — вертикальний</option><option value="B-S">Тип B — похилий 75° (рекомендований)</option><option value="A-V">Тип A — вертикальний</option><option value="A-S">Тип A — похилий 75°</option></select></label><div class="muted-hint">Профіль задає тип A/B, висоту та нахил 75°. Точний контур символів залежить від встановленого CAD-шрифту ISO 3098; якщо його немає, браузер використовує резервний шрифт.</div>
           <label class="field-label">Знаків після коми<input id="gostPrecision" type="number" min="0" max="3" step="1" value="1"></label>
           <button class="secondary-btn" id="saveGostSettingsBtn">Зберегти параметри профілю</button>
         </div>
@@ -357,7 +357,7 @@ Ctrl + C / Ctrl + V — копировать / вставить.
   <div class="modal-backdrop hidden" id="textModal"><div class="modal text-modal"><div class="modal-head"><b id="textModalTitle">Параметры текста</b><button id="closeTextModal" type="button">✕</button></div><div class="modal-body text-form">
     <label class="field-label text-wide">Содержимое надписи<textarea id="textContent" rows="5" placeholder="Введите текст. Перенос строки — новая строка на чертеже."></textarea></label>
     <label class="field-label">Шрифт<select id="textFont"><option value="Arial,sans-serif">Arial / без засічок</option><option value="GOST type B,Arial,sans-serif">GOST / ISO 3098 — тип B (якщо встановлено)</option><option value="GOST type A,Arial,sans-serif">GOST / ISO 3098 — тип A (якщо встановлено)</option><option value="Times New Roman,serif">Times New Roman</option><option value="Verdana,sans-serif">Verdana</option><option value="Courier New,monospace">Courier New</option><option value="Georgia,serif">Georgia</option></select></label>
-    <label class="field-label">Тип креслярського шрифту<select id="textLettering"><option value="B-V">Тип B — вертикальний (переважний)</option><option value="B-S">Тип B — похилий 75°</option><option value="A-V">Тип A — вертикальний</option><option value="A-S">Тип A — похилий 75°</option></select></label>
+    <label class="field-label">Тип креслярського шрифту<select id="textLettering"><option value="B-V">Тип B — вертикальний</option><option value="B-S">Тип B — похилий 75° (рекомендований)</option><option value="A-V">Тип A — вертикальний</option><option value="A-S">Тип A — похилий 75°</option></select></label>
     <label class="field-label">Інший шрифт<input id="textFontCustom" placeholder="Порожньо — вибрати вище"></label>
     <label class="field-label">Высота букв, мм<input id="textSize" type="number" min="0.5" max="50" step="0.1" value="5"></label>
     <label class="field-label">Ширина букв, %<input id="textWidthFactor" type="number" min="25" max="300" step="5" value="100"></label>

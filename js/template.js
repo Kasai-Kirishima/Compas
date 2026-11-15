@@ -7,7 +7,7 @@
   function esc(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c])); }
   function line(x1,y1,x2,y2,width=.22,color=BLUE){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${width}" fill="none" vector-effect="non-scaling-stroke"/>`;}
   function rect(x,y,w,h,width=.25,color=BLUE){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${color}" stroke-width="${width}" vector-effect="non-scaling-stroke"/>`;}
-  function txt(x,y,value,size=2.25,anchor='start',rotate=0,opts={}){const h=Math.max(1.8,Number(size)||2.25);const tr=rotate?` transform="rotate(${rotate} ${x} ${y})"`:'';return `<text x="${x}" y="${y}" font-family="Arial,sans-serif" font-size="${h}" fill="${opts.color||TEXT}" text-anchor="${anchor}"${tr}${opts.weight?' font-weight="'+opts.weight+'"':''}${opts.italic?' font-style="italic"':''}>${esc(value)}</text>`;}
+  function txt(x,y,value,size=2.25,anchor='start',rotate=0,opts={}){const h=Math.max(1.8,Number(size)||2.25);const transforms=(rotate||opts.slanted)?`translate(${x} ${y}) ${rotate?`rotate(${rotate}) `:''}${opts.slanted?'skewX(-15) ':''}translate(${-x} ${-y})`:'';const tr=transforms?` transform="${transforms}"`:'';return `<text x="${x}" y="${y}" font-family="${opts.fontFamily||'GOST type B,Arial,sans-serif'}" font-size="${h}" fill="${opts.color||TEXT}" text-anchor="${anchor}"${tr}${opts.weight?' font-weight="'+opts.weight+'"':''}${opts.italic?' font-style="italic"':''}>${esc(value)}</text>`;}
   function cell(x1,x2,y,value,size=1.55){return txt((x1+x2)/2,y,value,size,'middle');}
   function vlabel(x,y1,y2,value,size=1.65){return txt(x,(y1+y2)/2,value,size,'middle',-90);}
   function addAuxFields(s, yTop=5, yBottom=292) {
@@ -186,7 +186,7 @@
     const ln=(x1,y1,x2,y2,sw=.24)=>line(X(x1),Y(y1),X(x2),Y(y2),sw,'#000000');
     const rc=(x1,y1,x2,y2,sw=.3)=>rect(X(x1),Y(y1),X(x2)-X(x1),Y(y2)-Y(y1),sw,'#000000');
     const labTextHeight=size=>size<=2.5?2.5:size<=3.5?3.5:size<=5?5:size<=7?7:size;
-    const tx=(x,y,value,size=1.7,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,labTextHeight(size),anchor,rotate,{...opts,color:'#000000'});
+    const tx=(x,y,value,size=1.7,anchor='start',rotate=0,opts={})=>txt(X(x),Y(y),value,labTextHeight(size),anchor,rotate,{...opts,slanted:true,fontFamily:'GOST type B,Arial,sans-serif',color:'#000000'});
     let s=`<g transform="translate(${ox} ${oy}) scale(${scale})">`;
     // Sheet frame and archival columns. The title block itself follows the 185 x 55 mm
     // envelope of GOST 2.104 Form 1 and is aligned to the right sheet border.
@@ -196,6 +196,7 @@
     s+=ln(15,671,48,671,.28)+ln(15,767,48,767,.28)+ln(15,836,48,836,.28)+ln(15,917,48,917,.28)+ln(15,1027,48,1027,.28);
     s+=ln(29,671,29,1068,.28);
     s+=rc(48,284,240,323,.28);
+    s+=tx(58,307,'Позначення: '+(d.code||'КРЕСЛЕННЯ.001'),2.5,'start');
     s+=ln(48,323,553,323,.28);
     s+=ln(48,918,553,918,.42);
 
@@ -239,11 +240,14 @@
     s+=tx((x3+x4)/2,946,'Підп.',2.5,'middle',0,{italic:true});
     s+=tx((x4+x5)/2,946,'Дата',2.5,'middle',0,{italic:true});
     // Role labels are centered in the merged 17 mm-wide cell.
-    s+=tx((x0+x2)/2,986,'Ученик',3.5,'middle',0,{italic:false});
-    s+=tx((x0+x2)/2,1006,'Учитель',3.5,'middle',0,{italic:false});
+    s+=tx((x0+x2)/2,986,'Виконав',3.5,'middle',0,{italic:false});
+    s+=tx((x0+x2)/2,1006,'Перевірив',3.5,'middle',0,{italic:false});
+    if(d.developer)s+=tx((x2+x3)/2,986,d.developer,2.5,'middle',0,{italic:false});
+    if(d.checker)s+=tx((x2+x3)/2,1006,d.checker,2.5,'middle',0,{italic:false});
     // Main title and right-hand information fields.
     const title=(d.title&&d.title!=='Найменування деталі')?d.title:'Лабораторна робота 5';
-    s+=tx((x5+x6)/2,948,title,5,'middle',0,{italic:false});
+    s+=tx((x5+x6)/2,944,title,5,'middle',0,{italic:false});
+    s+=tx((x5+x6)/2,954,'Позначення: '+(d.code||'КРЕСЛЕННЯ.001'),2.5,'middle',0,{italic:false});
     s+=tx(r(13),969,'Літ.',2.5,'middle',0,{italic:true});
     s+=tx(r(63),969,'Маса',2.5,'middle',0,{italic:true});
     s+=tx(r(111),969,'Масштаб',2.5,'middle',0,{italic:true});
