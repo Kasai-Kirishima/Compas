@@ -249,9 +249,9 @@
     });
 
     // Graph 26: continuous 70 x 14 mm rectangle, no inner divider.
-    // On A4, the duplicated designation is rotated by 180 degrees.
+    // Lab5 A4 portrait template: keep the designation upright for normal reading.
     s+=rc(20,5,90,19,.5);
-    s+=tx(55,12,code,3.5,'middle',180);
+    s+=tx(55,12,code,3.5,'middle',0);
     s+=ln(20,19,205,19,.25);
 
     // Form 1 title block: 185 x 55 mm, divided into eleven 5 mm rows.
