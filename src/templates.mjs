@@ -176,6 +176,74 @@ export function createCounterboreHole(center, throughRadius, counterboreRadius, 
   return out;
 }
 
+/**
+ * Parametric end-view cover matching the supplied Variant No. 6 sketch:
+ * circular rim interrupted by equally spaced radial slots with rounded inner
+ * ends, a central regular hexagon, and an optional pitch circle.
+ * All dimensions are millimetres. Geometry is a connected 2D contour drawn as
+ * Arc/Line primitives (not a filled solid and not a 3D Boolean operation).
+ */
+export function createRadialSlotCover({
+  center = { x: 0, y: 0 },
+  outerRadius = 42,          // Ø84 outer envelope
+  pitchRadius = 23,          // Ø46 pitch circle / slot-end centres
+  slotWidth = 6,
+  endRadius = 8,              // Ø16 rounded slot end
+  slotCount = 6,
+  hexAcrossFlats = 20,
+  startAngle = Math.PI / 2,
+  includePitchCircle = true,
+  includeCenterMarks = true,
+  style = { stroke: '#2877bd', lineWidth: 0.5, lineDash: [] },
+  constructionStyle = { stroke: '#d18a43', lineWidth: 0.18, lineDash: [8, 2, 1, 2] },
+} = {}) {
+  finitePositive(outerRadius, 'Зовнішній радіус кришки');
+  finitePositive(pitchRadius, 'Радіус ділильного кола');
+  finitePositive(slotWidth, 'Ширина радіального паза');
+  finitePositive(endRadius, 'Радіус заокругленого кінця паза');
+  finitePositive(hexAcrossFlats, 'Розмір шестикутника між гранями');
+  if (!center || !Number.isFinite(center.x) || !Number.isFinite(center.y)) throw new TypeError('Центр кришки має містити x та y');
+  if (!Number.isInteger(slotCount) || slotCount < 2 || slotCount > 36) throw new RangeError('Кількість пазів має бути цілим числом від 2 до 36');
+  if (!Number.isFinite(startAngle)) throw new TypeError('Початковий кут має бути скінченним числом');
+  const half = slotWidth / 2;
+  if (endRadius <= half) throw new RangeError('Діаметр заокругленого кінця має бути більшим за ширину паза');
+  if (pitchRadius + endRadius >= outerRadius) throw new RangeError('Кінці пазів мають повністю поміщатися всередині зовнішнього контуру');
+  if (hexAcrossFlats / Math.sqrt(3) >= pitchRadius - endRadius) throw new RangeError('Центральний шестикутник перетинається з заокругленими кінцями пазів');
+  const step = TAU / slotCount;
+  const outerHalfAngle = Math.asin(half / outerRadius);
+  const endHalfAngle = Math.asin(half / endRadius);
+  if (2 * outerHalfAngle >= step) throw new RangeError('Пази надто широкі для заданої кількості');
+
+  const objects = [];
+  // Keep only the circular rim arcs between successive open slot mouths.
+  for (let i = 0; i < slotCount; i++) {
+    const angle = startAngle + i * step;
+    objects.push(new Arc(center, outerRadius, angle + outerHalfAngle, step - 2 * outerHalfAngle, { style }));
+  }
+  const outerAlong = Math.sqrt(outerRadius ** 2 - half ** 2);
+  const endAlong = Math.sqrt(endRadius ** 2 - half ** 2);
+  for (let i = 0; i < slotCount; i++) {
+    const angle = startAngle + i * step;
+    const u = { x: Math.cos(angle), y: Math.sin(angle) };
+    const n = { x: -u.y, y: u.x };
+    const outerPlus = pointAt(center, u, n, outerAlong, half);
+    const outerMinus = pointAt(center, u, n, outerAlong, -half);
+    const innerPlus = pointAt(center, u, n, pitchRadius + endAlong, half);
+    const innerMinus = pointAt(center, u, n, pitchRadius + endAlong, -half);
+    objects.push(new Line(outerPlus, innerPlus, { style }));
+    objects.push(new Line(innerMinus, outerMinus, { style }));
+    // Major arc leaves a mouth of exactly slotWidth toward the outer rim.
+    const capCenter = pointAt(center, u, n, pitchRadius, 0);
+    objects.push(new Arc(capCenter, endRadius, angle + endHalfAngle, TAU - 2 * endHalfAngle, { style }));
+    if (includeCenterMarks) objects.push(...createCenterMark(capCenter, endRadius * 1.8, { style: constructionStyle, gap: endRadius * 0.25 }));
+  }
+  objects.push(Polygon.regular(center, 6, hexAcrossFlats / Math.sqrt(3), 0, { style }));
+  if (includePitchCircle) objects.push(new Circle(center, pitchRadius, { style: constructionStyle }));
+  if (includeCenterMarks) objects.push(...createCenterMark(center, Math.max(hexAcrossFlats * 1.3, 8), { style: constructionStyle, gap: hexAcrossFlats * 0.25 }));
+  for (const object of objects) object.feature = 'radial-slot-cover';
+  return objects;
+}
+
 /** Rectangularly spaced hole pattern; origin is the centre of the first hole. */
 export function createHoleArray({ origin = { x:0, y:0 }, rows, columns, pitchX, pitchY, radius, centerMarks = true, style = defaultStyle } = {}) {
   if (!Number.isInteger(rows) || rows < 1 || !Number.isInteger(columns) || columns < 1) throw new RangeError('Кількість рядків і стовпців має бути цілим числом ≥ 1');
@@ -210,7 +278,8 @@ export const TEMPLATE_CATALOG = Object.freeze([
   { id: 'washer', label: 'Шайба', description: 'Зовнішній і внутрішній контури шайби', defaults: { center: {x:0,y:0}, outerRadius: 24, innerRadius: 10 } },
   { id: 'bearing', label: 'Підшипник', description: 'Кільця та тіла кочення у торцевому вигляді', defaults: { center: {x:0,y:0}, outerRadius: 32, innerRadius: 14, ballRadius: 5, ballCount: 8 } },
   { id: 'counterbore', label: 'Отвір із цекуванням', description: 'Наскрізний отвір і контур цекування', defaults: { center: {x:0,y:0}, throughRadius: 4, counterboreRadius: 8 } },
-  { id: 'holeArray', label: 'Прямокутний масив отворів', description: 'Отвори з рівним кроком по рядках і стовпцях', defaults: { origin: {x:0,y:0}, rows: 2, columns: 3, pitchX: 35, pitchY: 30, radius: 4 } }
+  { id: 'holeArray', label: 'Прямокутний масив отворів', description: 'Отвори з рівним кроком по рядках і стовпцях', defaults: { origin: {x:0,y:0}, rows: 2, columns: 3, pitchX: 35, pitchY: 30, radius: 4 } },
+  { id: 'radialSlotCover', label: 'Кришка з 6 радіальними пазами', description: 'Круглий контур, шість пазів із заокругленими кінцями, ділильне коло та центральний шестикутник', defaults: { center: {x:0,y:0}, outerRadius:42, pitchRadius:23, slotWidth:6, endRadius:8, slotCount:6, hexAcrossFlats:20, startAngle:Math.PI/2 } }
 ]);
 
 /** Create a named, parametric starter drawing. Returns an array of primitives. */
@@ -230,6 +299,7 @@ export function createTemplate(id, overrides = {}) {
     case 'bearing': return createBearing(p.center, p.outerRadius, p.innerRadius, p.ballRadius, p.ballCount, p.options);
     case 'counterbore': return createCounterboreHole(p.center, p.throughRadius, p.counterboreRadius, p.options);
     case 'holeArray': return createHoleArray(p);
+    case 'radialSlotCover': return createRadialSlotCover(p);
     default: throw new RangeError(`Шаблон не реалізований: ${id}`);
   }
 }

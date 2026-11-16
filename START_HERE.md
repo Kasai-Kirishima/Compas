@@ -1,75 +1,37 @@
-# Быстрый старт — CAD Geometry Core 1.4.0
+# Start here
 
-## 1. Нужно
-- Node.js 18 или новее — только для запуска тестов.
-- Современный браузер — для интерактивной демонстрации.
-- Внешние npm-библиотеки не требуются.
+## Requirements
 
-## 2. Проверить проект
-В корневой папке проекта выполните:
+- Node.js 18 or newer for tests and scripts.
+- No third-party npm dependencies are required.
+- A modern browser for the Canvas demo.
+
+## Install / verify
+
+From this folder run:
 
 ```bash
 npm test
 ```
 
-## 3. Запустить демонстрацию
-Из корневой папки:
+## Open the demo
+
+Run a local static server from the project root:
 
 ```bash
 python -m http.server 8000
 ```
 
-Откройте в браузере:
+Open <http://localhost:8000/examples/demo.html>. Use **Загрузить пример детали с вырезом** for the generic sample or **Загрузить крышку — вариант №6** for the supplied circular-cover sketch. Internal contours are placed by clicking the desired centre on the canvas.
 
-```text
-http://localhost:8000/examples/demo.html
-```
+## Suggested workflow for a 2D mechanical drawing
 
-В демо показаны частичный ластик, Trim/вырезка, многоугольники и размеры с автоматической ориентацией текста.
+1. Draw the base contour with Line, Rectangle, or Polygon.
+2. Use **Вырез по краю** for a rectangular notch open to a selected edge.
+3. Use the inner contour selector for a circular hole, rectangular pocket boundary, or obround slot.
+4. Add centre lines and dimensions.
+5. Use Trim to remove contour sections at intersections.
+6. Use the partial Eraser for small local corrections. It starts on a single target object and never deletes a fully covered object.
+7. Export the scene to JSON. Undo/Redo is available during the session.
 
-## 4. Где искать функции
-- `src/cad-geometry-trim.mjs` — геометрия, размеры, пересечения, Trim.
-- `src/eraser.mjs` — частичное стирание линий, окружностей, дуг, полигонов и графики размеров.
-- `src/templates.mjs` — готовые шаблоны машиностроительных элементов.
-- `src/history.mjs` — Undo/Redo.
-- `docs/DIMENSIONS.md` — настройка размерных надписей.
-- `docs/ERASER.md` — подключение ластика.
-- `docs/TEMPLATES.md` — шаблоны.
-
-## 5. Пример создания размеров
-
-```js
-import { LinearDimension, DiameterDimension } from './src/index.mjs';
-
-const horizontal = new LinearDimension({x:0,y:0}, {x:60,y:0}, 8, {
-  textHeight: 5,
-  textOrientation: 'auto'
-});
-const vertical = new LinearDimension({x:0,y:0}, {x:0,y:40}, 8, {
-  textHeight: 5,
-  textOrientation: 'auto'
-});
-const diameter = new DiameterDimension({x:50,y:50}, 20, {
-  angle: Math.PI / 4,
-  textHeight: 5
-});
-```
-
-Горизонтальный размер получает горизонтальную надпись над линией, вертикальный — вертикальную надпись слева. Белая подложка не рисуется: размерная линия имеет разрыв под числом.
-
-## 6. Пример Trim многоугольника
-
-```js
-import { Polygon, Line, trimAtPoint, applyEditTransaction } from './src/index.mjs';
-
-const plate = new Polygon([
-  {x:0,y:0}, {x:100,y:0}, {x:100,y:60}, {x:0,y:60}
-]);
-const cutterA = new Line({x:30,y:-10}, {x:30,y:10});
-const cutterB = new Line({x:70,y:-10}, {x:70,y:10});
-let scene = [plate, cutterA, cutterB];
-const tx = trimAtPoint(plate, {x:50,y:0}, scene, {hitTolerance:2});
-if (tx.ok) scene = applyEditTransaction(scene, tx);
-```
-
-Trim разрезает выбранное ребро между соседними пересечениями; остальные рёбра сохраняются.
+This is a 2D drafting toolkit. It does not create 3D solids or perform a general polygon-Boolean subtraction between arbitrary closed shapes.

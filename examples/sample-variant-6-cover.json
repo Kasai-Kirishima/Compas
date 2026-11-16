@@ -1,0 +1,1234 @@
+{
+  "schema": "cad-geometry-scene",
+  "version": 1,
+  "objects": [
+    {
+      "id": "arc-1",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 42,
+      "startAngle": 1.642285776680417,
+      "sweep": 0.9042186514255566,
+      "ownerId": null
+    },
+    {
+      "id": "arc-2",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 42,
+      "startAngle": 2.6894833278770145,
+      "sweep": 0.9042186514255566,
+      "ownerId": null
+    },
+    {
+      "id": "arc-3",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 42,
+      "startAngle": 3.7366808790736123,
+      "sweep": 0.9042186514255566,
+      "ownerId": null
+    },
+    {
+      "id": "arc-4",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 42,
+      "startAngle": 4.78387843027021,
+      "sweep": 0.9042186514255566,
+      "ownerId": null
+    },
+    {
+      "id": "arc-5",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 42,
+      "startAngle": 5.831075981466808,
+      "sweep": 0.9042186514255566,
+      "ownerId": null
+    },
+    {
+      "id": "arc-6",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 42,
+      "startAngle": 6.878273532663405,
+      "sweep": 0.9042186514255566,
+      "ownerId": null
+    },
+    {
+      "id": "line-7",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -2.9999999999999973,
+        "y": 41.892720131306824
+      },
+      "b": {
+        "x": -2.9999999999999982,
+        "y": 30.416198487095663
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-8",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 3.0000000000000018,
+        "y": 30.416198487095663
+      },
+      "b": {
+        "x": 3.0000000000000027,
+        "y": 41.892720131306824
+      },
+      "ownerId": null
+    },
+    {
+      "id": "arc-9",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 1.4083438190194562e-15,
+        "y": 23
+      },
+      "radius": 8,
+      "startAngle": 1.9551931012905357,
+      "sweep": 5.514391758188308,
+      "ownerId": null
+    },
+    {
+      "id": "line-10",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -7.199999999999998,
+        "y": 23
+      },
+      "b": {
+        "x": -0.9999999999999986,
+        "y": 23
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-11",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 1.0000000000000013,
+        "y": 23
+      },
+      "b": {
+        "x": 7.200000000000002,
+        "y": 23
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-12",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 1.4083438190194562e-15,
+        "y": 15.8
+      },
+      "b": {
+        "x": 1.4083438190194562e-15,
+        "y": 22
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-13",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 1.4083438190194562e-15,
+        "y": 24
+      },
+      "b": {
+        "x": 1.4083438190194562e-15,
+        "y": 30.2
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-14",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -37.780159867343464,
+        "y": 18.34828385430011
+      },
+      "b": {
+        "x": -27.84120057637465,
+        "y": 12.610023032194526
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-15",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -24.84120057637465,
+        "y": 17.806175454901158
+      },
+      "b": {
+        "x": -34.780159867343464,
+        "y": 23.544436277006742
+      },
+      "ownerId": null
+    },
+    {
+      "id": "arc-16",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": -19.918584287042084,
+        "y": 11.500000000000007
+      },
+      "radius": 8,
+      "startAngle": 3.002390652487133,
+      "sweep": 5.514391758188308,
+      "ownerId": null
+    },
+    {
+      "id": "line-17",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -27.118584287042083,
+        "y": 11.500000000000007
+      },
+      "b": {
+        "x": -20.918584287042084,
+        "y": 11.500000000000007
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-18",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -18.918584287042084,
+        "y": 11.500000000000007
+      },
+      "b": {
+        "x": -12.718584287042084,
+        "y": 11.500000000000007
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-19",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -19.918584287042084,
+        "y": 4.300000000000007
+      },
+      "b": {
+        "x": -19.918584287042084,
+        "y": 10.500000000000007
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-20",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -19.918584287042084,
+        "y": 12.500000000000007
+      },
+      "b": {
+        "x": -19.918584287042084,
+        "y": 18.700000000000006
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-21",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -34.78015986734348,
+        "y": -23.544436277006717
+      },
+      "b": {
+        "x": -24.841200576374657,
+        "y": -17.80617545490114
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-22",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -27.841200576374657,
+        "y": -12.610023032194507
+      },
+      "b": {
+        "x": -37.78015986734348,
+        "y": -18.348283854300085
+      },
+      "ownerId": null
+    },
+    {
+      "id": "arc-23",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": -19.918584287042094,
+        "y": -11.499999999999993
+      },
+      "radius": 8,
+      "startAngle": 4.049588203683731,
+      "sweep": 5.514391758188308,
+      "ownerId": null
+    },
+    {
+      "id": "line-24",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -27.118584287042093,
+        "y": -11.499999999999993
+      },
+      "b": {
+        "x": -20.918584287042094,
+        "y": -11.499999999999993
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-25",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -18.918584287042094,
+        "y": -11.499999999999993
+      },
+      "b": {
+        "x": -12.718584287042095,
+        "y": -11.499999999999993
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-26",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -19.918584287042094,
+        "y": -18.699999999999992
+      },
+      "b": {
+        "x": -19.918584287042094,
+        "y": -12.499999999999993
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-27",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -19.918584287042094,
+        "y": -10.499999999999993
+      },
+      "b": {
+        "x": -19.918584287042094,
+        "y": -4.299999999999993
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-28",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 2.9999999999999925,
+        "y": -41.892720131306824
+      },
+      "b": {
+        "x": 2.9999999999999942,
+        "y": -30.416198487095663
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-29",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -3.0000000000000058,
+        "y": -30.416198487095663
+      },
+      "b": {
+        "x": -3.0000000000000075,
+        "y": -41.892720131306824
+      },
+      "ownerId": null
+    },
+    {
+      "id": "arc-30",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": -4.225031457058368e-15,
+        "y": -23
+      },
+      "radius": 8,
+      "startAngle": 5.096785754880329,
+      "sweep": 5.514391758188308,
+      "ownerId": null
+    },
+    {
+      "id": "line-31",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -7.200000000000005,
+        "y": -23
+      },
+      "b": {
+        "x": -1.0000000000000042,
+        "y": -23
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-32",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 0.9999999999999958,
+        "y": -23
+      },
+      "b": {
+        "x": 7.199999999999996,
+        "y": -23
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-33",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -4.225031457058368e-15,
+        "y": -30.2
+      },
+      "b": {
+        "x": -4.225031457058368e-15,
+        "y": -24
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-34",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -4.225031457058368e-15,
+        "y": -22
+      },
+      "b": {
+        "x": -4.225031457058368e-15,
+        "y": -15.8
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-35",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 37.780159867343464,
+        "y": -18.348283854300114
+      },
+      "b": {
+        "x": 27.841200576374646,
+        "y": -12.61002303219453
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-36",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 24.841200576374646,
+        "y": -17.80617545490116
+      },
+      "b": {
+        "x": 34.780159867343464,
+        "y": -23.544436277006746
+      },
+      "ownerId": null
+    },
+    {
+      "id": "arc-37",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 19.918584287042084,
+        "y": -11.50000000000001
+      },
+      "radius": 8,
+      "startAngle": 6.143983306076926,
+      "sweep": 5.514391758188308,
+      "ownerId": null
+    },
+    {
+      "id": "line-38",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 12.718584287042084,
+        "y": -11.50000000000001
+      },
+      "b": {
+        "x": 18.918584287042084,
+        "y": -11.50000000000001
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-39",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 20.918584287042084,
+        "y": -11.50000000000001
+      },
+      "b": {
+        "x": 27.118584287042083,
+        "y": -11.50000000000001
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-40",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 19.918584287042084,
+        "y": -18.70000000000001
+      },
+      "b": {
+        "x": 19.918584287042084,
+        "y": -12.50000000000001
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-41",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 19.918584287042084,
+        "y": -10.50000000000001
+      },
+      "b": {
+        "x": 19.918584287042084,
+        "y": -4.3000000000000105
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-42",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 34.78015986734349,
+        "y": 23.544436277006696
+      },
+      "b": {
+        "x": 24.841200576374668,
+        "y": 17.806175454901126
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-43",
+      "type": "line",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 27.84120057637466,
+        "y": 12.610023032194494
+      },
+      "b": {
+        "x": 37.78015986734349,
+        "y": 18.348283854300064
+      },
+      "ownerId": null
+    },
+    {
+      "id": "arc-44",
+      "type": "arc",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 19.918584287042098,
+        "y": 11.499999999999984
+      },
+      "radius": 8,
+      "startAngle": 7.191180857273523,
+      "sweep": 5.514391758188308,
+      "ownerId": null
+    },
+    {
+      "id": "line-45",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 12.718584287042098,
+        "y": 11.499999999999984
+      },
+      "b": {
+        "x": 18.918584287042098,
+        "y": 11.499999999999984
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-46",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 20.918584287042098,
+        "y": 11.499999999999984
+      },
+      "b": {
+        "x": 27.118584287042097,
+        "y": 11.499999999999984
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-47",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 19.918584287042098,
+        "y": 4.299999999999984
+      },
+      "b": {
+        "x": 19.918584287042098,
+        "y": 10.499999999999984
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-48",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 19.918584287042098,
+        "y": 12.499999999999984
+      },
+      "b": {
+        "x": 19.918584287042098,
+        "y": 18.699999999999985
+      },
+      "ownerId": null
+    },
+    {
+      "id": "polygon-49",
+      "type": "polygon",
+      "style": {
+        "stroke": "#2877bd",
+        "lineWidth": 0.5,
+        "lineDash": []
+      },
+      "locked": false,
+      "visible": true,
+      "vertices": [
+        {
+          "x": 11.547005383792516,
+          "y": 0
+        },
+        {
+          "x": 5.773502691896259,
+          "y": 10
+        },
+        {
+          "x": -5.7735026918962555,
+          "y": 10.000000000000002
+        },
+        {
+          "x": -11.547005383792516,
+          "y": 1.414100318299876e-15
+        },
+        {
+          "x": -5.7735026918962635,
+          "y": -9.999999999999998
+        },
+        {
+          "x": 5.773502691896259,
+          "y": -10
+        }
+      ],
+      "ownerId": null
+    },
+    {
+      "id": "circle-50",
+      "type": "circle",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "center": {
+        "x": 0,
+        "y": 0
+      },
+      "radius": 23,
+      "ownerId": null
+    },
+    {
+      "id": "line-51",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": -13,
+        "y": 0
+      },
+      "b": {
+        "x": -2.5,
+        "y": 0
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-52",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 2.5,
+        "y": 0
+      },
+      "b": {
+        "x": 13,
+        "y": 0
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-53",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 0,
+        "y": -13
+      },
+      "b": {
+        "x": 0,
+        "y": -2.5
+      },
+      "ownerId": null
+    },
+    {
+      "id": "line-54",
+      "type": "centerline",
+      "style": {
+        "stroke": "#d18a43",
+        "lineWidth": 0.18,
+        "lineDash": [
+          8,
+          2,
+          1,
+          2
+        ]
+      },
+      "locked": false,
+      "visible": true,
+      "a": {
+        "x": 0,
+        "y": 2.5
+      },
+      "b": {
+        "x": 0,
+        "y": 13
+      },
+      "ownerId": null
+    }
+  ]
+}

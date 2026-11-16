@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {
   Line, Circle, Arc, Centerline, Polygon, createCenterMark, createSlot,
   createBoltCircle, createFlange, createPlate, createHexHead,
-  createSteppedShaft, createBushing, createWasher, createBearing, createCounterboreHole, createHoleArray, createTemplate, TEMPLATE_CATALOG,
+  createSteppedShaft, createBushing, createWasher, createBearing, createCounterboreHole, createHoleArray, createRadialSlotCover, createTemplate, TEMPLATE_CATALOG,
   serializeScene, deserializeScene
 } from '../src/index.mjs';
 
@@ -57,4 +57,17 @@ for (const entry of TEMPLATE_CATALOG) {
   assert.equal(restored.length,objects.length,`Template ${entry.id} should serialize`);
 }
 assert.throws(()=>createTemplate('missing'),RangeError);
+
+// Variant 6 cover: six radial open slots with rounded Ø16 ends and an Ø84 rim.
+const cover = createRadialSlotCover({ center: {x:100,y:80} });
+assert.equal(cover.filter(o => o instanceof Arc && Math.abs(o.radius-42)<1e-8).length, 6, 'Six outer rim sectors');
+assert.equal(cover.filter(o => o instanceof Arc && Math.abs(o.radius-8)<1e-8).length, 6, 'Six rounded slot ends');
+assert.equal(cover.filter(o => o.type === 'line').length, 12, 'Two side walls per radial slot');
+assert.equal(cover.filter(o => o instanceof Circle && Math.abs(o.radius-23)<1e-8).length, 1, 'Ø46 pitch circle');
+assert.equal(cover.filter(o => o instanceof Polygon).length, 1, 'Central regular hexagon');
+assert.ok(cover.every(o => o.feature === 'radial-slot-cover'));
+assert.throws(() => createRadialSlotCover({outerRadius:20,pitchRadius:15,endRadius:8}), RangeError);
+assert.throws(() => createRadialSlotCover({slotWidth:20,endRadius:8}), RangeError);
+assert.throws(() => createRadialSlotCover({slotCount:1}), RangeError);
+
 console.log(`All parametric template tests passed (${TEMPLATE_CATALOG.length} templates).`);

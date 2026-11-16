@@ -30,9 +30,13 @@ tx=eraseAtPoint([dabLine],{x:50,y:0},10);
 assert.equal(tx.ok,true); assert.equal(tx.add.length,2);
 near(tx.add[0].b.x,40); near(tx.add[1].a.x,60);
 
-// Entirely covered object is deleted without fragments.
+// Fully covered objects are protected by default: the brush must not
+// unexpectedly behave like a whole-object delete command. Explicit opt-in
+// remains available for users who want this behavior.
 const shortLine = new Line({x:0,y:0},{x:5,y:0});
 tx=eraseAlongPath([shortLine],[{x:-10,y:0},{x:10,y:0}],4);
+assert.equal(tx.ok,false); assert.deepEqual(tx.protectedComplete,[shortLine.id]);
+tx=eraseAlongPath([shortLine],[{x:-10,y:0},{x:10,y:0}],4,{allowCompleteErase:true});
 assert.equal(tx.ok,true); assert.equal(tx.add.length,0);
 
 // Centerline fragments preserve subtype and dash styling.
@@ -132,6 +136,22 @@ const wholeDim = new LinearDimension({x:0,y:0},{x:40,y:0},10);
 tx = eraseAtPoint([wholeDim],{x:0,y:5},1,{eraseAnnotations:'whole'});
 assert.equal(tx.ok,true); assert.deepEqual(tx.add,[]);
 
+// A brush larger than a small circle does not silently remove the whole circle.
+const tinyCircle = new Circle({x:0,y:0},2);
+tx = eraseAtPoint([tinyCircle], {x:0,y:0}, 10);
+assert.equal(tx.ok,false);
+assert.deepEqual(tx.protectedComplete,[tinyCircle.id]);
+
+// The same full-coverage protection applies to arcs and polygons.
+const tinyArc = new Arc({x:0,y:0},2,0,Math.PI);
+tx = eraseAtPoint([tinyArc], {x:0,y:0}, 10);
+assert.equal(tx.ok,false);
+assert.deepEqual(tx.protectedComplete,[tinyArc.id]);
+const tinyPolygon = Polygon.regular({x:0,y:0},4,2);
+tx = eraseAtPoint([tinyPolygon], {x:0,y:0}, 10);
+assert.equal(tx.ok,false);
+assert.deepEqual(tx.protectedComplete,[tinyPolygon.id]);
+
 // Invalid inputs fail explicitly.
 assert.throws(()=>eraseAlongPath([line],[],3),RangeError);
 assert.throws(()=>eraseAlongPath([line],[{x:0,y:0}],0),RangeError);
@@ -162,3 +182,24 @@ assert.equal(tx.ok,true);
 assert.equal(tx.add.length,2);
 
 console.log('Additional eraser regression tests passed (3 groups).');
+
+// Single-target UI helper: even if the drawn stroke crosses several objects,
+// only the explicitly targeted primitive is allowed to change.
+const { eraseTargetAlongPath } = await import('../src/eraser.mjs');
+const targetLine = new Line({x:0,y:200},{x:100,y:200});
+const nearbyLine = new Line({x:0,y:210},{x:100,y:210});
+tx = eraseTargetAlongPath([targetLine,nearbyLine],targetLine.id,[{x:50,y:185},{x:50,y:225}],3);
+assert.equal(tx.ok,true);
+assert.deepEqual(tx.remove,[targetLine.id]);
+assert.ok(tx.add.length===2,'Целевой отрезок должен остаться двумя частями');
+const safeScene = applyEraseTransaction([targetLine,nearbyLine],tx);
+assert.ok(safeScene.some(o=>o.id===nearbyLine.id),'Соседний объект не должен затрагиваться');
+assert.equal(safeScene.length,3);
+
+// The UI-safe helper never opts into full-object deletion.
+const tinyTarget = new Line({x:0,y:0},{x:4,y:0});
+tx = eraseTargetAlongPath([tinyTarget],tinyTarget.id,[{x:-5,y:0},{x:5,y:0}],6,{allowCompleteErase:true});
+assert.equal(tx.ok,false);
+assert.deepEqual(tx.protectedComplete,[tinyTarget.id]);
+
+console.log('Single-target eraser safety tests passed (2 groups).');

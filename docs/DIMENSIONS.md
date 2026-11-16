@@ -1,86 +1,26 @@
-# Размерные обозначения
+# Dimension rendering
 
-## Автоматическая ориентация
+Linear and diameter dimensions keep the measured geometry, text orientation, and text placement as separate properties.
 
-`LinearDimension` и `DiameterDimension` поддерживают четыре режима `textOrientation`:
+For vertical dimensions, the text is placed to the left of the dimension line by default. Its oriented glyph box is projected onto the dimension-line direction to calculate a clear break in the line. The clearance includes a margin based on text height and stroke width; there is no white knockout rectangle behind the text.
 
-- `auto` — для преимущественно горизонтального размера цифры горизонтальные и стоят над линией; для преимущественно вертикального размера цифры повёрнуты на 90° и находятся слева; для наклонного размера выбирается более читаемое горизонтальное или вертикальное направление.
-- `horizontal` — цифры всегда горизонтальные.
-- `vertical` — цифры всегда повёрнуты на 90°.
-- `aligned` — цифры идут параллельно размерной линии, но угол автоматически нормализуется, чтобы текст не читался вверх ногами.
+Supported text orientation values:
 
-```js
-import { LinearDimension, DiameterDimension } from '../src/index.mjs';
+- `auto` — horizontal for predominantly horizontal dimensions and vertical for predominantly vertical dimensions;
+- `horizontal` — always horizontal;
+- `vertical` — always vertical;
+- `aligned` — parallel to the measured line but kept readable.
 
-const horizontal = new LinearDimension({x:0,y:0}, {x:60,y:0}, 8, {
-  textHeight: 5,
-  textOrientation: 'auto'
-});
-const vertical = new LinearDimension({x:0,y:0}, {x:0,y:35}, 8, {
-  textHeight: 5,
-  textOrientation: 'auto'
-});
-const diagonal = new LinearDimension({x:0,y:0}, {x:30,y:40}, 8, {
-  textHeight: 5,
-  textOrientation: 'aligned'
-});
-const diameter = new DiameterDimension({x:50,y:50}, 20, {
-  angle: Math.PI / 4,
-  textHeight: 5,
-  precision: 1
-});
-```
-
-## Положение надписи
-
-`textSide` принимает `auto`, `positive` или `negative`:
-
-- `auto`: над горизонтальной линией, слева от вертикальной, с читаемой стороной для наклонной.
-- `positive`: со стороны положительной геометрической нормали.
-- `negative`: с противоположной стороны.
-
-`textOffset` — расстояние от размерной линии до центра надписи. Если не задано, используется `0.8 × textHeight`.
-
-## Формат числа
-
-По умолчанию используется точность до двух знаков после запятой, десятичная запятая и удаление лишних нулей:
-
-| Геометрическое значение | Отображение |
-|---:|---:|
-| 60 | `60` |
-| 60.5 | `60,5` |
-| 60.567 | `60,57` |
-
-При масштабировании чертёжного блока высота текста округляется до ближайшей стандартной высоты из ряда ЕСКД через `nearestGostTextHeight()`.
-
-Настройки:
+Example:
 
 ```js
-new LinearDimension(a, b, 8, {
-  precision: 1,
-  decimalSeparator: ',',
-  text: null // null = вычислять автоматически; строка = ручная надпись
+import { LinearDimension, drawPrimitive } from './src/index.mjs';
+const dim = new LinearDimension({x: 20, y: 10}, {x: 20, y: 90}, -14, {
+  textHeight: 7,
+  textOrientation: 'auto',
+  showValue: true
 });
+drawPrimitive(ctx, dim); // ctx should already use the drawing's world transform
 ```
 
-`formatDimensionValue(value, options)` доступна для собственной спецификации чисел.
-
-## Прозрачная надпись без белой подложки
-
-Рендерер больше не закрашивает область текста белым прямоугольником. Вместо этого размерная линия прерывается под надписью. Фон холста или листа остаётся прозрачным/неизменённым, а цифры не перекрывают контур белым пятном.
-
-## Разбор размерной аннотации при стирании
-
-По умолчанию ластик использует `eraseAnnotations: 'partial'`:
-
-1. Размерная и выносные линии, а также контур стрелок раскладываются на отдельные сегменты.
-2. Сегменты, задетые кистью, обрезаются геометрически.
-3. Незадетые фрагменты остаются как `Line`.
-4. Если надпись не задета, она сохраняется в отдельной текстовой размерной аннотации (`showLines: false`).
-5. Если кисть пересекла текстовую область, удаляется только надпись; оставшаяся графика размера сохраняется.
-
-Для удаления целого размера явно передайте `eraseAnnotations: 'whole'`. Чтобы защитить размеры от ластика, передайте `eraseAnnotations: false`.
-
-## Вырезка / Trim
-
-`trimAtPoint` поддерживает `Line`, `Circle`, `Arc` и `Polygon`. Для многоугольника выбирается ближайшее к щелчку ребро. Требуется, чтобы на этом ребре были минимум две границы пересечения, ограничивающие удаляемый сегмент. После операции исходный `Polygon` заменяется нетронутыми рёбрами и оставшимися частями выбранного ребра как независимыми `Line`.
+Text heights are validated against the configured GOST lettering series. Dimension values use a decimal comma by default and trim redundant trailing zeroes.

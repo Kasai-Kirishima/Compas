@@ -1,29 +1,29 @@
 # Changelog
 
-## 1.4.0 — 2026-11-16
-
-- Added orientation-aware GOST-style dimension labels: horizontal, vertical, aligned and automatic modes.
-- Dimension values now use decimal commas by default and trim redundant trailing zeroes.
-- Removed opaque white text knockouts; dimension lines are split under labels to keep the drawing background transparent.
-- Added partial erasing for dimension linework: remaining strokes become editable lines, and the number is erased separately when the brush crosses its text bounds. Whole-dimension deletion remains an explicit `eraseAnnotations: 'whole'` option.
-- Added Trim support for polygon edges; untouched edges remain intact and the trimmed edge becomes editable line fragments.
-- Added dimension rendering and polygon Trim examples plus regression tests.
+## 1.5.1
+- Fixed eraser target selection: the object directly under the starting pointer is used instead of a stale selected object.
+- Captured the all-objects eraser setting at pointer-down so changing the checkbox mid-stroke cannot change the transaction scope.
+- Internal pocket contours are now placed at the next canvas click with editable width, height, radius, length and angle inputs; removed hard-coded insertion coordinates.
+- Centred the origin-based sample drawing when loaded into the demo canvas.
+- Added parametric `radialSlotCover` template matching the provided cover sketch: six radial slots, rounded ends, pitch circle and central hexagon.
 
 
-## 1.3.0
+## 1.5.0 — 2026-11-16
 
-- Исправлена численная устойчивость квадратичного решения для круглых торцов кисти.
-- Улучшена дедупликация углов пересечения окружности с траекторией ластика.
-- Оставшиеся части окружности, непрерывные через угловую границу 0/2π, объединяются в одну дугу.
-- Заблокированные размеры корректно попадают в список `skippedLocked`.
-- Добавлены 11 параметрических шаблонов: паз, болтовое коло, фланец, пластина с отверстиями, шестигранная головка, ступенчатый вал, втулка, шайба, подшипник, отверстие с цекованием, прямоугольный массив отверстий и центровые метки.
-- Демо переработано: радиус кисти задаётся в экранных пикселях и пересчитывается при изменении размера Canvas; обработаны coalesced pointer events и конечная точка pointerup.
-- Добавлены вставка шаблонов, удаление выбранного объекта, фильтр ластика по выбранному объекту и импорт JSON.
-- Добавлены регрессионные тесты ластика и тесты каталога шаблонов.
+- Added profile cutout module: rectangular edge notches with orientation-aware inside normals, width/depth checks, minimum web option, self-intersection rejection, and immutable history transactions.
+- Added inner 2D contours for rectangular pockets, circular holes, and obround slots.
+- Added `eraseTargetAlongPath`, a safer single-object eraser API that always disables complete-object deletion.
+- Reworked demo eraser interaction: starts on selected / under-cursor entity, applies to one target by default, and only affects all intersected geometry when explicitly requested.
+- Removed the demo's whole-object erase opt-in; use the explicit Delete command for deleting a complete entity.
+- Added selectable construction tools in the demo: line, centre line, circle, three-point arc, rectangle, regular polygon, linear dimension, and diameter dimension.
+- Added a polygon-edge cutout workflow with editable width, depth, and minimum web.
+- Added internal pocket / hole / slot contour insertion.
+- Improved vertical dimension text clearance; line-break projection now includes additional glyph and stroke margin so the dimension line cannot run through the label.
+- Added dimension hit-testing so dimensions can be selected and locally erased.
+- Added regression tests for dimension clearance, single-target erasing, and cutout validity.
 
-## 1.2.0
+## 1.4.0
 
-- Добавлен частичный ластик свободным движением мыши.
-- Добавлены частичные фрагменты отрезков, осевых, окружностей и дуг.
-- Добавлены транзакции и интеграция с Undo/Redo.
-- Добавлена интерактивная Canvas-демонстрация.
+- Orientation-aware dimension numbers with decimal-comma formatting and transparent line breaks.
+- Partial freehand eraser for lines, circles, arcs, polygons, and dimension linework.
+- Parametric mechanical drawing templates, OSNAP, transformations, JSON serialization, and history.

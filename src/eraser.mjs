@@ -322,6 +322,8 @@ function segmentsIntersect(a, b, c, d) {
  * - eraseAnnotations: 'partial' (default) splits dimension linework into editable
  *   line fragments; a crossed label is removed. 'whole' removes the whole dimension;
  *   false leaves dimension annotations untouched.
+ * - allowCompleteErase: false by default; fully covered objects are protected so
+ *   the brush cannot unexpectedly delete a whole short object. Use Delete or opt in.
  * - filter(object): custom eligibility predicate
  */
 export function eraseAlongPath(objects, path, radius, {
@@ -330,14 +332,16 @@ export function eraseAlongPath(objects, path, radius, {
   minArcSweep = 1e-5,
   simplifyTolerance = 0,
   eraseAnnotations = 'partial',
+  allowCompleteErase = false,
   filter = object => object.visible !== false && object.locked !== true
 } = {}) {
   if (!Array.isArray(objects)) throw new TypeError('Сцена должна быть массивом объектов');
   if (!Number.isFinite(radius) || radius <= 0) throw new RangeError('Радиус ластика должен быть положительным числом');
   if (![false, true, 'partial', 'whole'].includes(eraseAnnotations)) throw new RangeError('eraseAnnotations должен быть false, partial или whole');
+  if (typeof allowCompleteErase !== 'boolean') throw new TypeError('allowCompleteErase должен быть логическим значением');
   const points = simplifyEraserPath(path, simplifyTolerance), segments = pathSegments(points);
   const strokeBounds = pathBounds(points);
-  const remove = [], addObjects = [], removedSegments = [], skippedLocked = [];
+  const remove = [], addObjects = [], removedSegments = [], skippedLocked = [], protectedComplete = [];
 
   const eraseSimpleLine = line => {
     const erased = lineEraseIntervals(line, segments, radius);
@@ -382,6 +386,11 @@ export function eraseAlongPath(objects, path, radius, {
       });
       const lineChanged = linework.some(([a, b]) => lineEraseIntervals(new Line(a, b), segments, radius).length > 0);
       if (!lineChanged && !labelHit) continue;
+      const hasRemainingLines = clippedParts.some(parts => parts.length > 0);
+      if (!allowCompleteErase && !hasRemainingLines && (!object.showValue || labelHit)) {
+        protectedComplete.push(object.id);
+        continue;
+      }
       remove.push(object.id);
       addObjects.push(...clippedParts.flat());
       let labelPreserved = false;
@@ -404,6 +413,10 @@ export function eraseAlongPath(objects, path, radius, {
     if (object instanceof Line) {
       const result = eraseSimpleLine(object);
       if (!result) continue;
+      if (!allowCompleteErase && result.fragments.length === 0) {
+        protectedComplete.push(object.id);
+        continue;
+      }
       remove.push(object.id); addObjects.push(...result.fragments);
       removedSegments.push({ objectId: object.id, type: object.type, intervals: result.erased });
       continue;
@@ -431,6 +444,7 @@ export function eraseAlongPath(objects, path, radius, {
         const part = new Arc(object.center, object.radius, a * TAU, (b - a) * TAU, { style: object.style, visible: object.visible, ownerId: object.id });
         part.ownerId = object.id; fragments.push(part);
       }
+      if (!allowCompleteErase && fragments.length === 0) { protectedComplete.push(object.id); continue; }
       remove.push(object.id); addObjects.push(...fragments);
       removedSegments.push({ objectId: object.id, type: object.type, intervals: erased });
       continue;
@@ -441,6 +455,7 @@ export function eraseAlongPath(objects, path, radius, {
       const kept = subtractIntervals(erased);
       const fragments = kept.map(([a, b]) => makeArcFragment(object, a, b))
         .filter(Boolean).filter(part => Math.abs(part.sweep) >= minArcSweep);
+      if (!allowCompleteErase && fragments.length === 0) { protectedComplete.push(object.id); continue; }
       remove.push(object.id); addObjects.push(...fragments);
       removedSegments.push({ objectId: object.id, type: object.type, intervals: erased });
       continue;
@@ -448,6 +463,8 @@ export function eraseAlongPath(objects, path, radius, {
     if (object instanceof Polygon) {
       const edgeResults = object.edges().map(edge => ({ edge, result: eraseSimpleLine(edge) }));
       if (!edgeResults.some(x => x.result)) continue;
+      const remainingEdgeParts = edgeResults.reduce((sum, x) => sum + (x.result ? x.result.fragments.length : 1), 0);
+      if (!allowCompleteErase && remainingEdgeParts === 0) { protectedComplete.push(object.id); continue; }
       remove.push(object.id);
       for (const { edge, result } of edgeResults) {
         if (result) addObjects.push(...result.fragments);
@@ -457,7 +474,7 @@ export function eraseAlongPath(objects, path, radius, {
     }
   }
 
-  if (!remove.length) return { ok: false, reason: 'Ластик не задел доступную геометрию', remove: [], add: [], skippedLocked };
+  if (!remove.length) return { ok: false, reason: protectedComplete.length ? 'Полностью накрытые объекты защищены. Используйте команду «Удалить» или включите allowCompleteErase.' : 'Ластик не задел доступную геометрию', remove: [], add: [], skippedLocked, protectedComplete };
   return {
     ok: true,
     operation: 'erase',
@@ -465,7 +482,8 @@ export function eraseAlongPath(objects, path, radius, {
     add: addObjects,
     removed: removedSegments,
     skippedLocked,
-    stats: { objectsChanged: remove.length, fragmentsCreated: addObjects.length, annotationsRemoved: removedSegments.filter(x => x.whole).length },
+    protectedComplete,
+    stats: { objectsChanged: remove.length, fragmentsCreated: addObjects.length, annotationsRemoved: removedSegments.filter(x => x.whole).length, protectedComplete: protectedComplete.length },
     brush: { radius, path: points }
   };
 }
@@ -475,6 +493,25 @@ export function eraserRadiusInWorld(pixelRadius, worldToScreenScale) {
   if (!Number.isFinite(pixelRadius) || pixelRadius <= 0) throw new RangeError('Экранный радиус должен быть положительным числом');
   if (!Number.isFinite(worldToScreenScale) || worldToScreenScale <= 0) throw new RangeError('Масштаб вида должен быть положительным числом');
   return pixelRadius / worldToScreenScale;
+}
+
+
+/**
+ * Safer single-object erasing helper for UI tools.
+ * The stroke is scoped to one object ID so nearby unrelated primitives cannot
+ * disappear during the same pointer gesture. Complete-object erasure remains
+ * disabled; use an explicit Delete command for that operation.
+ */
+export function eraseTargetAlongPath(objects, targetId, path, radius, options = {}) {
+  if (!Array.isArray(objects)) throw new TypeError('Сцена должна быть массивом объектов');
+  const target = objects.find(object => object?.id === targetId);
+  if (!target) return { ok: false, reason: 'Об’єкт для часткового стирання не знайдено', remove: [], add: [] };
+  if (target.locked) return { ok: false, reason: 'Об’єкт заблоковано', remove: [], add: [], skippedLocked: [targetId] };
+  return eraseAlongPath(objects, path, radius, {
+    ...options,
+    allowCompleteErase: false,
+    filter: object => object.id === targetId && object.visible !== false && object.locked !== true,
+  });
 }
 
 /** One-click circular eraser dab. */

@@ -737,8 +737,57 @@ export function getDimensionTextLayout(dimension, measuredWidth = null) {
   const label = dimensionLabel(dimension, value, isDiameter);
   const width = measuredWidth ?? Math.max(dimension.textHeight * 0.6, label.length * dimension.textHeight * 0.68);
   const height = dimension.textHeight;
+  // Keep the actual glyph box clear of the dimension line. For a vertical
+  // dimension, the glyph height (not its string width) controls this offset.
+  const baseline = { x: Math.cos(angle), y: Math.sin(angle) };
+  const glyphNormal = { x: -baseline.y, y: baseline.x };
+  const normalHalfExtent = (width * Math.abs(dot(baseline, normal)) + height * Math.abs(dot(glyphNormal, normal))) / 2;
+  const lineHalfWidth = (dimension.style?.lineWidth ?? 0.18) / 2;
+  const clearance = Math.max(1.0, height * 0.28) + lineHalfWidth;
+  const requestedOffset = dimension.textOffset ?? height * 0.8;
+  const safeOffset = Math.sign(requestedOffset || 1) * Math.max(Math.abs(requestedOffset), normalHalfExtent + clearance);
+  const baseCenter = dimension instanceof LinearDimension ? dimension.geometry().middle
+    : mul(add(dimension.geometry().p1, dimension.geometry().p2), 0.5);
+  center = add(baseCenter, mul(normal, safeOffset));
   const c = Math.abs(Math.cos(angle)), s = Math.abs(Math.sin(angle));
-  return { center, angle, label, width, height, aabbHalfWidth: (width * c + height * s) / 2, aabbHalfHeight: (width * s + height * c) / 2 };
+  return { center, baseCenter, normal, safeOffset, clearance, angle, label, width, height,
+    aabbHalfWidth: (width * c + height * s) / 2,
+    aabbHalfHeight: (width * s + height * c) / 2 };
+}
+
+
+function refineDimensionLayout(dimension, layout, measuredWidth, measuredHeight) {
+  if (!layout) return layout;
+  const width = Math.max(0, measuredWidth || layout.width);
+  const height = Math.max(dimension.textHeight, measuredHeight || layout.height);
+  const baseline = { x: Math.cos(layout.angle), y: Math.sin(layout.angle) };
+  const glyphNormal = { x: -baseline.y, y: baseline.x };
+  const halfExtent = (width * Math.abs(dot(baseline, layout.normal)) + height * Math.abs(dot(glyphNormal, layout.normal))) / 2;
+  const clearance = Math.max(1.0, height * 0.28) + (dimension.style?.lineWidth ?? 0.18) / 2;
+  const requestedOffset = dimension.textOffset ?? dimension.textHeight * 0.8;
+  const safeOffset = Math.sign(requestedOffset || 1) * Math.max(Math.abs(requestedOffset), halfExtent + clearance);
+  layout.center = add(layout.baseCenter, mul(layout.normal, safeOffset));
+  layout.safeOffset = safeOffset;
+  layout.clearance = clearance;
+  layout.width = width;
+  layout.height = height;
+  const c = Math.abs(Math.cos(layout.angle)), s = Math.abs(Math.sin(layout.angle));
+  layout.aabbHalfWidth = (width * c + height * s) / 2;
+  layout.aabbHalfHeight = (width * s + height * c) / 2;
+  return layout;
+}
+function dimensionTextGap(dimension, layout, direction, measuredWidth = layout?.width, measuredHeight = layout?.height, padding = 1) {
+  if (!dimension.showValue || !layout) return { center: null, width: 0 };
+  const relative = layout.angle - Math.atan2(direction.y, direction.x);
+  // Project the complete oriented glyph box onto the dimension-line axis.
+  // Extra clearance (at least 28% of text height on each side) prevents tall
+  // vertical labels and bold fallback fonts from touching the dimension line.
+  const projected = Math.abs(Math.cos(relative)) * measuredWidth + Math.abs(Math.sin(relative)) * measuredHeight;
+  const lineHalfWidth = (dimension.style?.lineWidth ?? 0.18) / 2;
+  const safePadding = Math.max(padding, dimension.textHeight * 0.28, lineHalfWidth * 2);
+  const width = projected + 2 * safePadding;
+  const along = dot(sub(layout.center, layout.baseCenter), direction);
+  return { center: add(layout.baseCenter, mul(direction, along)), width };
 }
 
 function strokeDimensionLineWithGap(ctx, a, b, center, gapWidth) {
@@ -788,9 +837,9 @@ export function drawLinearDimension(ctx, dimension, { format = null, textPadding
     ctx.font = `${dimension.textHeight}px "GOST type B", "ISO 3098", sans-serif`;
   }
   const ctxMetrics = dimension.showValue ? textMetrics(ctx, layout.label, dimension.textHeight) : { width: 0, height: 0 };
-  if (layout) layout.width = ctxMetrics.width;
-  const projected = layout ? Math.abs(Math.cos(layout.angle - Math.atan2(dy, dx))) * ctxMetrics.width + Math.abs(Math.sin(layout.angle - Math.atan2(dy, dx))) * ctxMetrics.height : 0;
-  const gap = layout ? projected + 2 * textPadding : 0;
+  if (layout) refineDimensionLayout(dimension, layout, ctxMetrics.width, ctxMetrics.height);
+  const gapPlan = layout ? dimensionTextGap(dimension, layout, direction, ctxMetrics.width, ctxMetrics.height, textPadding) : { center: g.middle, width: 0 };
+  const gap = gapPlan.width;
   const arrowsOutside = len < gap + Math.max(1.8, dimension.textHeight * 0.8) * 2;
   ctx.save(); ctx.strokeStyle = dimension.style.stroke ?? '#111'; ctx.fillStyle = dimension.style.stroke ?? '#111';
   ctx.lineWidth = dimension.style.lineWidth ?? 0.18; ctx.setLineDash([]);
@@ -799,8 +848,7 @@ export function drawLinearDimension(ctx, dimension, { format = null, textPadding
     ctx.moveTo(dimension.p1.x, dimension.p1.y); ctx.lineTo(g.q1.x, g.q1.y);
     ctx.moveTo(dimension.p2.x, dimension.p2.y); ctx.lineTo(g.q2.x, g.q2.y);
     ctx.stroke();
-    const mid = g.middle;
-    strokeDimensionLineWithGap(ctx, g.q1, g.q2, mid, gap);
+    strokeDimensionLineWithGap(ctx, g.q1, g.q2, gapPlan.center ?? g.middle, gap);
     const arrowSize = Math.max(1.8, dimension.textHeight * 0.8);
     drawArrow(ctx, g.q1, direction, arrowSize, arrowsOutside);
     drawArrow(ctx, g.q2, mul(direction, -1), arrowSize, arrowsOutside);
@@ -819,13 +867,14 @@ export function drawDiameterDimension(ctx, dimension, { format = null, textPaddi
     ctx.font = `${dimension.textHeight}px "GOST type B", "ISO 3098", sans-serif`;
   }
   const metrics = layout ? textMetrics(ctx, layout.label, dimension.textHeight) : { width: 0, height: 0 };
-  const projected = layout ? Math.abs(Math.cos(layout.angle - dimension.angle)) * metrics.width + Math.abs(Math.sin(layout.angle - dimension.angle)) * metrics.height : 0;
-  const gap = layout ? projected + 2 * textPadding : 0;
+  if (layout) refineDimensionLayout(dimension, layout, metrics.width, metrics.height);
+  const gapPlan = layout ? dimensionTextGap(dimension, layout, direction, metrics.width, metrics.height, textPadding) : { center: mid, width: 0 };
+  const gap = gapPlan.width;
   const arrowsOutside = len < gap + Math.max(1.8, dimension.textHeight * 0.8) * 2;
   ctx.save(); ctx.strokeStyle = dimension.style.stroke ?? '#111'; ctx.fillStyle = dimension.style.stroke ?? '#111';
   ctx.lineWidth = dimension.style.lineWidth ?? 0.18;
   if (dimension.showLines !== false) {
-    strokeDimensionLineWithGap(ctx, g.p1, g.p2, mid, gap);
+    strokeDimensionLineWithGap(ctx, g.p1, g.p2, gapPlan.center ?? mid, gap);
     const arrowSize = Math.max(1.8, dimension.textHeight * 0.8);
     drawArrow(ctx, g.p1, direction, arrowSize, arrowsOutside);
     drawArrow(ctx, g.p2, mul(direction, -1), arrowSize, arrowsOutside);
@@ -840,13 +889,9 @@ export function dimensionDrawingSegments(dimension) {
     const g = dimension.geometry(); if (!g) return [];
     const d = sub(g.q2, g.q1), len = length(d); if (len <= EPS) return [];
     const u = mul(d, 1 / len), segments = [[dimension.p1, g.q1], [dimension.p2, g.q2]];
-    let gap = 0;
-    if (dimension.showValue) {
-      const layout = getDimensionTextLayout(dimension);
-      const width = layout.width, height = layout.height, angle = layout.angle - Math.atan2(d.y, d.x);
-      gap = Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * height + 2;
-    }
-    const half = Math.min(gap / 2, len * 0.48), center = g.middle;
+    const layout = dimension.showValue ? getDimensionTextLayout(dimension) : null;
+    const gapPlan = layout ? dimensionTextGap(dimension, layout, u, layout.width, layout.height, 1) : { center: g.middle, width: 0 };
+    const gap = gapPlan.width, half = Math.min(gap / 2, len * 0.48), center = gapPlan.center ?? g.middle;
     if (half <= EPS) segments.push([g.q1, g.q2]);
     else segments.push([g.q1, sub(center, mul(u, half))], [add(center, mul(u, half)), g.q2]);
     const arrow = Math.max(1.8, dimension.textHeight * 0.8), side = arrow * 0.22;
@@ -858,10 +903,10 @@ export function dimensionDrawingSegments(dimension) {
   }
   if (dimension instanceof DiameterDimension) {
     const g = dimension.geometry(), d = { x: Math.cos(dimension.angle), y: Math.sin(dimension.angle) }, len = distance(g.p1,g.p2), mid = mul(add(g.p1,g.p2),.5);
-    let gap = 0;
-    if (dimension.showValue) { const l=getDimensionTextLayout(dimension), a=l.angle-dimension.angle; gap=Math.abs(Math.cos(a))*l.width+Math.abs(Math.sin(a))*l.height+2; }
-    const half=Math.min(gap/2,len*.48), segments=[];
-    if (half<=EPS) segments.push([g.p1,g.p2]); else segments.push([g.p1,sub(mid,mul(d,half))],[add(mid,mul(d,half)),g.p2]);
+    const layout = dimension.showValue ? getDimensionTextLayout(dimension) : null;
+    const gapPlan = layout ? dimensionTextGap(dimension, layout, d, layout.width, layout.height, 1) : { center: mid, width: 0 };
+    const half=Math.min(gapPlan.width/2,len*.48), segments=[];
+    if (half<=EPS) segments.push([g.p1,g.p2]); else segments.push([g.p1,sub(gapPlan.center,mul(d,half))],[add(gapPlan.center,mul(d,half)),g.p2]);
     const arrow=Math.max(1.8,dimension.textHeight*.8),side=arrow*.22;
     for (const [tip,dir] of [[g.p1,d],[g.p2,mul(d,-1)]]) { const base=add(tip,mul(dir,arrow)),perp={x:-dir.y,y:dir.x};segments.push([tip,add(base,mul(perp,side))],[tip,sub(base,mul(perp,side))],[add(base,mul(perp,side)),sub(base,mul(perp,side))]); }
     return segments.filter(([a,b])=>distance(a,b)>EPS);
@@ -875,5 +920,18 @@ export function hitTest(object, point, tolerance) {
   if (object instanceof Circle) return pointDistanceToCircle(object, point) <= tolerance;
   if (object instanceof Arc) return pointDistanceToArc(object, point) <= tolerance;
   if (object instanceof Polygon) return object.edges().some(edge => pointDistanceToLine(edge, point) <= tolerance);
+  if (object instanceof LinearDimension || object instanceof DiameterDimension) {
+    const onLine = dimensionDrawingSegments(object).some(([a, b]) => {
+      const d = sub(b, a), den = dot(d, d);
+      const t = den <= EPS * EPS ? 0 : clamp(dot(sub(point, a), d) / den, 0, 1);
+      return distance(point, add(a, mul(d, t))) <= tolerance;
+    });
+    if (onLine) return true;
+    if (object.showValue) {
+      const box = getDimensionTextLayout(object);
+      if (box && Math.abs(point.x - box.center.x) <= box.aabbHalfWidth + tolerance &&
+          Math.abs(point.y - box.center.y) <= box.aabbHalfHeight + tolerance) return true;
+    }
+  }
   return false;
 }

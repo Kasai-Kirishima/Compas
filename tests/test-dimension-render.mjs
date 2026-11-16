@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {
   LinearDimension, DiameterDimension, drawLinearDimension, drawDiameterDimension,
   formatDimensionValue, getDimensionTextLayout, dimensionDrawingSegments,
-  serializeScene, deserializeScene, rotatePrimitive, mirrorPrimitive, scalePrimitive, nearestGostTextHeight
+  serializeScene, deserializeScene, rotatePrimitive, mirrorPrimitive, scalePrimitive, nearestGostTextHeight, hitTest
 } from '../src/cad-geometry-trim.mjs';
 
 const near = (a, b, eps = 1e-8) => assert.ok(Math.abs(a - b) <= eps, `${a} is not near ${b}`);
@@ -15,12 +15,43 @@ const reverseHorizontal = new LinearDimension({x:50,y:0},{x:0,y:0},8,{textHeight
 const diagonal = new LinearDimension({x:0,y:0},{x:30,y:40},8,{textOrientation:'aligned',textHeight:5});
 near(getDimensionTextLayout(horizontal).angle,0);
 near(getDimensionTextLayout(vertical).angle,Math.PI/2);
+assert.equal(hitTest(vertical,{x:-8,y:25},2),true,'Vertical dimension line must be selectable');
+assert.equal(hitTest(vertical,getDimensionTextLayout(vertical).center,1),true,'Dimension label must be selectable');
 near(getDimensionTextLayout(reverseVertical).angle,Math.PI/2);
 near(getDimensionTextLayout(reverseHorizontal).angle,0);
 assert.ok(getDimensionTextLayout(reverseHorizontal).center.y > reverseHorizontal.geometry().middle.y);
 near(getDimensionTextLayout(diagonal).angle,Math.atan2(40,30));
 assert.ok(getDimensionTextLayout(horizontal).center.y > horizontal.geometry().middle.y);
 assert.ok(getDimensionTextLayout(vertical).center.x < vertical.geometry().middle.x);
+
+// Vertical dimension text is forced clear of the dimension line even when
+// a caller requests zero offset. Its glyph box must remain on the left side.
+const verticalTight = new LinearDimension({x:0,y:0},{x:0,y:80},-12,{textHeight:7,textOffset:0});
+const tightLayout = getDimensionTextLayout(verticalTight);
+const tightGeometry = verticalTight.geometry();
+assert.ok(tightLayout.center.x < tightGeometry.middle.x, 'Vertical label must sit left of the dimension line');
+assert.ok(tightGeometry.middle.x - tightLayout.center.x >= tightLayout.aabbHalfWidth + tightLayout.clearance - 1e-8,
+  'Vertical label glyph bounds must not touch the dimension line');
+const verticalSegments = dimensionDrawingSegments(verticalTight);
+const verticalMainSegments = verticalSegments.filter(([a,b]) => Math.abs(a.x-tightGeometry.q1.x)<1e-8 && Math.abs(b.x-tightGeometry.q1.x)<1e-8);
+assert.ok(verticalMainSegments.every(([a,b]) => {
+  const lo=Math.min(a.y,b.y), hi=Math.max(a.y,b.y), center=tightLayout.center.y, half=tightLayout.aabbHalfHeight;
+  return hi <= center-half-0.5 || lo >= center+half+0.5;
+}), 'Dimension line must have a clear gap behind vertical number');
+// Regression: a vertical label must not be crossed by the dimension line even
+// with large 7 mm text and a line offset smaller than the text clearance.
+const verticalLarge = new LinearDimension({x:250,y:0},{x:250,y:120},-4,{textHeight:7,textOffset:0,style:{lineWidth:0.5}});
+const largeLayout = getDimensionTextLayout(verticalLarge);
+const largeGeom = verticalLarge.geometry();
+assert.ok(largeLayout.center.x + largeLayout.aabbHalfWidth < largeGeom.middle.x - 0.1,
+  'Vertical dimension label must be wholly left of its dimension line');
+const largeParts = dimensionDrawingSegments(verticalLarge).filter(([a,b]) =>
+  Math.abs(a.x-largeGeom.q1.x)<1e-8 && Math.abs(b.x-largeGeom.q1.x)<1e-8
+);
+assert.ok(largeParts.every(([a,b]) => {
+  const lo=Math.min(a.y,b.y), hi=Math.max(a.y,b.y);
+  return hi < largeLayout.center.y-largeLayout.aabbHalfHeight-0.1 || lo > largeLayout.center.y+largeLayout.aabbHalfHeight+0.1;
+}), 'There must be a full clear break in the vertical dimension line');
 
 // Correct compact engineering number formatting.
 assert.equal(formatDimensionValue(25), '25');

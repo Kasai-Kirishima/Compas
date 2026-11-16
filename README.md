@@ -1,261 +1,99 @@
-# CAD Geometry Core 1.4.0 — полный чистый проект
+# CAD Geometry Core 1.5.1
 
-Независимое геометрическое ядро для 2D машиностроительной САПР на JavaScript ES Modules и HTML5 Canvas. В этой версии улучшены **размеры по направлению измерения**, убрана белая подложка у размерных чисел, добавлено усечение рёбер многоугольников и частичное стирание графики размеров. Ластик вырезает только область, которую прошёл наконечник кисти, а не удаляет весь геометрический объект целиком.
+A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
-В проект включены исходники, интерактивная демонстрация, тесты, история Undo/Redo, документация, параметрические шаблоны машиностроительных элементов и конфигурация npm. Внешних npm-зависимостей нет.
+## Included capabilities
 
-## Состав архива
+### Drawing primitives
+- finite line segments and centre lines;
+- circles and signed-sweep arcs;
+- regular and user-vertex polygons;
+- linear and diameter dimensions with text orientation, readable placement, decimal-comma formatting, and line gaps beneath labels.
 
-```text
-CAD-Geometry-Core-1.4.0/
-├── src/
-│   ├── cad-geometry-trim.mjs  # Геометрия, пересечения, Trim, размеры, OSNAP, рендер
-│   ├── eraser.mjs             # Частичный ластик по траектории мыши
-│   ├── history.mjs            # Undo/Redo и история сцены
-│   ├── templates.mjs          # Готовые параметрические шаблоны деталей
-│   └── index.mjs              # Общая точка импорта
-├── tests/
-│   ├── test-dimension-render.mjs # Ориентация и оформление размерных чисел
-│   ├── test-cad-geometry.mjs  # Тесты основного геометрического ядра
-│   ├── test-eraser.mjs        # Тесты частичного ластика
-│   ├── test-eraser-properties.mjs # Детерминированные геометрические проверки
-│   └── test-history.mjs       # Тесты истории
-├── examples/
-│   ├── demo.html              # Страница интерактивной Canvas-демонстрации
-│   └── demo.mjs               # Логика демонстрации
-├── docs/
-│   ├── DIMENSIONS.md          # Ориентация, формат чисел и прозрачные размерные надписи
-│   ├── ERASER.md              # Алгоритм ластика и интеграция с UI
-│   └── TEMPLATES.md           # Параметрические шаблоны деталей
-├── package.json
-├── START_HERE.md            # Короткий запуск и примеры
-├── README.md
-├── CHANGELOG.md
-├── LICENSE
-└── .gitignore
-```
+### Editing
+- Trim between neighbouring intersections;
+- partial freehand erasing for lines, centre lines, circles, arcs, polygon edges, and dimension linework;
+- safe single-target erasing (`eraseTargetAlongPath`) so a stroke does not affect unrelated nearby objects;
+- complete-object erasing is deliberately disabled by the UI eraser; use Delete for whole-object removal;
+- edge notch / cutout on closed polygon profiles;
+- inner rectangular, circular, and obround cutout contours;
+- rotate, translate, scale, mirror, polar array, and scene transactions;
+- OSNAP endpoint, midpoint, centre, and intersection points;
+- bounded Undo/Redo history;
+- JSON scene export/import.
 
-## Требования и запуск
+### Mechanical templates
+Twelve parametric drawing starters: rounded slot, bolt circle, flange, plate with holes, hex head, stepped shaft, bushing, washer, bearing, counterbored hole, rectangular hole array, and the radial-slot cover from Variant No. 6.
 
-- Node.js 18 или новее — для проверок и тестов.
-- Современный браузер — для Canvas-демонстрации.
-- Никакие npm-библиотеки устанавливать не требуется.
+## Quick start
 
-После распаковки откройте терминал в корне проекта:
+Requirements: Node.js 18+. No external npm dependencies.
 
 ```bash
-npm run check
 npm test
-```
-
-Для демонстрации поднимите локальный сервер:
-
-```bash
 python -m http.server 8000
 ```
 
-Откройте `http://localhost:8000/examples/demo.html`.
+Open <http://localhost:8000/examples/demo.html>.
 
-## Быстрый пример: частичный ластик
+## Cutouts: important distinction
 
-```js
-import {
-  Line, Circle, eraseAlongPath, applyEraseTransaction
-} from './src/index.mjs';
+`cutPolygonNotch` modifies the boundary of one simple polygon by inserting a rectangular notch open to a selected edge. `createRectangularPocket`, `createCircularCutout`, and `createObroundCutout` create separate closed 2D contours for drafting holes or pockets.
 
-const scene = [
-  new Line({ x: 0, y: 0 }, { x: 100, y: 0 }),
-  new Circle({ x: 50, y: 40 }, 20)
-];
+These are 2D drafting tools, not 3D solid Boolean operations. The package does not yet implement arbitrary polygon-minus-polygon Boolean subtraction or a solid modeller.
 
-// Мировая траектория ластика (например, точки движения мыши), радиус в мм.
-const stroke = [
-  { x: 50, y: -8 },
-  { x: 50, y: 0 },
-  { x: 50, y: 8 }
-];
-const edit = eraseAlongPath(scene, stroke, 3);
-const updatedScene = edit.ok ? applyEraseTransaction(scene, edit) : scene;
+## Safer eraser behavior
+
+The demo starts in Select mode. When Eraser is chosen, the first stroke is restricted to the topmost editable object directly under the pointer at stroke start; a stale selection cannot override it. To modify all touched objects, the user must explicitly enable the checkbox. Full-object deletion is never enabled by the demo's eraser. Fully covered objects are protected in the geometry API unless a caller explicitly opts into complete erasure; the safer `eraseTargetAlongPath` helper always forces protection.
+
+## Modules
+
+```text
+src/
+  cad-geometry-trim.mjs  primitives, intersections, Trim, dimensions, transforms, OSNAP, JSON
+  eraser.mjs             partial eraser and single-target safe wrapper
+  cutouts.mjs            polygon edge notch and inner cutout contours
+  templates.mjs          parametric mechanical drawing templates
+  history.mjs            Undo/Redo transaction history
+  index.mjs              public exports
+examples/
+  demo.html              browser application shell
+  demo.mjs               interactive Canvas demo
+  sample-machined-part.json generic example drawing scene
+  sample-variant-6-cover.json radial-slot cover from the supplied sketch
+ tests/
+  test-cad-geometry.mjs
+  test-dimension-render.mjs
+  test-eraser.mjs
+  test-eraser-properties.mjs
+  test-history.mjs
+  test-templates.mjs
+  test-cutouts.mjs
+  test-sample-project.mjs
+ docs/
+  DIMENSIONS.md
+  ERASER.md
+  CUTOUTS.md
+  TOOLS_FOR_LAB.md
+  TEMPLATES.md
 ```
 
-Отрезок будет разрезан на две части, а окружность преобразована в оставшиеся дуги. Исходные объекты не мутируются; операция возвращает транзакцию `{ ok, remove, add, removed }`, пригодную для Undo/Redo.
+## Scope / known limitations
 
-## Частичный ластик: API
+- Coordinates are model-space numbers (normally millimetres); Canvas scaling is a renderer concern.
+- Cutout operations are 2D contours. Arbitrary concave polygon Boolean subtraction is not implemented.
+- Arc creation in the demo uses a counter-clockwise sweep from the specified start point to end point.
+- DXF/DWG file import/export and 3D modelling are not included.
 
-### `eraseAlongPath(objects, path, radius, options)`
+See `START_HERE.md` for a short guided workflow and the `docs/` folder for detail.
 
-Стирает геометрию внутри «капсулы», которую описывает движение круглой кисти вдоль ломаной `path`.
 
-Параметры:
+## Кришка, варіант №6
 
-- `objects` — массив объектов сцены.
-- `path` — одна или несколько точек `{x, y}` в мировых координатах. Одна точка эквивалентна круглому нажатию.
-- `radius` — радиус кисти в мировых единицах (например, миллиметрах), обязательно больше нуля.
-- `options.eps` — геометрический допуск; по умолчанию `1e-7`.
-- `options.minFragmentLength` — минимальная длина оставшегося отрезка; слишком короткие фрагменты отбрасываются.
-- `options.minArcSweep` — минимальный угловой размах оставшейся дуги в радианах.
-- `options.simplifyTolerance` — допуск упрощения плотного pointer-path; по умолчанию `0`, то есть без упрощения.
-- `options.eraseAnnotations` — режим стирания размеров: `partial` (по умолчанию) превращает оставшиеся размерные линии и стрелки в независимые отрезки, а текст удаляет только при попадании кисти в область цифр; `whole` удаляет размер целиком; `false` запрещает стирание размеров.
-- `options.filter(object)` — дополнительный фильтр объектов, которые разрешено стирать.
+У каталозі є параметричний шаблон `radialSlotCover`, побудований за наданим ескізом: зовнішній діаметр 84 мм, ділильне коло Ø46 мм, шість радіальних пазів шириною 6 мм із заокругленими кінцями Ø16 мм і центральний шестикутник 20 мм між гранями. Це параметризований 2D-контур; перед здачею потрібно звірити, що кількість пазів і всі розміри збігаються з оригінальним завданням.
 
-Успешный результат:
+## Поведінка демонстрації
 
-```js
-{
-  ok: true,
-  operation: 'erase',
-  remove: ['старый-id'],
-  add: [/* оставшиеся фрагменты */],
-  removed: [/* сведения о вырезанных интервалах */],
-  skippedLocked: [],
-  brush: { radius: 3, path: [/* точки */] }
-}
-```
-
-Если траектория не задела редактируемую геометрию, возвращается `ok: false`, пустые `remove` и `add`, а заблокированные задетые объекты перечисляются в `skippedLocked`.
-
-### Типы геометрии и результат стирания
-
-| Объект | Поведение |
-|---|---|
-| `Line` | Только пройденная область удаляется; оставшиеся части становятся отдельными `Line` |
-| `Centerline` | Разбивается на части с сохранением типа и штрихпунктирного стиля |
-| `Circle` | Преобразуется в одну или несколько оставшихся `Arc` |
-| `Arc` | Оставшиеся части создаются как отдельные `Arc`, включая дуги с отрицательным sweep |
-| `Polygon` | При касании преобразуется в независимые рёбра; затронутое ребро частично разрезается, остальные рёбра сохраняются |
-| `LinearDimension`, `DiameterDimension` | По умолчанию размер разбирается на отдельные отрезки; стирается только задетый участок, цифра удаляется отдельно при попадании кисти на текст |
-| Заблокированный объект | Не меняется; его ID возвращается в `skippedLocked`, если кисть попала в него |
-| Скрытый объект | Пропускается |
-
-### Геометрический метод
-
-- **Отрезки:** точное пересечение параметрического отрезка с объединением капсул (прямоугольная полоса плюс два круглых торца). Полученные интервалы объединяются; их дополнение на `[0, 1]` становится новыми частями отрезка.
-- **Окружности и дуги:** ищутся граничные углы пересечения исходной окружности с боковыми линиями и круглыми торцами каждой капсулы. Угловой диапазон разбивается этими событиями; середина каждого интервала проверяется на расстояние до траектории кисти. Стираются только интервалы внутри кисти.
-- **Ломаная траектория:** используется объединение капсул всех её сегментов; повторяющиеся соседние точки удаляются.
-- **Большие сцены:** предварительно проверяются ограничивающие прямоугольники (AABB), чтобы не делать точные вычисления для объектов далеко от следа ластика.
-
-## Одно нажатие ластика
-
-```js
-import { eraseAtPoint, applyEraseTransaction } from './src/index.mjs';
-const tx = eraseAtPoint(scene, { x: 20, y: 35 }, 4);
-const next = tx.ok ? applyEraseTransaction(scene, tx) : scene;
-```
-
-## Связь экранного и мирового радиуса
-
-Радиус кисти в интерфейсе часто задают в пикселях, а геометрия хранится в миллиметрах:
-
-```js
-import { eraserRadiusInWorld } from './src/index.mjs';
-const worldRadius = eraserRadiusInWorld(12, 3); // 12 px / 3 px per mm = 4 mm
-```
-
-## Упрощение пути указателя
-
-```js
-import { simplifyEraserPath } from './src/index.mjs';
-const compactStroke = simplifyEraserPath(pointerSamples, 0.15);
-```
-
-Используется алгоритм Ramer–Douglas–Peucker. По умолчанию `eraseAlongPath` не упрощает траекторию, чтобы не менять исходный след.
-
-## Undo / Redo
-
-`SceneHistory` хранит ограниченную историю массивов сцены. Команды геометрии должны возвращать транзакции и не менять объекты на месте.
-
-```js
-import { SceneHistory, eraseAlongPath } from './src/index.mjs';
-const history = new SceneHistory(scene, { limit: 100 });
-const tx = eraseAlongPath(history.scene, stroke, 3);
-if (tx.ok) history.apply(tx);
-
-history.undo(); // отмена
-history.redo(); // повтор
-const snapshot = history.snapshot();
-history.restore(snapshot);
-```
-
-## Параметрические шаблоны машиностроительных элементов
-
-В `src/templates.mjs` собраны готовые функции построения типовых элементов. Они возвращают обычные примитивы сцены, поэтому созданную геометрию можно редактировать, стирать, преобразовывать и сериализовать теми же инструментами, что и вручную построенные объекты.
-
-Доступны: `createSlot()` — продолговатый паз; `createBoltCircle()` — равномерное болтовое коло с отверстиями и центровыми метками; `createFlange()` — фланец; `createPlate()` — пластина с фасками и отверстиями; `createHexHead()` — шестигранная головка по размеру под ключ; `createSteppedShaft()` — ступенчатый вал; `createBushing()` — втулка; `createWasher()` — шайба; `createBearing()` — упрощённый торцевой вид подшипника; `createCounterboreHole()` — отверстие с цекованием; `createHoleArray()` — прямоугольный массив отверстий; `createCenterMark()` — центровые линии. Каталог шаблонов: `TEMPLATE_CATALOG`; общий фабричный метод: `createTemplate(id, overrides)`.
-
-Пример:
-
-```js
-import { createTemplate } from './src/index.mjs';
-const flange = createTemplate('flange', {
-  center: { x: 120, y: 80 },
-  outerRadius: 60, boreRadius: 18, pitchRadius: 44,
-  holeCount: 8, holeRadius: 4.5
-});
-scene = [...scene, ...flange];
-```
-
-Демонстрация включает список шаблонов: выберите тип детали и нажмите «Вставить шаблон».
-
-## Размерные обозначения и ориентация текста
-
-`LinearDimension` и `DiameterDimension` поддерживают `textOrientation`: `auto` (по умолчанию), `horizontal`, `vertical` и `aligned`. В режиме `auto` горизонтальные размеры получают горизонтальную надпись над линией, вертикальные — вертикальную надпись слева, наклонные размеры — надпись вдоль размерной линии с нормализацией угла для чтения. `textSide` управляет стороной (`auto`, `positive`, `negative`).
-
-Числа форматируются через `formatDimensionValue(value, { precision: 2, decimalSeparator: ',', trimTrailingZeros: true })` и `nearestGostTextHeight(value)` для выбора ближайшей допустимой высоты при масштабировании.: например, 25 → `25`, 25.5 → `25,5`, 25.567 → `25,57`. Белая маска не рисуется: линия размерной линии разрывается под надписью, поэтому остаётся прозрачный фон чертежа. `showLines: false` оставляет только текст размерного обозначения.
-
-Пример:
-
-```js
-import { LinearDimension, DiameterDimension } from './src/index.mjs';
-const horizontal = new LinearDimension({x:0,y:0},{x:40,y:0},8,{textHeight:5});
-const vertical = new LinearDimension({x:0,y:0},{x:0,y:40},8,{textHeight:5});
-const aligned = new LinearDimension({x:0,y:0},{x:30,y:40},8,{textOrientation:'aligned',textHeight:5});
-const diameter = new DiameterDimension({x:50,y:50},20,{angle:Math.PI/4,textHeight:5});
-```
-
-## Trim / вырезка
-
-`trimAtPoint(subject, clickPoint, objects, options)` удаляет интервал между соседними пересечениями у отрезка, окружности или дуги. Теперь поддерживается и `Polygon`: программа выбирает ближайшее к щелчку ребро, применяет Trim только к этому ребру и заменяет исходный контур набором независимых рёбер, сохраняя нетронутую геометрию. Для окружности нужен минимум два различных пересечения.
-
-## Остальное геометрическое ядро
-
-В `src/cad-geometry-trim.mjs` доступны:
-
-- Примитивы: `Line`, `Centerline`, `Circle`, `Arc`, `Polygon`.
-- Размеры: `LinearDimension`, `DiameterDimension`.
-- Пересечения: отрезок–отрезок, отрезок–окружность/дуга, окружность/дуга–окружность/дуга.
-- `trimAtPoint()` и `applyEditTransaction()` — частичное удаление участка между пересечениями.
-- `polarArray()` — круговой массив.
-- Трансформации: `rotatePrimitive()`, `translatePrimitive()`, `scalePrimitive()`, `mirrorPrimitive()`.
-- OSNAP: `snapPoints()`, `intersectionSnapPoints()`.
-- `hitTest()`, `drawPrimitive()`, `serializeScene()`, `deserializeScene()`.
-- Проверка высот чертёжного шрифта: `GOST_TEXT_HEIGHTS`, `assertGostTextHeight()`.
-
-Пример Trim:
-
-```js
-const target = new Line({x:0,y:0},{x:100,y:0});
-const left = new Line({x:30,y:-20},{x:30,y:20});
-const right = new Line({x:70,y:-20},{x:70,y:20});
-const tx = trimAtPoint(target, {x:50,y:0}, [target,left,right], {hitTolerance:2});
-if (tx.ok) scene = applyEditTransaction(scene, tx);
-```
-
-## Тестирование
-
-```bash
-npm test
-```
-
-Тесты покрывают базовую геометрию, пересечения, Trim, большой диапазон координат, трансформации, OSNAP, размеры, сериализацию, частичное стирание линий/осевых/окружностей/дуг/многоугольников, торцы кисти, траектории из нескольких сегментов, блокировки объектов, разрыв окружности через угловой шов, историю Undo/Redo, 150 детерминированных сценариев ластика и все 11 параметрических шаблонов.
-
-## Ограничения текущей версии
-
-- Ластик аппроксимирует траекторию мыши ломаной из переданных точек; для плавного интерфейса передавайте точки pointermove и при необходимости используйте `simplifyEraserPath()`.
-- После частичного стирания `Polygon` становится набором независимых рёбер, а не замкнутым параметрическим полигоном. Это намеренно: после частичного удаления исходный контур уже не замкнут.
-- При частичном стирании размерная аннотация превращается в отдельные отрезки и отдельный текстовый размер, если цифра не затронута; после такого редактирования исходная ассоциативность размера теряется. Для обычного редактирования предпочтительнее сначала закончить размер, а затем применять ластик.
-- Совпадающие окружности/дуги и бесконечное коллинеарное наложение не имеют конечного набора точек пересечения для Trim.
-- Это геометрическое ядро и интерактивный пример, не готовая полноценная САПР с DXF/DWG-совместимостью и промышленным GUI.
-
-## Координаты и стандарты
-
-Ядро хранит координаты в мировых единицах; для машиностроительных чертежей обычно удобно использовать миллиметры и ось Y вверх. В Canvas преобразуйте ось Y в renderer layer, а допуск курсора и радиус кисти пересчитывайте из пикселей в мировые единицы. Наличие списка допустимых высот текста не заменяет проверку фактической гарнитуры: используйте совместимый CAD/GOST-шрифт при печати.
+- Ластик у звичайному режимі стирає тільки об’єкт, по якому розпочато штрих; стан «усі об’єкти» фіксується на початку жесту. Стара виділена сутність не підміняє об’єкт під курсором.
+- Внутрішній отвір/карман розміщується наступним кліком по полотну. Розмір і кут задаються полями, фіксованої координати вставки немає.
+- Завантажений зразок навколо початку координат автоматично центрується в демонстраційному полотні.
