@@ -1,18 +1,21 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
-  "description": "2D CAD geometry core with partial/freehand eraser, Trim, intersections, transforms, OSNAP, dimensions and scene history",
+  "description": "2D mechanical CAD geometry core with robust partial eraser, Trim, parametric drawing templates, OSNAP, dimensions, transforms and history",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/cad-geometry-trim.mjs",
     "./eraser": "./src/eraser.mjs",
-    "./history": "./src/history.mjs"
+    "./history": "./src/history.mjs",
+    "./templates": "./src/templates.mjs"
   },
   "scripts": {
-    "check": "node --check src/cad-geometry-trim.mjs && node --check src/eraser.mjs && node --check src/history.mjs && node --check src/index.mjs && node --check examples/demo.mjs && node --check tests/test-cad-geometry.mjs && node --check tests/test-eraser.mjs && node --check tests/test-eraser-properties.mjs && node --check tests/test-history.mjs",
-    "test": "npm run check && node tests/test-cad-geometry.mjs && node tests/test-eraser.mjs && node tests/test-eraser-properties.mjs && node tests/test-history.mjs"
+    "check": "node --check src/cad-geometry-trim.mjs && node --check src/eraser.mjs && node --check src/history.mjs && node --check src/index.mjs && node --check src/templates.mjs && node --check examples/demo.mjs && node --check tests/test-cad-geometry.mjs && node --check tests/test-eraser.mjs && node --check tests/test-eraser-properties.mjs && node --check tests/test-history.mjs && node --check tests/test-templates.mjs",
+    "test": "npm run check && node tests/test-cad-geometry.mjs && node tests/test-eraser.mjs && node tests/test-eraser-properties.mjs && node tests/test-history.mjs && node tests/test-templates.mjs"
   },
-  "engines": { "node": ">=18" }
+  "engines": {
+    "node": ">=18"
+  }
 }

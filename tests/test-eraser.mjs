@@ -114,3 +114,27 @@ assert.throws(()=>eraseAlongPath([line],[{x:0,y:0}],0),RangeError);
 assert.throws(()=>eraseAlongPath([line],[{x:NaN,y:0}],2),TypeError);
 
 console.log('All partial eraser tests passed (13 groups).');
+
+// Circle remnants across the 0/2π seam are merged into one continuous arc.
+const seamCircle = new Circle({x:0,y:0},20);
+tx = eraseAtPoint([seamCircle], {x:0,y:20}, 5);
+assert.equal(tx.ok,true);
+assert.equal(tx.add.length,1, 'A single local cut must leave one wrap-around arc, not two seam fragments');
+assert.ok(tx.add[0] instanceof Arc);
+assert.ok(Math.abs(tx.add[0].sweep) > Math.PI);
+assert.equal(tx.add[0].ownerId,seamCircle.id);
+
+// Locked annotations are reported instead of silently ignored.
+const lockedDim = new LinearDimension({x:0,y:0},{x:100,y:0},10,{locked:true});
+tx = eraseAtPoint([lockedDim], {x:50,y:10}, 2);
+assert.equal(tx.ok,false);
+assert.deepEqual(tx.skippedLocked,[lockedDim.id]);
+
+// The final pointer location is not part of geometry core, but degenerate and
+// repeated path samples must still behave consistently when passed by a UI.
+const repeatedPathLine = new Line({x:0,y:0},{x:100,y:0});
+tx = eraseAlongPath([repeatedPathLine],[{x:50,y:-4},{x:50,y:-4},{x:50,y:4}],2);
+assert.equal(tx.ok,true);
+assert.equal(tx.add.length,2);
+
+console.log('Additional eraser regression tests passed (3 groups).');

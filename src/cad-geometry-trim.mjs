@@ -44,12 +44,13 @@ const copyMeta = p => ({ id: makeId(p.type), style: structuredCloneSafe(p.style)
 const structuredCloneSafe = value => value == null ? value : JSON.parse(JSON.stringify(value));
 
 export class Primitive {
-  constructor(type, { id = makeId(type), style = {}, locked = false, visible = true } = {}) {
+  constructor(type, { id = makeId(type), style = {}, locked = false, visible = true, ownerId = null } = {}) {
     this.id = id;
     this.type = type;
     this.style = { stroke: '#111111', lineWidth: 0.25, lineDash: [], ...style };
     this.locked = locked;
     this.visible = visible;
+    this.ownerId = ownerId;
   }
 }
 
@@ -85,6 +86,7 @@ export class Circle extends Primitive {
     assertPoint(center, 'Центр окружности'); assertFinite(radius, 'Радиус');
     this.center = { ...center };
     this.radius = radius;
+    this.ownerId = options.ownerId ?? null;
   }
   pointAtAngle(angle) {
     return { x: this.center.x + this.radius * Math.cos(angle), y: this.center.y + this.radius * Math.sin(angle) };
@@ -103,6 +105,7 @@ export class Arc extends Primitive {
     assertFinite(startAngle, 'Начальный угол'); assertFinite(sweep, 'Угловой размах');
     this.center = { ...center };
     this.radius = radius;
+    this.ownerId = options.ownerId ?? null;
     this.startAngle = startAngle;
     this.sweep = Math.abs(Math.abs(sweep) - TAU) <= EPS ? Math.sign(sweep) * TAU : sweep;
   }
@@ -432,7 +435,7 @@ export function rotatePoint(point, center, angle) {
 }
 
 export function rotatePrimitive(object, center, angle) {
-  const options = { style: object.style, locked: false, visible: object.visible };
+  const options = { style: object.style, locked: false, visible: object.visible, ownerId: object.ownerId ?? null };
   if (object instanceof Centerline) return new Centerline(rotatePoint(object.a, center, angle), rotatePoint(object.b, center, angle), options);
   if (object instanceof Line) return new Line(rotatePoint(object.a, center, angle), rotatePoint(object.b, center, angle), options);
   if (object instanceof Circle) return new Circle(rotatePoint(object.center, center, angle), object.radius, options);
@@ -469,7 +472,7 @@ export function polarArray(objects, center, count, { totalAngle = TAU, includeOr
 /** Translate a primitive without mutating the original object. */
 export function translatePrimitive(object, delta) {
   assertPoint(delta, 'Вектор перемещения');
-  const P = p => add(p, delta), options = { style: object.style, visible: object.visible, locked: false };
+  const P = p => add(p, delta), options = { style: object.style, visible: object.visible, locked: false, ownerId: object.ownerId ?? null };
   if (object instanceof Centerline) return new Centerline(P(object.a), P(object.b), options);
   if (object instanceof Line) return new Line(P(object.a), P(object.b), options);
   if (object instanceof Circle) return new Circle(P(object.center), object.radius, options);
@@ -485,7 +488,7 @@ export function scalePrimitive(object, factor, origin = { x: 0, y: 0 }) {
   assertFinite(factor, 'Масштаб'); assertPoint(origin, 'Центр масштабирования');
   if (factor === 0) throw new RangeError('Масштаб не может быть равен нулю');
   const P = p => add(origin, mul(sub(p, origin), factor));
-  const r = Math.abs(factor), options = { style: object.style, visible: object.visible, locked: false };
+  const r = Math.abs(factor), options = { style: object.style, visible: object.visible, locked: false, ownerId: object.ownerId ?? null };
   if (object instanceof Centerline) return new Centerline(P(object.a), P(object.b), options);
   if (object instanceof Line) return new Line(P(object.a), P(object.b), options);
   if (object instanceof Circle) return new Circle(P(object.center), object.radius * r, options);
@@ -503,7 +506,7 @@ export function mirrorPrimitive(object, axisA, axisB) {
   if (den <= EPS * EPS) throw new RangeError('Ось отражения должна иметь ненулевую длину');
   const P = p => { const v = sub(p, axisA), projection = add(axisA, mul(axis, dot(v, axis) / den)); return sub(mul(projection, 2), p); };
   const angle = a => normAngle(2 * Math.atan2(axis.y, axis.x) - a);
-  const options = { style: object.style, visible: object.visible, locked: false };
+  const options = { style: object.style, visible: object.visible, locked: false, ownerId: object.ownerId ?? null };
   if (object instanceof Centerline) return new Centerline(P(object.a), P(object.b), options);
   if (object instanceof Line) return new Line(P(object.a), P(object.b), options);
   if (object instanceof Circle) return new Circle(P(object.center), object.radius, options);
@@ -564,9 +567,9 @@ export function serializeScene(objects) {
     objects: objects.map(o => {
       const base = { id: o.id, type: o.type, style: structuredCloneSafe(o.style), locked: o.locked, visible: o.visible };
       if (o instanceof Centerline || o instanceof Line) return { ...base, a: { ...o.a }, b: { ...o.b }, ownerId: o.ownerId ?? null };
-      if (o instanceof Circle) return { ...base, center: { ...o.center }, radius: o.radius };
-      if (o instanceof Arc) return { ...base, center: { ...o.center }, radius: o.radius, startAngle: o.startAngle, sweep: o.sweep };
-      if (o instanceof Polygon) return { ...base, vertices: o.vertices.map(p => ({ ...p })) };
+      if (o instanceof Circle) return { ...base, center: { ...o.center }, radius: o.radius, ownerId: o.ownerId ?? null };
+      if (o instanceof Arc) return { ...base, center: { ...o.center }, radius: o.radius, startAngle: o.startAngle, sweep: o.sweep, ownerId: o.ownerId ?? null };
+      if (o instanceof Polygon) return { ...base, vertices: o.vertices.map(p => ({ ...p })), ownerId: o.ownerId ?? null };
       if (o instanceof LinearDimension) return { ...base, p1: { ...o.p1 }, p2: { ...o.p2 }, offset: o.offset, showValue: o.showValue, textHeight: o.textHeight, text: o.text, textOffset: o.textOffset, horizontalText: o.horizontalText };
       if (o instanceof DiameterDimension) return { ...base, center: { ...o.center }, radius: o.radius, angle: o.angle, showValue: o.showValue, textHeight: o.textHeight, text: o.text };
       throw new TypeError(`Неизвестный тип объекта для сериализации: ${o.type}`);
@@ -580,12 +583,12 @@ export function deserializeScene(data) {
     throw new TypeError('Некорректный формат сцены');
   }
   return data.objects.map(o => {
-    const common = { id: o.id, style: o.style, locked: o.locked, visible: o.visible };
+    const common = { id: o.id, style: o.style, locked: o.locked, visible: o.visible, ownerId: o.ownerId ?? null };
     switch (o.type) {
       case 'line': return new Line(o.a, o.b, { ...common, ownerId: o.ownerId });
       case 'centerline': return new Centerline(o.a, o.b, common);
-      case 'circle': return new Circle(o.center, o.radius, common);
-      case 'arc': return new Arc(o.center, o.radius, o.startAngle, o.sweep, common);
+      case 'circle': return new Circle(o.center, o.radius, { ...common, ownerId: o.ownerId });
+      case 'arc': return new Arc(o.center, o.radius, o.startAngle, o.sweep, { ...common, ownerId: o.ownerId });
       case 'polygon': return new Polygon(o.vertices, common);
       case 'linearDimension': return new LinearDimension(o.p1, o.p2, o.offset, { ...common, showValue: o.showValue, textHeight: o.textHeight, text: o.text, textOffset: o.textOffset, horizontalText: o.horizontalText });
       case 'diameterDimension': return new DiameterDimension(o.center, o.radius, { ...common, angle: o.angle, showValue: o.showValue, textHeight: o.textHeight, text: o.text });

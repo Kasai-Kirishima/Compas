@@ -83,10 +83,20 @@ function solveDiskInterval(p0, direction, center, radius) {
   const b = 2 * dot(m, direction), c = dot(m, m) - radius * radius;
   if (a <= EPS * EPS) return c <= 0 ? [0, 1] : null;
   let disc = b * b - 4 * a * c;
-  const tol = Number.EPSILON * (Math.abs(b * b) + Math.abs(4 * a * c) + 1) * 64;
+  const tol = Number.EPSILON * (Math.abs(b * b) + Math.abs(4 * a * c) + 1) * 96;
   if (disc < -tol) return null;
   disc = Math.max(0, disc);
-  const root = Math.sqrt(disc), t0 = (-b - root) / (2 * a), t1 = (-b + root) / (2 * a);
+  const root = Math.sqrt(disc);
+  // Stable quadratic formula: avoids cancellation when the brush is far from
+  // the line origin or one of the roots is much smaller than the other.
+  const q = -0.5 * (b + (b >= 0 ? root : -root));
+  let t0, t1;
+  if (Math.abs(q) <= Number.EPSILON * Math.max(1, Math.abs(b), root)) {
+    t0 = t1 = -b / (2 * a);
+  } else {
+    t0 = q / a; t1 = c / q;
+    if (t0 > t1) [t0, t1] = [t1, t0];
+  }
   const lo = Math.max(0, t0), hi = Math.min(1, t1);
   return hi >= lo ? [lo, hi] : null;
 }
@@ -194,9 +204,16 @@ function circleBoundaryAngles(target, a, b, brushRadius, eps) {
 function circleEraseIntervals(circle, segments, radius, eps) {
   const angles = [0, TAU];
   for (const [a, b] of segments) angles.push(...circleBoundaryAngles(circle, a, b, radius, eps));
-  const sorted = [...new Set(angles.map(a => Number(normAngle(a).toFixed(12))))].sort((a, b) => a - b);
-  if (sorted[0] !== 0) sorted.unshift(0);
-  if (TAU - sorted[sorted.length - 1] > 1e-10) sorted.push(TAU);
+  const angleTol = Math.max(1e-12, eps / Math.max(circle.radius, 1));
+  const raw = angles.map(normAngle).sort((a, b) => a - b);
+  const sorted = [];
+  for (const angle of raw) {
+    if (!sorted.length || angle - sorted[sorted.length - 1] > angleTol) sorted.push(angle);
+  }
+  if (!sorted.length || sorted[0] > angleTol) sorted.unshift(0);
+  else sorted[0] = 0;
+  if (TAU - sorted[sorted.length - 1] > angleTol) sorted.push(TAU);
+  else sorted[sorted.length - 1] = TAU;
   const erased = [];
   for (let i = 0; i < sorted.length - 1; i++) {
     const a = sorted[i], b = sorted[i + 1];
@@ -229,16 +246,18 @@ function arcEraseIntervals(arc, segments, radius, eps) {
 
 function makeLineFragment(source, t0, t1) {
   if (t1 - t0 <= 1e-9) return null;
-  const opts = { style: source.style, visible: source.visible, ownerId: source.ownerId ?? null };
+  const opts = { style: source.style, visible: source.visible, ownerId: source.ownerId ?? source.id };
   return source instanceof Centerline
     ? new Centerline(source.pointAt(t0), source.pointAt(t1), opts)
     : new Line(source.pointAt(t0), source.pointAt(t1), opts);
 }
 function makeArcFragment(source, t0, t1) {
   if (t1 - t0 <= 1e-9) return null;
-  return new Arc(source.center, source.radius, source.startAngle + source.sweep * t0, source.sweep * (t1 - t0), {
-    style: source.style, visible: source.visible
+  const part = new Arc(source.center, source.radius, source.startAngle + source.sweep * t0, source.sweep * (t1 - t0), {
+    style: source.style, visible: source.visible, ownerId: source.ownerId ?? source.id
   });
+  part.ownerId = source.ownerId ?? source.id;
+  return part;
 }
 function objectLineSegments(object) {
   if (object instanceof LinearDimension) {
@@ -342,7 +361,13 @@ export function eraseAlongPath(objects, path, radius, {
     if (!object || object.visible === false) continue;
     const bounds = objectBounds(object);
     if (bounds && !boundsOverlap(bounds, strokeBounds, radius)) continue;
-    if (object.locked) { if (hitObjectByBrush(object, segments, radius)) skippedLocked.push(object.id); continue; }
+    if (object.locked) {
+      const hit = object instanceof LinearDimension || object instanceof DiameterDimension
+        ? annotationHit(object, segments, radius)
+        : hitObjectByBrush(object, segments, radius);
+      if (hit) skippedLocked.push(object.id);
+      continue;
+    }
     if (typeof filter === 'function' && !filter(object)) continue;
 
     if (object instanceof LinearDimension || object instanceof DiameterDimension) {
@@ -362,9 +387,25 @@ export function eraseAlongPath(objects, path, radius, {
       const erased = circleEraseIntervals(object, segments, radius, eps);
       if (!erased.length) continue;
       const kept = subtractIntervals(erased);
-      const fragments = kept.map(([a, b]) => new Arc(object.center, object.radius, a * TAU, (b - a) * TAU, {
-        style: object.style, visible: object.visible
-      })).filter(part => Math.abs(part.sweep) >= minArcSweep);
+      // Parameter 0 and 1 are the same point on a circle. If both end pieces
+      // survive, merge them into one wrap-around arc instead of two artificial
+      // fragments split at the angular seam.
+      const ranges = kept.map(pair => [...pair]);
+      const fragments = [];
+      if (ranges.length >= 2 && ranges[0][0] <= 1e-10 && ranges.at(-1)[1] >= 1 - 1e-10) {
+        const first = ranges.shift(), last = ranges.pop();
+        const start = last[0] * TAU;
+        const sweep = (1 - last[0] + first[1]) * TAU;
+        if (sweep >= minArcSweep) {
+          const wrap = new Arc(object.center, object.radius, start, Math.min(TAU, sweep), { style: object.style, visible: object.visible, ownerId: object.id });
+          wrap.ownerId = object.id; fragments.push(wrap);
+        }
+      }
+      for (const [a, b] of ranges) {
+        if ((b - a) * TAU < minArcSweep) continue;
+        const part = new Arc(object.center, object.radius, a * TAU, (b - a) * TAU, { style: object.style, visible: object.visible, ownerId: object.id });
+        part.ownerId = object.id; fragments.push(part);
+      }
       remove.push(object.id); addObjects.push(...fragments);
       removedSegments.push({ objectId: object.id, type: object.type, intervals: erased });
       continue;
@@ -399,6 +440,7 @@ export function eraseAlongPath(objects, path, radius, {
     add: addObjects,
     removed: removedSegments,
     skippedLocked,
+    stats: { objectsChanged: remove.length, fragmentsCreated: addObjects.length, annotationsRemoved: removedSegments.filter(x => x.whole).length },
     brush: { radius, path: points }
   };
 }
