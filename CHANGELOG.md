@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0 — 2026-11-16
+
+- Added orientation-aware GOST-style dimension labels: horizontal, vertical, aligned and automatic modes.
+- Dimension values now use decimal commas by default and trim redundant trailing zeroes.
+- Removed opaque white text knockouts; dimension lines are split under labels to keep the drawing background transparent.
+- Added partial erasing for dimension linework: remaining strokes become editable lines, and the number is erased separately when the brush crosses its text bounds. Whole-dimension deletion remains an explicit `eraseAnnotations: 'whole'` option.
+- Added Trim support for polygon edges; untouched edges remain intact and the trimmed edge becomes editable line fragments.
+- Added dimension rendering and polygon Trim examples plus regression tests.
+
+
 ## 1.3.0
 
 - Исправлена численная устойчивость квадратичного решения для круглых торцов кисти.

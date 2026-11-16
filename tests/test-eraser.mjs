@@ -70,10 +70,12 @@ const locked = new Line({x:0,y:0},{x:100,y:0},{locked:true});
 tx=eraseAlongPath([locked],[{x:50,y:-5},{x:50,y:5}],2);
 assert.equal(tx.ok,false); assert.deepEqual(tx.skippedLocked,[locked.id]);
 
-// Dimensions are treated as one annotation, never fragmented into invalid pieces.
+// Dimensions are exploded into editable strokes; the crossed label and line portions are erased only locally.
 const dim = new LinearDimension({x:0,y:0},{x:100,y:0},10);
 tx=eraseAlongPath([dim],[{x:50,y:5},{x:50,y:15}],2);
-assert.equal(tx.ok,true); assert.equal(tx.remove[0],dim.id); assert.equal(tx.add.length,0);
+assert.equal(tx.ok,true); assert.equal(tx.remove[0],dim.id);
+assert.ok(tx.add.length > 0); assert.ok(tx.add.every(o=>o instanceof Line));
+assert.ok(!tx.add.some(o=>o instanceof LinearDimension), 'Crossed dimension number should be removed without wiping remaining dimension linework');
 
 // SceneHistory supports undo, redo, and clearing redo on a new edit.
 const h = new SceneHistory([line]);
@@ -105,8 +107,30 @@ assert.equal(tx.ok,true); assert.equal(tx.add.length,3);
 
 // An annotation can be erased by crossing its detached text label.
 const movedDim = new LinearDimension({x:0,y:0},{x:100,y:0},10,{textOffset:20});
-tx=eraseAtPoint([movedDim],{x:50,y:30},1);
+tx=eraseAtPoint([movedDim],{x:0,y:5},1);
 assert.equal(tx.ok,true); assert.equal(tx.remove[0],movedDim.id);
+
+assert.ok(tx.add.some(o=>o instanceof LinearDimension && o.showLines===false), 'Лейбл размера должен сохраниться отдельно, если кисть не задела цифры');
+assert.ok(tx.add.some(o=>o instanceof Line), 'Линии размера должны быть превращены в редактируемые фрагменты');
+
+// Crossing one extension leg no longer deletes an entire dimension: unaffected strokes and label remain.
+const partialDim = new LinearDimension({x:0,y:0},{x:40,y:0},10);
+tx = eraseAlongPath([partialDim],[{x:0,y:3},{x:0,y:7}],1);
+assert.equal(tx.ok,true); assert.equal(tx.remove[0],partialDim.id);
+assert.ok(tx.add.some(o=>o instanceof LinearDimension && o.showLines===false));
+assert.ok(tx.add.some(o=>o instanceof Line));
+
+// Hitting the text removes only that label; line fragments remain.
+const labelOnlyDim = new LinearDimension({x:0,y:0},{x:40,y:0},10);
+const labelLayoutY = labelOnlyDim.geometry().middle.y + labelOnlyDim.textOffset;
+tx = eraseAtPoint([labelOnlyDim],{x:20,y:labelLayoutY},1);
+assert.equal(tx.ok,true); assert.ok(!tx.add.some(o=>o instanceof LinearDimension));
+assert.ok(tx.add.some(o=>o instanceof Line));
+
+// Legacy whole-annotation deletion remains an explicit opt-in.
+const wholeDim = new LinearDimension({x:0,y:0},{x:40,y:0},10);
+tx = eraseAtPoint([wholeDim],{x:0,y:5},1,{eraseAnnotations:'whole'});
+assert.equal(tx.ok,true); assert.deepEqual(tx.add,[]);
 
 // Invalid inputs fail explicitly.
 assert.throws(()=>eraseAlongPath([line],[],3),RangeError);

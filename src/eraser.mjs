@@ -8,7 +8,8 @@
 import {
   EPS, TAU, Line, Centerline, Circle, Arc, Polygon,
   LinearDimension, DiameterDimension, distance, sub, add, mul, dot,
-  clamp, normAngle, intersectCircleCircle, applyEditTransaction
+  clamp, normAngle, intersectCircleCircle, applyEditTransaction,
+  dimensionDrawingSegments, getDimensionTextLayout
 } from './cad-geometry-trim.mjs';
 
 const finitePoint = (p, name = 'Точка') => {
@@ -64,11 +65,12 @@ function objectBounds(object) {
     return { minX,minY,maxX,maxY };
   }
   const segs = objectLineSegments(object);
-  if (!segs.length) return null;
+  const boxes = objectTextBoxes(object);
+  if (!segs.length && !boxes.length) return null;
   const pts = segs.flat();
   let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
   for (const p of pts) { minX=Math.min(minX,p.x); minY=Math.min(minY,p.y); maxX=Math.max(maxX,p.x); maxY=Math.max(maxY,p.y); }
-  for (const box of objectTextBoxes(object)) {
+  for (const box of boxes) {
     minX=Math.min(minX,box.center.x-box.halfWidth); maxX=Math.max(maxX,box.center.x+box.halfWidth);
     minY=Math.min(minY,box.center.y-box.halfHeight); maxY=Math.max(maxY,box.center.y+box.halfHeight);
   }
@@ -260,28 +262,16 @@ function makeArcFragment(source, t0, t1) {
   return part;
 }
 function objectLineSegments(object) {
-  if (object instanceof LinearDimension) {
-    const g = object.geometry();
-    return [[object.p1, g.q1], [object.p2, g.q2], [g.q1, g.q2]];
-  }
-  if (object instanceof DiameterDimension) {
-    const g = object.geometry(); return [[g.p1, g.p2]];
+  if (object instanceof LinearDimension || object instanceof DiameterDimension) {
+    return object.showLines === false ? [] : dimensionDrawingSegments(object);
   }
   return [];
 }
 function objectTextBoxes(object) {
-  if (!object.showValue) return [];
-  if (object instanceof LinearDimension) {
-    const g = object.geometry(), center = add(g.middle, mul(g.normal, object.textOffset));
-    const label = object.text ?? object.value.toFixed(2);
-    return [{ center, halfWidth: Math.max(object.textHeight * 1.4, label.length * object.textHeight * 0.68) / 2, halfHeight: object.textHeight * 0.72 }];
-  }
-  if (object instanceof DiameterDimension) {
-    const g = object.geometry(), center = mul(add(g.p1, g.p2), 0.5);
-    const label = object.text ?? `Ø${object.value.toFixed(2)}`;
-    return [{ center, halfWidth: Math.max(object.textHeight * 1.4, label.length * object.textHeight * 0.68) / 2, halfHeight: object.textHeight * 0.72 }];
-  }
-  return [];
+  if (!(object instanceof LinearDimension || object instanceof DiameterDimension) || !object.showValue) return [];
+  const layout = getDimensionTextLayout(object);
+  if (!layout) return [];
+  return [{ center: layout.center, halfWidth: layout.aabbHalfWidth, halfHeight: layout.aabbHalfHeight }];
 }
 function pointInBox(p, box, pad = 0) {
   return Math.abs(p.x - box.center.x) <= box.halfWidth + pad && Math.abs(p.y - box.center.y) <= box.halfHeight + pad;
@@ -329,8 +319,9 @@ function segmentsIntersect(a, b, c, d) {
  * - eps: geometric tolerance (world units)
  * - minFragmentLength: suppress tiny line remnants
  * - minArcSweep: suppress tiny arc remnants (radians)
- * - eraseAnnotations: remove a dimension annotation as a whole if its drawn
- *   dimension/extension line is hit (dimensions cannot be sensibly split)
+ * - eraseAnnotations: 'partial' (default) splits dimension linework into editable
+ *   line fragments; a crossed label is removed. 'whole' removes the whole dimension;
+ *   false leaves dimension annotations untouched.
  * - filter(object): custom eligibility predicate
  */
 export function eraseAlongPath(objects, path, radius, {
@@ -338,11 +329,12 @@ export function eraseAlongPath(objects, path, radius, {
   minFragmentLength = Math.max(eps * 4, 1e-7),
   minArcSweep = 1e-5,
   simplifyTolerance = 0,
-  eraseAnnotations = true,
+  eraseAnnotations = 'partial',
   filter = object => object.visible !== false && object.locked !== true
 } = {}) {
   if (!Array.isArray(objects)) throw new TypeError('Сцена должна быть массивом объектов');
   if (!Number.isFinite(radius) || radius <= 0) throw new RangeError('Радиус ластика должен быть положительным числом');
+  if (![false, true, 'partial', 'whole'].includes(eraseAnnotations)) throw new RangeError('eraseAnnotations должен быть false, partial или whole');
   const points = simplifyEraserPath(path, simplifyTolerance), segments = pathSegments(points);
   const strokeBounds = pathBounds(points);
   const remove = [], addObjects = [], removedSegments = [], skippedLocked = [];
@@ -371,9 +363,42 @@ export function eraseAlongPath(objects, path, radius, {
     if (typeof filter === 'function' && !filter(object)) continue;
 
     if (object instanceof LinearDimension || object instanceof DiameterDimension) {
-      if (eraseAnnotations && annotationHit(object, segments, radius)) {
-        remove.push(object.id); removedSegments.push({ objectId: object.id, type: object.type, whole: true });
+      if (eraseAnnotations === false) continue;
+      const linework = objectLineSegments(object);
+      const labelHit = object.showValue && objectTextBoxes(object).some(box => segments.some(([a, b]) =>
+        pointInBox(a, box, radius) || pointInBox(b, box, radius) ||
+        rectEdges(box.center, box.halfWidth, box.halfHeight).some(([c, d]) => segmentDistance(a, b, c, d) <= radius)
+      ));
+      if (eraseAnnotations === 'whole' || eraseAnnotations === true) {
+        if (annotationHit(object, segments, radius)) {
+          remove.push(object.id); removedSegments.push({ objectId: object.id, type: object.type, whole: true });
+        }
+        continue;
       }
+      const clippedParts = linework.map(([a, b]) => {
+        const line = new Line(a, b, { style: object.style, ownerId: object.id });
+        const result = eraseSimpleLine(line);
+        return result ? result.fragments : [line];
+      });
+      const lineChanged = linework.some(([a, b]) => lineEraseIntervals(new Line(a, b), segments, radius).length > 0);
+      if (!lineChanged && !labelHit) continue;
+      remove.push(object.id);
+      addObjects.push(...clippedParts.flat());
+      let labelPreserved = false;
+      if (object.showValue && !labelHit) {
+        const common = {
+          style: object.style, visible: object.visible, locked: object.locked,
+          ownerId: object.ownerId ?? object.id, showValue: true, showLines: false,
+          textHeight: object.textHeight, text: object.text, textOffset: object.textOffset,
+          textOrientation: object.textOrientation, textSide: object.textSide,
+          precision: object.precision, decimalSeparator: object.decimalSeparator
+        };
+        const labelOnly = object instanceof LinearDimension
+          ? new LinearDimension(object.p1, object.p2, object.offset, { ...common, horizontalText: object.horizontalText })
+          : new DiameterDimension(object.center, object.radius, { ...common, angle: object.angle });
+        addObjects.push(labelOnly); labelPreserved = true;
+      }
+      removedSegments.push({ objectId: object.id, type: object.type, partial: true, labelRemoved: Boolean(labelHit), labelPreserved, lineSegments: linework.length });
       continue;
     }
     if (object instanceof Line) {

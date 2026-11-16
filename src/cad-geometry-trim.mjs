@@ -12,6 +12,13 @@ export function assertGostTextHeight(h) {
   if (!isGostTextHeight(h)) throw new RangeError(`Недопустимая высота шрифта. Используйте: ${GOST_TEXT_HEIGHTS.join(', ')} мм`);
   return Number(h);
 }
+/** Return the nearest standard GOST lettering height after a block/scene scale. */
+export function nearestGostTextHeight(height) {
+  assertFinite(height, 'Высота чертёжного шрифта');
+  if (!(height > 0)) throw new RangeError('Высота чертёжного шрифта должна быть положительной');
+  return GOST_TEXT_HEIGHTS.reduce((best, candidate) =>
+    Math.abs(candidate - height) < Math.abs(best - height) ? candidate : best, GOST_TEXT_HEIGHTS[0]);
+}
 
 export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 export const normAngle = a => ((a % TAU) + TAU) % TAU;
@@ -159,10 +166,19 @@ export class LinearDimension extends Primitive {
     if (distance(p1, p2) <= EPS) throw new RangeError('Нельзя создать размер нулевой длины');
     this.p1 = { ...p1 }; this.p2 = { ...p2 }; this.offset = offset;
     this.showValue = options.showValue ?? true;
-    this.textHeight = options.textHeight ?? 3.5;
+    this.showLines = options.showLines ?? true;
+    this.textHeight = assertGostTextHeight(options.textHeight ?? 3.5);
     this.text = options.text ?? null;
-    this.textOffset = options.textOffset ?? 0;
-    this.horizontalText = options.horizontalText ?? true;
+    // Engineering convention: keep the value clear of the dimension line by default.
+    this.textOffset = options.textOffset ?? this.textHeight * 0.8;
+    this.textOrientation = options.textOrientation ?? 'auto'; // auto | horizontal | vertical | aligned
+    this.textSide = options.textSide ?? 'auto'; // auto | positive | negative
+    this.precision = options.precision ?? 2;
+    this.decimalSeparator = options.decimalSeparator ?? ',';
+    this.horizontalText = this.textOrientation === 'horizontal' || options.horizontalText === true;
+    if (!['auto', 'horizontal', 'vertical', 'aligned'].includes(this.textOrientation)) throw new RangeError('Недопустимая ориентация размерного текста');
+    if (!['auto', 'positive', 'negative'].includes(this.textSide)) throw new RangeError('Недопустимая сторона размерного текста');
+    if (!Number.isInteger(this.precision) || this.precision < 0 || this.precision > 6) throw new RangeError('Точность размера должна быть целым числом от 0 до 6');
   }
   get value() { return distance(this.p1, this.p2); }
   geometry() {
@@ -184,8 +200,17 @@ export class DiameterDimension extends Primitive {
     this.center = { ...center }; this.radius = radius;
     this.angle = assertFinite(options.angle ?? 0, 'Угол диаметрального размера');
     this.showValue = options.showValue ?? true;
-    this.textHeight = options.textHeight ?? 3.5;
+    this.showLines = options.showLines ?? true;
+    this.textHeight = assertGostTextHeight(options.textHeight ?? 3.5);
     this.text = options.text ?? null;
+    this.textOffset = options.textOffset ?? this.textHeight * 0.8;
+    this.textOrientation = options.textOrientation ?? 'auto'; // auto | horizontal | vertical | aligned
+    this.textSide = options.textSide ?? 'auto';
+    this.precision = options.precision ?? 2;
+    this.decimalSeparator = options.decimalSeparator ?? ',';
+    if (!['auto', 'horizontal', 'vertical', 'aligned'].includes(this.textOrientation)) throw new RangeError('Недопустимая ориентация размерного текста');
+    if (!['auto', 'positive', 'negative'].includes(this.textSide)) throw new RangeError('Недопустимая сторона размерного текста');
+    if (!Number.isInteger(this.precision) || this.precision < 0 || this.precision > 6) throw new RangeError('Точность размера должна быть целым числом от 0 до 6');
   }
   get value() { return 2 * this.radius; }
   geometry() {
@@ -360,11 +385,11 @@ function clickParameter(object, point) {
 }
 function makeLinePart(source, t0, t1) {
   if (t1 - t0 <= EPS) return null;
-  return new Line(source.pointAt(t0), source.pointAt(t1), { style: source.style });
+  return new Line(source.pointAt(t0), source.pointAt(t1), { style: source.style, visible: source.visible, ownerId: source.ownerId ?? null });
 }
 function makeArcPart(source, t0, t1) {
   if (t1 - t0 <= EPS) return null;
-  return new Arc(source.center, source.radius, source.angleAt(t0), source.sweep * (t1 - t0), { style: source.style });
+  return new Arc(source.center, source.radius, source.angleAt(t0), source.sweep * (t1 - t0), { style: source.style, visible: source.visible, ownerId: source.ownerId ?? null });
 }
 function uniqueSorted(values, eps = 1e-7) {
   const out = [];
@@ -378,8 +403,24 @@ function uniqueSorted(values, eps = 1e-7) {
  */
 export function trimAtPoint(subject, clickPoint, objects, { hitTolerance = Infinity, eps = 1e-7 } = {}) {
   if (!subject || subject.locked) return { ok: false, reason: 'Объект заблокирован или не выбран' };
+  if (subject instanceof Polygon) {
+    const edges = subject.edges();
+    let nearest = null;
+    for (let index = 0; index < edges.length; index++) {
+      const edge = edges[index], d = pointDistanceToLine(edge, clickPoint);
+      if (!nearest || d < nearest.distance) nearest = { edge, index, distance: d };
+    }
+    if (!nearest || nearest.distance > hitTolerance) return { ok: false, reason: 'Щелчок слишком далеко от ребра многоугольника' };
+    const cutters = objects.filter(o => o && o.id !== subject.id && o.ownerId !== subject.id);
+    const edgeTx = trimAtPoint(nearest.edge, clickPoint, cutters, { hitTolerance, eps });
+    if (!edgeTx.ok) return edgeTx;
+    const untouchedEdges = edges.filter((_, i) => i !== nearest.index)
+      .map(edge => new Line(edge.a, edge.b, { style: subject.style, visible: subject.visible, ownerId: subject.id }));
+    const fragments = edgeTx.add.map(part => new Line(part.a, part.b, { style: subject.style, visible: subject.visible, ownerId: subject.id }));
+    return { ok: true, operation: 'trim', remove: [subject.id], add: [...untouchedEdges, ...fragments], removed: { polygonId: subject.id, edgeIndex: nearest.index, ...edgeTx.removed } };
+  }
   if (!(subject instanceof Line || subject instanceof Circle || subject instanceof Arc)) {
-    return { ok: false, reason: 'Усечение поддерживается для отрезков, окружностей и дуг' };
+    return { ok: false, reason: 'Усечение поддерживается для отрезков, окружностей, дуг и рёбер многоугольника' };
   }
   const dist = subject instanceof Line ? pointDistanceToLine(subject, clickPoint)
     : subject instanceof Circle ? pointDistanceToCircle(subject, clickPoint)
@@ -441,8 +482,8 @@ export function rotatePrimitive(object, center, angle) {
   if (object instanceof Circle) return new Circle(rotatePoint(object.center, center, angle), object.radius, options);
   if (object instanceof Arc) return new Arc(rotatePoint(object.center, center, angle), object.radius, object.startAngle + angle, object.sweep, options);
   if (object instanceof Polygon) return new Polygon(object.vertices.map(p => rotatePoint(p, center, angle)), options);
-  if (object instanceof LinearDimension) return new LinearDimension(rotatePoint(object.p1, center, angle), rotatePoint(object.p2, center, angle), object.offset, { ...options, showValue: object.showValue, textHeight: object.textHeight, text: object.text, textOffset: object.textOffset, horizontalText: object.horizontalText });
-  if (object instanceof DiameterDimension) return new DiameterDimension(rotatePoint(object.center, center, angle), object.radius, { ...options, angle: object.angle + angle, showValue: object.showValue, textHeight: object.textHeight, text: object.text });
+  if (object instanceof LinearDimension) return new LinearDimension(rotatePoint(object.p1, center, angle), rotatePoint(object.p2, center, angle), object.offset, { ...options, showValue: object.showValue, showLines: object.showLines, textHeight: object.textHeight, text: object.text, textOffset: object.textOffset, textOrientation: object.textOrientation, textSide: object.textSide, precision: object.precision, decimalSeparator: object.decimalSeparator, horizontalText: object.horizontalText });
+  if (object instanceof DiameterDimension) return new DiameterDimension(rotatePoint(object.center, center, angle), object.radius, { ...options, angle: object.angle + angle, showValue: object.showValue, showLines: object.showLines, textHeight: object.textHeight, text: object.text, textOffset: object.textOffset, textOrientation: object.textOrientation, textSide: object.textSide, precision: object.precision, decimalSeparator: object.decimalSeparator });
   throw new TypeError(`Нельзя повернуть объект типа ${object.type}`);
 }
 
@@ -478,8 +519,8 @@ export function translatePrimitive(object, delta) {
   if (object instanceof Circle) return new Circle(P(object.center), object.radius, options);
   if (object instanceof Arc) return new Arc(P(object.center), object.radius, object.startAngle, object.sweep, options);
   if (object instanceof Polygon) return new Polygon(object.vertices.map(P), options);
-  if (object instanceof LinearDimension) return new LinearDimension(P(object.p1), P(object.p2), object.offset, { ...options, showValue: object.showValue, textHeight: object.textHeight, text: object.text, textOffset: object.textOffset, horizontalText: object.horizontalText });
-  if (object instanceof DiameterDimension) return new DiameterDimension(P(object.center), object.radius, { ...options, angle: object.angle, showValue: object.showValue, textHeight: object.textHeight, text: object.text });
+  if (object instanceof LinearDimension) return new LinearDimension(P(object.p1), P(object.p2), object.offset, { ...options, showValue: object.showValue, showLines: object.showLines, textHeight: object.textHeight, text: object.text, textOffset: object.textOffset, textOrientation: object.textOrientation, textSide: object.textSide, precision: object.precision, decimalSeparator: object.decimalSeparator, horizontalText: object.horizontalText });
+  if (object instanceof DiameterDimension) return new DiameterDimension(P(object.center), object.radius, { ...options, angle: object.angle, showValue: object.showValue, showLines: object.showLines, textHeight: object.textHeight, text: object.text, textOffset: object.textOffset, textOrientation: object.textOrientation, textSide: object.textSide, precision: object.precision, decimalSeparator: object.decimalSeparator });
   throw new TypeError(`Нельзя переместить объект типа ${object.type}`);
 }
 
@@ -494,8 +535,8 @@ export function scalePrimitive(object, factor, origin = { x: 0, y: 0 }) {
   if (object instanceof Circle) return new Circle(P(object.center), object.radius * r, options);
   if (object instanceof Arc) return new Arc(P(object.center), object.radius * r, object.startAngle + (factor < 0 ? Math.PI : 0), object.sweep, options);
   if (object instanceof Polygon) return new Polygon(object.vertices.map(P), options);
-  if (object instanceof LinearDimension) return new LinearDimension(P(object.p1), P(object.p2), object.offset * r, { ...options, showValue: object.showValue, textHeight: object.textHeight * r, text: object.text, textOffset: object.textOffset * r, horizontalText: object.horizontalText });
-  if (object instanceof DiameterDimension) return new DiameterDimension(P(object.center), object.radius * r, { ...options, angle: object.angle + (factor < 0 ? Math.PI : 0), showValue: object.showValue, textHeight: object.textHeight * r, text: object.text });
+  if (object instanceof LinearDimension) return new LinearDimension(P(object.p1), P(object.p2), object.offset * r, { ...options, showValue: object.showValue, showLines: object.showLines, textHeight: nearestGostTextHeight(object.textHeight * r), text: object.text, textOffset: object.textOffset * r, textOrientation: object.textOrientation, textSide: object.textSide, precision: object.precision, decimalSeparator: object.decimalSeparator, horizontalText: object.horizontalText });
+  if (object instanceof DiameterDimension) return new DiameterDimension(P(object.center), object.radius * r, { ...options, angle: object.angle + (factor < 0 ? Math.PI : 0), showValue: object.showValue, showLines: object.showLines, textHeight: nearestGostTextHeight(object.textHeight * r), text: object.text, textOffset: object.textOffset * r, textOrientation: object.textOrientation, textSide: object.textSide, precision: object.precision, decimalSeparator: object.decimalSeparator });
   throw new TypeError(`Нельзя масштабировать объект типа ${object.type}`);
 }
 
@@ -512,8 +553,8 @@ export function mirrorPrimitive(object, axisA, axisB) {
   if (object instanceof Circle) return new Circle(P(object.center), object.radius, options);
   if (object instanceof Arc) return new Arc(P(object.center), object.radius, angle(object.startAngle), -object.sweep, options);
   if (object instanceof Polygon) return new Polygon(object.vertices.map(P), options);
-  if (object instanceof LinearDimension) return new LinearDimension(P(object.p1), P(object.p2), -object.offset, { ...options, showValue: object.showValue, textHeight: object.textHeight, text: object.text, textOffset: -object.textOffset, horizontalText: object.horizontalText });
-  if (object instanceof DiameterDimension) return new DiameterDimension(P(object.center), object.radius, { ...options, angle: angle(object.angle), showValue: object.showValue, textHeight: object.textHeight, text: object.text });
+  if (object instanceof LinearDimension) return new LinearDimension(P(object.p1), P(object.p2), -object.offset, { ...options, showValue: object.showValue, showLines: object.showLines, textHeight: object.textHeight, text: object.text, textOffset: -object.textOffset, textOrientation: object.textOrientation, textSide: object.textSide, precision: object.precision, decimalSeparator: object.decimalSeparator, horizontalText: object.horizontalText });
+  if (object instanceof DiameterDimension) return new DiameterDimension(P(object.center), object.radius, { ...options, angle: angle(object.angle), showValue: object.showValue, showLines: object.showLines, textHeight: object.textHeight, text: object.text, textOffset: object.textOffset, textOrientation: object.textOrientation, textSide: object.textSide, precision: object.precision, decimalSeparator: object.decimalSeparator });
   throw new TypeError(`Нельзя отразить объект типа ${object.type}`);
 }
 
@@ -570,8 +611,8 @@ export function serializeScene(objects) {
       if (o instanceof Circle) return { ...base, center: { ...o.center }, radius: o.radius, ownerId: o.ownerId ?? null };
       if (o instanceof Arc) return { ...base, center: { ...o.center }, radius: o.radius, startAngle: o.startAngle, sweep: o.sweep, ownerId: o.ownerId ?? null };
       if (o instanceof Polygon) return { ...base, vertices: o.vertices.map(p => ({ ...p })), ownerId: o.ownerId ?? null };
-      if (o instanceof LinearDimension) return { ...base, p1: { ...o.p1 }, p2: { ...o.p2 }, offset: o.offset, showValue: o.showValue, textHeight: o.textHeight, text: o.text, textOffset: o.textOffset, horizontalText: o.horizontalText };
-      if (o instanceof DiameterDimension) return { ...base, center: { ...o.center }, radius: o.radius, angle: o.angle, showValue: o.showValue, textHeight: o.textHeight, text: o.text };
+      if (o instanceof LinearDimension) return { ...base, p1: { ...o.p1 }, p2: { ...o.p2 }, offset: o.offset, showValue: o.showValue, showLines: o.showLines, textHeight: o.textHeight, text: o.text, textOffset: o.textOffset, textOrientation: o.textOrientation, textSide: o.textSide, precision: o.precision, decimalSeparator: o.decimalSeparator, horizontalText: o.horizontalText };
+      if (o instanceof DiameterDimension) return { ...base, center: { ...o.center }, radius: o.radius, angle: o.angle, showValue: o.showValue, showLines: o.showLines, textHeight: o.textHeight, text: o.text, textOffset: o.textOffset, textOrientation: o.textOrientation, textSide: o.textSide, precision: o.precision, decimalSeparator: o.decimalSeparator };
       throw new TypeError(`Неизвестный тип объекта для сериализации: ${o.type}`);
     })
   };
@@ -590,8 +631,8 @@ export function deserializeScene(data) {
       case 'circle': return new Circle(o.center, o.radius, { ...common, ownerId: o.ownerId });
       case 'arc': return new Arc(o.center, o.radius, o.startAngle, o.sweep, { ...common, ownerId: o.ownerId });
       case 'polygon': return new Polygon(o.vertices, common);
-      case 'linearDimension': return new LinearDimension(o.p1, o.p2, o.offset, { ...common, showValue: o.showValue, textHeight: o.textHeight, text: o.text, textOffset: o.textOffset, horizontalText: o.horizontalText });
-      case 'diameterDimension': return new DiameterDimension(o.center, o.radius, { ...common, angle: o.angle, showValue: o.showValue, textHeight: o.textHeight, text: o.text });
+      case 'linearDimension': return new LinearDimension(o.p1, o.p2, o.offset, { ...common, showValue: o.showValue, showLines: o.showLines, textHeight: o.textHeight, text: o.text, textOffset: o.textOffset, textOrientation: o.textOrientation, textSide: o.textSide, precision: o.precision, decimalSeparator: o.decimalSeparator, horizontalText: o.horizontalText });
+      case 'diameterDimension': return new DiameterDimension(o.center, o.radius, { ...common, angle: o.angle, showValue: o.showValue, showLines: o.showLines, textHeight: o.textHeight, text: o.text, textOffset: o.textOffset, textOrientation: o.textOrientation, textSide: o.textSide, precision: o.precision, decimalSeparator: o.decimalSeparator });
       default: throw new TypeError(`Неизвестный тип объекта: ${o.type}`);
     }
   });
@@ -627,76 +668,205 @@ export function drawPrimitive(ctx, object) {
   ctx.stroke(); ctx.restore();
 }
 
-export function drawLinearDimension(ctx, dimension, { format = v => v.toFixed(2), textPadding = 1 } = {}) {
-  const g = dimension.geometry(); if (!g) return;
+/** Format dimension values as engineering text: decimal comma, no redundant zeroes. */
+export function formatDimensionValue(value, { precision = 2, decimalSeparator = ',', trimTrailingZeros = true } = {}) {
+  assertFinite(value, 'Размер');
+  if (!Number.isInteger(precision) || precision < 0 || precision > 6) throw new RangeError('Точность должна быть целым числом от 0 до 6');
+  const rounded = Object.is(Number(value.toFixed(precision)), -0) ? 0 : Number(value.toFixed(precision));
+  let text = rounded.toFixed(precision);
+  if (trimTrailingZeros && text.includes('.')) text = text.replace(/0+$/, '').replace(/\.$/, '');
+  return decimalSeparator === '.' ? text : text.replace('.', decimalSeparator);
+}
+
+/** Keep aligned text readable: its baseline never points beyond ±90 degrees. */
+export function readableDimensionAngle(angle) {
+  let a = angle;
+  while (a > Math.PI / 2) a -= Math.PI;
+  while (a <= -Math.PI / 2) a += Math.PI;
+  return a;
+}
+
+function orientationAngle(mode, rawAngle) {
+  if (mode === 'horizontal') return 0;
+  if (mode === 'vertical') return Math.PI / 2;
+  if (mode === 'aligned') return readableDimensionAngle(rawAngle);
+  const normalized = readableDimensionAngle(rawAngle);
+  return Math.abs(Math.cos(normalized)) >= Math.abs(Math.sin(normalized)) ? 0 : Math.PI / 2;
+}
+function dimensionNormal(normal, direction, mode, side = 'auto') {
+  let n = { ...normal };
+  if (side === 'positive') return n;
+  if (side === 'negative') return mul(n, -1);
+  if (mode === 'horizontal' || (mode === 'auto' && Math.abs(direction.x) >= Math.abs(direction.y))) {
+    if (n.y < 0) n = mul(n, -1); // horizontal dimensions: text above the line
+  } else if (mode === 'vertical' || (mode === 'auto' && Math.abs(direction.y) > Math.abs(direction.x))) {
+    if (n.x > 0) n = mul(n, -1); // vertical dimensions: text to the left
+  } else if (n.y < -EPS || (Math.abs(n.y) <= EPS && n.x > 0)) n = mul(n, -1);
+  return n;
+}
+function textMetrics(ctx, label, height) {
+  const m = ctx.measureText(label);
+  const width = Math.max(m.width || 0, height * 0.6);
+  const actualHeight = (m.actualBoundingBoxAscent || height * 0.72) + (m.actualBoundingBoxDescent || height * 0.28);
+  return { width, height: Math.max(actualHeight, height) };
+}
+function dimensionLabel(dimension, value, diameter = false) {
+  if (dimension.text != null) return String(dimension.text);
+  const number = formatDimensionValue(value, dimension);
+  return diameter ? `Ø${number}` : number;
+}
+
+/** Shared text-placement data, also used by the partial eraser for hit testing. */
+export function getDimensionTextLayout(dimension, measuredWidth = null) {
+  let center, rawAngle, normal, value, isDiameter = dimension instanceof DiameterDimension;
+  if (dimension instanceof LinearDimension) {
+    const g = dimension.geometry(); if (!g) return null;
+    const d = sub(g.q2, g.q1), len = length(d); if (len <= EPS) return null;
+    const direction = mul(d, 1 / len);
+    normal = dimensionNormal(g.normal, direction, dimension.textOrientation ?? 'auto', dimension.textSide ?? 'auto');
+    center = add(g.middle, mul(normal, dimension.textOffset ?? dimension.textHeight * 0.8));
+    rawAngle = Math.atan2(d.y, d.x); value = g.value;
+  } else if (dimension instanceof DiameterDimension) {
+    const g = dimension.geometry();
+    const direction = { x: Math.cos(dimension.angle), y: Math.sin(dimension.angle) };
+    normal = dimensionNormal({ x: -direction.y, y: direction.x }, direction, dimension.textOrientation ?? 'auto', dimension.textSide ?? 'auto');
+    center = add(mul(add(g.p1, g.p2), 0.5), mul(normal, dimension.textOffset ?? dimension.textHeight * 0.8));
+    rawAngle = dimension.angle; value = g.value;
+  } else return null;
+  const angle = orientationAngle(dimension.textOrientation ?? 'auto', rawAngle);
+  const label = dimensionLabel(dimension, value, isDiameter);
+  const width = measuredWidth ?? Math.max(dimension.textHeight * 0.6, label.length * dimension.textHeight * 0.68);
+  const height = dimension.textHeight;
+  const c = Math.abs(Math.cos(angle)), s = Math.abs(Math.sin(angle));
+  return { center, angle, label, width, height, aabbHalfWidth: (width * c + height * s) / 2, aabbHalfHeight: (width * s + height * c) / 2 };
+}
+
+function strokeDimensionLineWithGap(ctx, a, b, center, gapWidth) {
+  const d = sub(b, a), len = length(d);
+  if (len <= EPS) return;
+  const u = mul(d, 1 / len), halfGap = Math.min(Math.max(0, gapWidth) / 2, len * 0.48);
+  const left = sub(center, mul(u, halfGap)), right = add(center, mul(u, halfGap));
+  ctx.beginPath();
+  if (halfGap <= EPS) { ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); }
+  else {
+    ctx.moveTo(a.x, a.y); ctx.lineTo(left.x, left.y);
+    ctx.moveTo(right.x, right.y); ctx.lineTo(b.x, b.y);
+  }
+  ctx.stroke();
+}
+function drawArrow(ctx, tip, direction, size, outside = false) {
+  const sign = outside ? -1 : 1;
+  const base = add(tip, mul(direction, size * sign));
+  const perp = { x: -direction.y, y: direction.x };
+  ctx.beginPath(); ctx.moveTo(tip.x, tip.y);
+  ctx.lineTo(base.x + perp.x * size * 0.22, base.y + perp.y * size * 0.22);
+  ctx.lineTo(base.x - perp.x * size * 0.22, base.y - perp.y * size * 0.22);
+  ctx.closePath(); ctx.fill();
+}
+function drawDimensionText(ctx, layout, height) {
+  if (!layout) return;
   ctx.save();
-  ctx.strokeStyle = dimension.style.stroke ?? '#111';
-  ctx.fillStyle = dimension.style.stroke ?? '#111';
-  ctx.lineWidth = dimension.style.lineWidth ?? 0.18;
-  ctx.setLineDash([]);
-  // Extension lines and dimension line.
-  ctx.beginPath(); ctx.moveTo(dimension.p1.x, dimension.p1.y); ctx.lineTo(g.q1.x, g.q1.y);
-  ctx.moveTo(dimension.p2.x, dimension.p2.y); ctx.lineTo(g.q2.x, g.q2.y);
-  ctx.moveTo(g.q1.x, g.q1.y); ctx.lineTo(g.q2.x, g.q2.y); ctx.stroke();
-  const dx = g.q2.x - g.q1.x, dy = g.q2.y - g.q1.y, len = Math.hypot(dx, dy);
-  let label = '';
-  if (dimension.showValue) {
-    label = dimension.text ?? format(g.value);
-    ctx.font = `${dimension.textHeight}px "GOST type B", "ISO 3098", sans-serif`;
-  }
-  if (len > EPS) {
-    const ux = dx / len, uy = dy / len;
-    const arrowSize = Math.max(1.8, dimension.textHeight * 0.8);
-    const measured = dimension.showValue ? ctx.measureText(label).width : 0;
-    const arrowsOutside = len < measured + arrowSize * 2 + 2 * textPadding;
-    // For short dimensions, arrow bases move outside the extension lines.
-    for (const [tip, dir] of [[g.q1, 1], [g.q2, -1]]) {
-      const baseDir = arrowsOutside ? -dir : dir;
-      const bx = tip.x + ux * arrowSize * baseDir, by = tip.y + uy * arrowSize * baseDir;
-      const px = -uy * arrowSize * 0.22, py = ux * arrowSize * 0.22;
-      ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(bx + px, by + py); ctx.lineTo(bx - px, by - py); ctx.closePath(); ctx.fill();
-    }
-    if (dimension.showValue) {
-      const tx = g.middle.x + g.normal.x * dimension.textOffset;
-      const ty = g.middle.y + g.normal.y * dimension.textOffset;
-      // White knockout behind text prevents the dimension line crossing digits.
-      const metrics = ctx.measureText(label);
-      const h = dimension.textHeight;
-      ctx.save(); ctx.translate(tx, ty); ctx.scale(1, -1);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(-metrics.width / 2 - textPadding, -h * 0.65, metrics.width + 2 * textPadding, h * 1.3);
-      ctx.fillStyle = '#111'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      // Counter-flip text for an upright glyph orientation in a world-Y-up scene.
-      ctx.fillText(label, 0, 0); ctx.restore();
-    }
-  }
+  ctx.translate(layout.center.x, layout.center.y);
+  ctx.rotate(layout.angle);
+  // Counter-flip glyphs only. No white fill is painted behind the text.
+  ctx.scale(1, -1);
+  ctx.font = `${height}px "GOST type B", "ISO 3098", sans-serif`;
+  ctx.fillStyle = '#111'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(layout.label, 0, 0);
   ctx.restore();
 }
 
-export function drawDiameterDimension(ctx, dimension, { format = v => v.toFixed(2), textPadding = 1 } = {}) {
-  const g = dimension.geometry();
-  ctx.save(); ctx.strokeStyle = dimension.style.stroke ?? '#111'; ctx.fillStyle = '#111';
-  ctx.lineWidth = dimension.style.lineWidth ?? 0.18;
-  ctx.beginPath(); ctx.moveTo(g.p1.x, g.p1.y); ctx.lineTo(g.p2.x, g.p2.y); ctx.stroke();
-  // Arrow tips touch the circle; bases point toward its centre.
-  const ux = Math.cos(dimension.angle), uy = Math.sin(dimension.angle);
-  const arrowSize = Math.max(1.8, dimension.textHeight * 0.8);
-  for (const [tip, direction] of [[g.p1, 1], [g.p2, -1]]) {
-    const bx = tip.x + ux * arrowSize * direction, by = tip.y + uy * arrowSize * direction;
-    const px = -uy * arrowSize * 0.22, py = ux * arrowSize * 0.22;
-    ctx.beginPath(); ctx.moveTo(tip.x, tip.y); ctx.lineTo(bx + px, by + py); ctx.lineTo(bx - px, by - py); ctx.closePath(); ctx.fill();
-  }
+export function drawLinearDimension(ctx, dimension, { format = null, textPadding = 1 } = {}) {
+  const g = dimension.geometry(); if (!g) return;
+  const dx = g.q2.x - g.q1.x, dy = g.q2.y - g.q1.y, len = Math.hypot(dx, dy);
+  if (len <= EPS) return;
+  const ux = dx / len, uy = dy / len, direction = { x: ux, y: uy };
+  let layout = null;
   if (dimension.showValue) {
-    const mid = mul(add(g.p1, g.p2), 0.5);
-    const label = dimension.text ?? `Ø${format(g.value)}`;
+    layout = getDimensionTextLayout(dimension);
+    if (format) layout.label = String(format(g.value));
     ctx.font = `${dimension.textHeight}px "GOST type B", "ISO 3098", sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const metrics = ctx.measureText(label), h = dimension.textHeight;
-    ctx.save(); ctx.translate(mid.x, mid.y); ctx.scale(1, -1);
-    ctx.fillStyle = '#fff'; ctx.fillRect(-metrics.width / 2 - textPadding, -h * 0.65, metrics.width + 2 * textPadding, h * 1.3);
-    ctx.fillStyle = '#111'; ctx.fillText(label, 0, 0); ctx.restore();
   }
+  const ctxMetrics = dimension.showValue ? textMetrics(ctx, layout.label, dimension.textHeight) : { width: 0, height: 0 };
+  if (layout) layout.width = ctxMetrics.width;
+  const projected = layout ? Math.abs(Math.cos(layout.angle - Math.atan2(dy, dx))) * ctxMetrics.width + Math.abs(Math.sin(layout.angle - Math.atan2(dy, dx))) * ctxMetrics.height : 0;
+  const gap = layout ? projected + 2 * textPadding : 0;
+  const arrowsOutside = len < gap + Math.max(1.8, dimension.textHeight * 0.8) * 2;
+  ctx.save(); ctx.strokeStyle = dimension.style.stroke ?? '#111'; ctx.fillStyle = dimension.style.stroke ?? '#111';
+  ctx.lineWidth = dimension.style.lineWidth ?? 0.18; ctx.setLineDash([]);
+  if (dimension.showLines !== false) {
+    ctx.beginPath();
+    ctx.moveTo(dimension.p1.x, dimension.p1.y); ctx.lineTo(g.q1.x, g.q1.y);
+    ctx.moveTo(dimension.p2.x, dimension.p2.y); ctx.lineTo(g.q2.x, g.q2.y);
+    ctx.stroke();
+    const mid = g.middle;
+    strokeDimensionLineWithGap(ctx, g.q1, g.q2, mid, gap);
+    const arrowSize = Math.max(1.8, dimension.textHeight * 0.8);
+    drawArrow(ctx, g.q1, direction, arrowSize, arrowsOutside);
+    drawArrow(ctx, g.q2, mul(direction, -1), arrowSize, arrowsOutside);
+  }
+  if (dimension.showValue && layout) drawDimensionText(ctx, layout, dimension.textHeight);
   ctx.restore();
+}
+
+export function drawDiameterDimension(ctx, dimension, { format = null, textPadding = 1 } = {}) {
+  const g = dimension.geometry(), direction = { x: Math.cos(dimension.angle), y: Math.sin(dimension.angle) };
+  const len = distance(g.p1, g.p2), mid = mul(add(g.p1, g.p2), 0.5);
+  let layout = null;
+  if (dimension.showValue) {
+    layout = getDimensionTextLayout(dimension);
+    if (format) layout.label = `Ø${String(format(g.value))}`;
+    ctx.font = `${dimension.textHeight}px "GOST type B", "ISO 3098", sans-serif`;
+  }
+  const metrics = layout ? textMetrics(ctx, layout.label, dimension.textHeight) : { width: 0, height: 0 };
+  const projected = layout ? Math.abs(Math.cos(layout.angle - dimension.angle)) * metrics.width + Math.abs(Math.sin(layout.angle - dimension.angle)) * metrics.height : 0;
+  const gap = layout ? projected + 2 * textPadding : 0;
+  const arrowsOutside = len < gap + Math.max(1.8, dimension.textHeight * 0.8) * 2;
+  ctx.save(); ctx.strokeStyle = dimension.style.stroke ?? '#111'; ctx.fillStyle = dimension.style.stroke ?? '#111';
+  ctx.lineWidth = dimension.style.lineWidth ?? 0.18;
+  if (dimension.showLines !== false) {
+    strokeDimensionLineWithGap(ctx, g.p1, g.p2, mid, gap);
+    const arrowSize = Math.max(1.8, dimension.textHeight * 0.8);
+    drawArrow(ctx, g.p1, direction, arrowSize, arrowsOutside);
+    drawArrow(ctx, g.p2, mul(direction, -1), arrowSize, arrowsOutside);
+  }
+  if (dimension.showValue && layout) drawDimensionText(ctx, layout, dimension.textHeight);
+  ctx.restore();
+}
+
+/** Return the linework of a dimension so it can be partially erased like geometry. */
+export function dimensionDrawingSegments(dimension) {
+  if (dimension instanceof LinearDimension) {
+    const g = dimension.geometry(); if (!g) return [];
+    const d = sub(g.q2, g.q1), len = length(d); if (len <= EPS) return [];
+    const u = mul(d, 1 / len), segments = [[dimension.p1, g.q1], [dimension.p2, g.q2]];
+    let gap = 0;
+    if (dimension.showValue) {
+      const layout = getDimensionTextLayout(dimension);
+      const width = layout.width, height = layout.height, angle = layout.angle - Math.atan2(d.y, d.x);
+      gap = Math.abs(Math.cos(angle)) * width + Math.abs(Math.sin(angle)) * height + 2;
+    }
+    const half = Math.min(gap / 2, len * 0.48), center = g.middle;
+    if (half <= EPS) segments.push([g.q1, g.q2]);
+    else segments.push([g.q1, sub(center, mul(u, half))], [add(center, mul(u, half)), g.q2]);
+    const arrow = Math.max(1.8, dimension.textHeight * 0.8), side = arrow * 0.22;
+    for (const [tip, dir, outside] of [[g.q1, u, false], [g.q2, mul(u,-1), false]]) {
+      const sign = outside ? -1 : 1, base = add(tip, mul(dir, arrow * sign)), perp = { x: -dir.y, y: dir.x };
+      segments.push([tip, add(base, mul(perp, side))], [tip, sub(base, mul(perp, side))], [add(base, mul(perp, side)), sub(base, mul(perp, side))]);
+    }
+    return segments.filter(([a,b]) => distance(a,b) > EPS);
+  }
+  if (dimension instanceof DiameterDimension) {
+    const g = dimension.geometry(), d = { x: Math.cos(dimension.angle), y: Math.sin(dimension.angle) }, len = distance(g.p1,g.p2), mid = mul(add(g.p1,g.p2),.5);
+    let gap = 0;
+    if (dimension.showValue) { const l=getDimensionTextLayout(dimension), a=l.angle-dimension.angle; gap=Math.abs(Math.cos(a))*l.width+Math.abs(Math.sin(a))*l.height+2; }
+    const half=Math.min(gap/2,len*.48), segments=[];
+    if (half<=EPS) segments.push([g.p1,g.p2]); else segments.push([g.p1,sub(mid,mul(d,half))],[add(mid,mul(d,half)),g.p2]);
+    const arrow=Math.max(1.8,dimension.textHeight*.8),side=arrow*.22;
+    for (const [tip,dir] of [[g.p1,d],[g.p2,mul(d,-1)]]) { const base=add(tip,mul(dir,arrow)),perp={x:-dir.y,y:dir.x};segments.push([tip,add(base,mul(perp,side))],[tip,sub(base,mul(perp,side))],[add(base,mul(perp,side)),sub(base,mul(perp,side))]); }
+    return segments.filter(([a,b])=>distance(a,b)>EPS);
+  }
+  return [];
 }
 
 // ---------- Simple pointer-to-object helper ----------

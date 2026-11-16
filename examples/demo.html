@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CAD Geometry Core 1.3.0 — Eraser & Templates</title>
+<title>CAD Geometry Core 1.4.0 — Dimensions, Trim & Eraser</title>
 <style>
   :root { color-scheme: light; font: 14px/1.45 system-ui, sans-serif; }
   * { box-sizing: border-box; }
@@ -35,8 +35,8 @@
 </head>
 <body>
 <header>
-  <h1>CAD Geometry Core 1.3.0</h1>
-  <p>Частичный ластик с корректным масштабом кисти, Trim, шаблоны машиностроительных элементов, Undo/Redo и JSON</p>
+  <h1>CAD Geometry Core 1.4.0</h1>
+  <p>Размеры по направлению измерения, прозрачные размерные подписи, частичный ластик, Trim/вырезка многоугольников, шаблоны, Undo/Redo и JSON</p>
 </header>
 <main>
   <section class="panel">
@@ -78,7 +78,7 @@
     </div>
     <div id="status" role="status">Выберите инструмент. Радиус ластика задаётся в экранных пикселях и автоматически пересчитывается в координаты чертежа.</div>
     <div class="tips">
-      Ластик удаляет только участок под круглой кистью. <span class="key">Ctrl+Z</span> отмена, <span class="key">Ctrl+Y</span> повтор, <span class="key">Delete</span> удалить выбранное. Для отрезка, окружности или многоугольника укажите две точки.
+      Ластик удаляет только участок под круглой кистью; при касании размера его линии разбираются на фрагменты, а текст стирается отдельно. Размерные числа выводятся без белой подложки. <span class="key">Ctrl+Z</span> отмена, <span class="key">Ctrl+Y</span> повтор, <span class="key">Delete</span> удалить выбранное. Для отрезка, окружности или многоугольника укажите две точки.
     </div>
   </section>
   <div class="canvas-wrap"><canvas id="cad" width="1200" height="720" aria-label="Демонстрационный чертёж"></canvas></div>

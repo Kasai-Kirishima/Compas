@@ -1,5 +1,5 @@
 import {
-  Line, Centerline, Circle, Arc, Polygon, trimAtPoint, applyEditTransaction,
+  Line, Centerline, Circle, Arc, Polygon, LinearDimension, DiameterDimension, trimAtPoint, applyEditTransaction,
   hitTest, drawPrimitive, serializeScene, deserializeScene,
   eraseAlongPath, SceneHistory, createTemplate, eraserRadiusInWorld
 } from '../src/index.mjs';
@@ -22,10 +22,13 @@ function resetScene() {
     new Centerline({x:600,y:190},{x:840,y:190}),
     new Arc({x:720,y:485},100,Math.PI*.08,Math.PI*1.55,{style:{stroke:'#2877bd',lineWidth:2.6}}),
     Polygon.regular({x:1010,y:480},6,85,Math.PI/6,{style:{stroke:'#2877bd',lineWidth:2.4}}),
-    new Line({x:80,y:410},{x:500,y:410},{style:{stroke:'#111',lineWidth:2}})
+    new Line({x:80,y:410},{x:500,y:410},{style:{stroke:'#111',lineWidth:2}}),
+    new LinearDimension({x:80,y:170},{x:500,y:170},38,{textHeight:5}),
+    new LinearDimension({x:545,y:90},{x:545,y:270},-28,{textHeight:5}),
+    new DiameterDimension({x:720,y:190},105,{angle:Math.PI/6,textHeight:5})
   ];
   history.replace(items,{record:false}); history.clear(); selectedId=null; render(); updateHistoryButtons();
-  status.textContent='Пример восстановлен. Проведите ластиком поперёк отрезка или по части окружности.';
+  status.textContent='Пример восстановлен: показаны горизонтальный, вертикальный и диаметральный размеры. Номера ориентируются автоматически, белой маски под текстом нет.';
 }
 
 function viewScale() {

@@ -6,7 +6,7 @@ import {
   intersectionsOn, intersectLineLine, intersectLineCircle, intersectCircleCircle,
   translatePrimitive, scalePrimitive, mirrorPrimitive, snapPoints,
   intersectionSnapPoints, serializeScene, deserializeScene, hitTest,
-  drawPrimitive, drawWorldTextUpright,
+  drawPrimitive, drawWorldTextUpright, formatDimensionValue, getDimensionTextLayout, readableDimensionAngle,
   assertGostTextHeight, isGostTextHeight
 } from '../src/cad-geometry-trim.mjs';
 
@@ -48,6 +48,16 @@ tx=trimAtPoint(arc,{x:0,y:5},[arc,a1,a2],{hitTolerance:1});
 assert.equal(tx.ok,true); assert.equal(tx.add.length,2);
 const cwArc = new Arc({x:0,y:0},5,Math.PI,-Math.PI);
 assert.notEqual(cwArc.parameterAt({x:0,y:5}),null);
+
+// Polygon edge Trim converts the polygon into editable edges and removes only the clicked edge interval.
+const trimPoly = new Polygon([{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}]);
+const trimCutA = new Line({x:3,y:-2},{x:3,y:2});
+const trimCutB = new Line({x:7,y:-2},{x:7,y:2});
+const polyTx = trimAtPoint(trimPoly,{x:5,y:0},[trimPoly,trimCutA,trimCutB],{hitTolerance:1});
+assert.equal(polyTx.ok,true); assert.deepEqual(polyTx.remove,[trimPoly.id]);
+assert.equal(polyTx.add.length,5); assert(polyTx.add.every(o=>o instanceof Line));
+assert.ok(polyTx.add.some(o=>Math.abs(o.a.x-0)<1e-7 && Math.abs(o.b.x-3)<1e-7));
+assert.ok(polyTx.add.some(o=>Math.abs(o.a.x-7)<1e-7 && Math.abs(o.b.x-10)<1e-7));
 
 // Tangencies should be one point, not two almost-identical points.
 const tangentCircle = new Circle({x:0,y:0},5);
@@ -103,12 +113,28 @@ assert(snapPoints(circ).some(p=>p.type==='quadrant'));
 assert(intersectionSnapPoints([base,v1,v2]).some(p=>p.type==='intersection'));
 assert.equal(hitTest(base,{x:5,y:.2},.3),true);
 
+// Dimension number formatting and automatic orientation follow measurement direction.
+assert.equal(formatDimensionValue(20), '20');
+assert.equal(formatDimensionValue(20.5), '20,5');
+assert.equal(formatDimensionValue(20.567, { precision: 2 }), '20,57');
+assert.equal(formatDimensionValue(-0.00001), '0');
+const hDim = new LinearDimension({x:0,y:0},{x:40,y:0},6);
+const vDim = new LinearDimension({x:0,y:0},{x:0,y:40},6);
+const hLayout = getDimensionTextLayout(hDim), vLayout = getDimensionTextLayout(vDim);
+near(hLayout.angle,0); assert.ok(hLayout.center.y > hDim.geometry().middle.y);
+near(vLayout.angle,Math.PI/2); assert.ok(vLayout.center.x < vDim.geometry().middle.x);
+const reverseVDim = new LinearDimension({x:0,y:40},{x:0,y:0},6);
+near(getDimensionTextLayout(reverseVDim).angle,Math.PI/2);
+const alignedDim = new LinearDimension({x:0,y:0},{x:20,y:30},6,{textOrientation:'aligned'});
+near(getDimensionTextLayout(alignedDim).angle,Math.atan2(30,20));
+assert.ok(readableDimensionAngle(Math.PI*.75) < Math.PI/2);
+
 // Generic renderer dispatches dimension classes and compensates for Y-up text.
 const calls=[];
 const mockCtx={
   save(){calls.push('save')}, restore(){calls.push('restore')},
   setLineDash(){}, beginPath(){}, moveTo(){}, lineTo(){}, stroke(){}, closePath(){}, fill(){}, arc(){},
-  fillRect(){calls.push('fillRect')}, fillText(){calls.push('fillText')}, translate(){calls.push('translate')},
+  fillRect(){calls.push('fillRect')}, fillText(){calls.push('fillText')}, translate(){calls.push('translate')}, rotate(a){calls.push(`rotate:${a}`)},
   scale(x,y){calls.push(`scale:${x},${y}`)}, measureText(text){return {width:String(text).length*2}},
   set strokeStyle(v){}, set fillStyle(v){}, set lineWidth(v){}, set font(v){}, set textAlign(v){}, set textBaseline(v){}
 };
@@ -116,7 +142,7 @@ const testDimension=new LinearDimension({x:0,y:0},{x:20,y:10},4);
 drawPrimitive(mockCtx,testDimension);
 drawPrimitive(mockCtx,new DiameterDimension({x:0,y:0},5));
 drawWorldTextUpright(mockCtx,'CAD',0,0);
-assert(calls.includes('fillText')); assert(calls.includes('scale:1,-1'));
+assert(calls.includes('fillText')); assert(calls.includes('scale:1,-1')); assert.ok(!calls.includes('fillRect'), 'Размерные числа не должны закрываться белой маской'); assert.ok(calls.some(c=>String(c).startsWith('rotate:')));
 
 // Dimensions, GOST text-height selector and JSON round-trip.
 assert.equal(ld.value,10); assert.equal(dd.value,10);
@@ -128,6 +154,9 @@ assert.equal(roundTrip.length,7);
 assert(roundTrip[0] instanceof Line && roundTrip[1] instanceof Circle && roundTrip[2] instanceof Arc);
 assert(roundTrip[3] instanceof Centerline && roundTrip[4] instanceof Polygon);
 assert(roundTrip[5] instanceof LinearDimension && roundTrip[6] instanceof DiameterDimension);
+const styledDim = new LinearDimension({x:0,y:0},{x:0,y:25},4,{textOrientation:'vertical',precision:1,showLines:false});
+const styledRoundTrip = deserializeScene(serializeScene([styledDim]))[0];
+assert.equal(styledRoundTrip.textOrientation,'vertical'); assert.equal(styledRoundTrip.precision,1); assert.equal(styledRoundTrip.showLines,false);
 assert.equal(trimAtPoint(new Line({x:0,y:0},{x:5,y:0}),{x:2,y:0},[],{hitTolerance:1}).ok,false);
 
 console.log('All CAD geometry core tests passed (20 test groups).');
