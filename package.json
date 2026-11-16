@@ -1,0 +1,15 @@
+{
+  "name": "cad-geometry-core",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "2D CAD geometry primitives, intersections, Trim, transforms, OSNAP and dimensions",
+  "exports": {
+    ".": "./src/cad-geometry-trim.mjs"
+  },
+  "scripts": {
+    "test": "node tests/test-cad-geometry.mjs",
+    "check": "node --check src/cad-geometry-trim.mjs && node --check tests/test-cad-geometry.mjs"
+  },
+  "engines": { "node": ">=18" }
+}
