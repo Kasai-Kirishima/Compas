@@ -3,105 +3,58 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CAD Geometry Core — Trim demo</title>
+<title>CAD Geometry Core 1.2.0 — Partial Eraser / Trim</title>
 <style>
   :root { color-scheme: light; font: 14px/1.45 system-ui, sans-serif; }
-  body { margin: 0; background: #f4f6f8; color: #17202a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef2f6; color: #17202a; }
   header { padding: 14px 20px; background: #17202a; color: white; }
   header h1 { margin: 0 0 4px; font-size: 18px; }
   header p { margin: 0; color: #cbd5df; }
-  main { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
-  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
-  button { border: 1px solid #aab4bf; background: white; border-radius: 7px; padding: 8px 12px; cursor: pointer; }
-  button.active { background: #dcecff; border-color: #3478c7; }
-  #status { margin-left: auto; color: #425466; }
-  canvas { display: block; width: 100%; height: auto; background: white; border: 1px solid #aab4bf; border-radius: 8px; touch-action: none; }
-  .help { margin-top: 12px; padding: 12px 14px; background: white; border: 1px solid #d6dde5; border-radius: 8px; }
-  code { background: #edf1f5; padding: 1px 4px; border-radius: 4px; }
+  main { max-width: 1200px; margin: 18px auto; padding: 0 16px 24px; }
+  .panel { padding: 12px; border: 1px solid #d4dce5; border-radius: 10px; background: white; margin-bottom: 12px; }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+  button, select, input { font: inherit; }
+  button { border: 1px solid #aab4bf; background: white; border-radius: 7px; padding: 8px 11px; cursor: pointer; }
+  button:hover { background: #f1f5f9; }
+  button.active { background: #dcecff; border-color: #3478c7; color: #174c84; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  label { display: inline-flex; align-items: center; gap: 7px; }
+  input[type=range] { width: 130px; }
+  #status { color: #425466; margin-left: auto; min-width: 210px; }
+  .canvas-wrap { background: white; border: 1px solid #aab4bf; border-radius: 10px; overflow: hidden; }
+  canvas { display: block; width: 100%; height: auto; touch-action: none; cursor: crosshair; }
+  .tips { color: #506174; font-size: 13px; margin-top: 10px; }
+  .key { display:inline-block; background:#edf1f5; border:1px solid #d3dce5; border-radius:4px; padding:0 5px; font-size:12px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>CAD Geometry Core 1.1 — интерактивный Trim</h1>
-  <p>Небольшой пример подключения геометрического ядра к HTML5 Canvas</p>
+  <h1>CAD Geometry Core 1.2.0</h1>
+  <p>Частичный ластик, Trim, геометрические примитивы, история Undo/Redo и экспорт сцены</p>
 </header>
 <main>
-  <div class="toolbar">
-    <button id="trimBtn" class="active">Trim / Усечь</button>
-    <button id="selectBtn">Выбор</button>
-    <button id="resetBtn">Сбросить пример</button>
-    <button id="exportBtn">Экспорт JSON</button>
-    <span id="status">Режим: Trim — щёлкните по участку между пересечениями</span>
-  </div>
-  <canvas id="cad" width="1000" height="620" aria-label="Демонстрационный чертёж"></canvas>
-  <div class="help">
-    <b>Как проверить:</b> щёлкните по горизонтальному отрезку между вертикальными резаками, затем по верхней или нижней половине окружности. Участок между соседними пересечениями будет удалён. Заблокированная геометрия может служить режущей границей, но не выбирается для изменения.
-    <br>Координаты ядра мировые, в миллиметрах; пример применяет преобразование Canvas с осью Y вверх.
-  </div>
+  <section class="panel">
+    <div class="toolbar">
+      <button id="selectBtn">Выбор</button>
+      <button id="eraseBtn" class="active">Ластик</button>
+      <button id="trimBtn">Trim / Усечь</button>
+      <button id="lineBtn">Отрезок</button>
+      <button id="circleBtn">Окружность</button>
+      <button id="polygonBtn">Шестиугольник</button>
+      <button id="undoBtn">↶ Отменить</button>
+      <button id="redoBtn">↷ Повторить</button>
+      <button id="resetBtn">Сбросить</button>
+      <button id="exportBtn">Экспорт JSON</button>
+      <label>Радиус ластика <input id="brush" type="range" min="2" max="35" value="9"><output id="brushValue">9</output></label>
+      <span id="status" role="status">Ластик: проведите мышью по части объекта.</span>
+    </div>
+    <div class="tips">
+      Ластик стирает только участок под траекторией курсора. <span class="key">Ctrl+Z</span> отмена, <span class="key">Ctrl+Y</span> повтор. Для создания примитива нажмите дважды: начало/центр, затем конец/радиус.
+    </div>
+  </section>
+  <div class="canvas-wrap"><canvas id="cad" width="1200" height="720" aria-label="Демонстрационный чертёж с частичным ластиком"></canvas></div>
 </main>
-<script type="module">
-import {
-  Line, Centerline, Circle, Arc, Polygon,
-  trimAtPoint, applyEditTransaction, hitTest, drawPrimitive, serializeScene
-} from '../src/cad-geometry-trim.mjs';
-
-const canvas = document.querySelector('#cad');
-const ctx = canvas.getContext('2d');
-const status = document.querySelector('#status');
-let mode = 'trim';
-let scene = [];
-
-function resetScene() {
-  const horizontal = new Line({x:100,y:220},{x:880,y:220},{style:{stroke:'#111',lineWidth:2}});
-  const cut1 = new Line({x:310,y:140},{x:310,y:300},{style:{stroke:'#cb4b4b',lineWidth:1.7}});
-  const cut2 = new Line({x:650,y:140},{x:650,y:300},{style:{stroke:'#cb4b4b',lineWidth:1.7}});
-  const circle = new Circle({x:480,y:440},90,{style:{stroke:'#111',lineWidth:2}});
-  const circleCutter = new Line({x:350,y:440},{x:610,y:440},{style:{stroke:'#cb4b4b',lineWidth:1.7}});
-  const hexagon = Polygon.regular({x:800,y:445},6,65,Math.PI/6,{style:{stroke:'#2877bd',lineWidth:2}});
-  const axis = new Centerline({x:385,y:440},{x:575,y:440});
-  axis.locked = true;
-  scene = [horizontal, cut1, cut2, circle, circleCutter, hexagon, axis];
-  render();
-  status.textContent = 'Пример восстановлен. Красные линии — режущие границы.';
-}
-function render() {
-  ctx.setTransform(1,0,0,-1,0,canvas.height);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.save();
-  ctx.strokeStyle = '#e7ebef'; ctx.lineWidth = 1; ctx.setLineDash([]);
-  for (let x=0;x<=canvas.width;x+=25) { ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,canvas.height);ctx.stroke(); }
-  for (let y=0;y<=canvas.height;y+=25) { ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvas.width,y);ctx.stroke(); }
-  ctx.restore();
-  for (const object of scene) drawPrimitive(ctx,object);
-  ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.fillStyle='#657383';ctx.font='12px system-ui';
-  ctx.fillText('Красные: режущие отрезки   Синий: многоугольник   Штрихпунктир: заблокированная ось',14,18);ctx.restore();
-}
-function toWorld(event) {
-  const rect=canvas.getBoundingClientRect();
-  const x=(event.clientX-rect.left)*canvas.width/rect.width;
-  const y=canvas.height-(event.clientY-rect.top)*canvas.height/rect.height;
-  return {x,y};
-}
-canvas.addEventListener('pointerdown', event => {
-  const p=toWorld(event);
-  const candidates=[...scene].reverse().filter(o=>o.visible && hitTest(o,p,8));
-  const target=candidates.find(o=>!o.locked);
-  if (!target) { status.textContent='Объект рядом с курсором не найден или он заблокирован.'; return; }
-  if (mode==='select') { status.textContent=`Выбран объект ${target.type} (${target.id}).`; return; }
-  const result=trimAtPoint(target,p,scene,{hitTolerance:8});
-  if (!result.ok) { status.textContent=result.reason; return; }
-  scene=applyEditTransaction(scene,result);
-  status.textContent=`Участок объекта ${target.type} удалён. Добавлено частей: ${result.add.length}.`;
-  render();
-});
-document.querySelector('#trimBtn').addEventListener('click',()=>{mode='trim';document.querySelector('#trimBtn').classList.add('active');document.querySelector('#selectBtn').classList.remove('active');status.textContent='Режим Trim: щёлкните по сегменту между пересечениями.';});
-document.querySelector('#selectBtn').addEventListener('click',()=>{mode='select';document.querySelector('#selectBtn').classList.add('active');document.querySelector('#trimBtn').classList.remove('active');status.textContent='Режим выбора: щёлкните по геометрии.';});
-document.querySelector('#resetBtn').addEventListener('click',resetScene);
-document.querySelector('#exportBtn').addEventListener('click',()=>{
-  const blob=new Blob([JSON.stringify(serializeScene(scene),null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='cad-scene.json';a.click();URL.revokeObjectURL(url);
-});
-resetScene();
-</script>
+<script type="module" src="./demo.mjs"></script>
 </body>
 </html>
