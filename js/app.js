@@ -1854,10 +1854,19 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   $('dimensionArrowStyle').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>{o.arrowStyle=e.target.value;delete o.arrowStartStyle;delete o.arrowEndStyle;});renderAll();setMessage('Стиль обеих размерных стрелок обновлён');});
   $('dimensionArrowStartStyle').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>{if(e.target.value==='inherit')delete o.arrowStartStyle;else o.arrowStartStyle=e.target.value;});renderAll();setMessage('Стиль первой размерной стрелки обновлён');});
   $('dimensionArrowEndStyle').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>{if(e.target.value==='inherit')delete o.arrowEndStyle;else o.arrowEndStyle=e.target.value;});renderAll();setMessage('Стиль второй размерной стрелки обновлён');});
+  // Use a hoisted function declaration: these bindings are registered during
+  // startup, before the remaining viewport navigation listeners are installed.
+  function updateSelectedDimension(field,input,min,max,message){
+    $(input).addEventListener('change',e=>{
+      const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);
+      if(!dims.length)return;
+      const value=clamp(Number(e.target.value)||0,min,max);
+      commit();dims.forEach(o=>o[field]=value);renderAll();setMessage(message);
+    });
+  }
   updateSelectedDimension('arrowSize','dimensionArrowSize',.8,12,'Размер стрелок обновлён');
   updateSelectedDimension('labelRotationDeg','dimensionLabelRotation',-360,360,'Поворот размерного числа обновлён отдельно от размерной линии');
   $('resetDimensionLabelRotation').addEventListener('click',()=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>o.labelRotationDeg=0);$('dimensionLabelRotation').value='0';renderAll();setMessage('Поворот размерного числа сброшен до 0°');});
-  const updateSelectedDimension=(field,input,min,max,message)=>$(input).addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;const value=clamp(Number(e.target.value)||0,min,max);commit();dims.forEach(o=>o[field]=value);renderAll();setMessage(message);});
   updateSelectedDimension('offset','dimensionSelectedOffset',5,200,'Отступ размера обновлён');updateSelectedDimension('extensionGap','dimensionExtensionGap',0,5,'Зазор выносных линий обновлён');updateSelectedDimension('extensionBeyond','dimensionExtensionBeyond',1,5,'Продолжение обеих выносных линий обновлено');updateSelectedDimension('labelDx','dimensionLabelDx',-200,200,'Положение числа по X обновлено');updateSelectedDimension('labelDy','dimensionLabelDy',-200,200,'Положение числа по Y обновлено');
   $('editContentBtn').addEventListener('click',()=>{const o=getSelected().find(x=>['text','techReq','leader','roughness','tolerance','weld','dimension','section','table'].includes(x.type));if(!o){setMessage('Выберите текст, обозначение или таблицу для редактирования');return;}editDrawingAnnotationText(o);});
   $('editTextFormatBtn').addEventListener('click',()=>{const o=getSelected().find(x=>x.type==='text'||x.type==='techReq');if(o)openTextDialog(o,o);else setMessage('Выберите текстовый объект');});
@@ -1922,14 +1931,11 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     e.preventDefault();e.stopPropagation();const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');
   });
   svg.addEventListener('pointerdown',e=>{if(e.button!==1&&e.button!==2&&!state.space)onCanvasPointerDown(e);});svg.addEventListener('dblclick',e=>{e.preventDefault();if(state.tool==='polyline'||state.tool==='spline'){finishPath();return;}if(state.tool==='select'&&!e.target.closest?.('.drawing-object[data-id]')&&!e.target.closest?.('[data-template-text-id]')){const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');}});svg.addEventListener('contextmenu',e=>e.preventDefault());window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);window.addEventListener('pointercancel',onPointerUp);
-  // Use a window capture listener and viewport hit-testing. This executes
-  // before SVG descendants and does not depend on which nested layer receives
-  // the wheel event. Vertical wheel = cursor-centred zoom; horizontal trackpad
-  // = pan. The browser's own page/viewport scrolling is cancelled only inside
-  // the drawing workspace.
-  window.addEventListener('wheel',e=>{
-    const r=drawingArea.getBoundingClientRect();
-    if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
+  // Bind wheel navigation directly to the viewport in capture phase. The
+  // drawing area is not natively scrollable: its content is moved only through
+  // viewPan, so the browser cannot scroll the page instead of zooming the CAD.
+  drawingArea.addEventListener('wheel',e=>{
+    if(!drawingArea.contains(e.target))return;
     const {deltaX,deltaY}=normalizeWheelDeltas(e,{width:drawingArea.clientWidth,height:drawingArea.clientHeight});
     if(deltaX===0&&deltaY===0)return;
     e.preventDefault();e.stopPropagation();
