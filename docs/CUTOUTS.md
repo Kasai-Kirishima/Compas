@@ -133,3 +133,11 @@ The demo's internal-contour button now enters placement mode. The next click set
 ## Radial-slot cover template
 
 `createRadialSlotCover()` creates a 2D linework template for a circular cover with evenly spaced radial slots and rounded inner ends. Its defaults reflect the supplied sketch values (outer Ø84, pitch Ø46, slot-end Ø16, slot width 6, six slots, central hexagon 20 across flats). The output uses outer circular arcs, slot side lines, major end arcs, pitch circle and centre marks. Verify all values and slot count against the original assignment before treating it as an exact production drawing.
+
+## Straight pass-cut across multiple profiles
+
+Use **Прямой проходной вырез** for a long, straight slot that crosses several separate circles or closed profiles in one drag. Set the slot width in **Ширина выреза / разреза**, choose the tool, press the left mouse button outside the first profile, drag in a straight line along the desired path, and release at the desired depth. The exact drag segment is swept into a rectangle of constant width; every visible, unlocked closed object on the geometry layer that intersects this corridor is processed automatically. No separate multi-selection is required. Lock or hide profiles that must be protected.
+
+The side walls are exact, straight, parallel line segments. If the drag exits a large circle completely, that profile becomes two independent closed editable pieces. If the drag stops inside a later/smaller circle, that circle becomes one closed profile with a blind straight slot: the two side walls enter from its circumference and the end cap is perpendicular to the drag path at the release point. Extending the same drag beyond the small circle cuts it completely through as well. Curved outer arcs are sampled into editable polylines, while the new side walls and end cap use exact line coordinates. The operation is a 2D profile edit, not a 3D milling simulation.
+
+The public geometry helper is `cutClosedContourByStraightPass(vertices, start, end, width)`. It returns one or more closed polygon fragments and rejects paths that start inside the profile (to avoid creating an unintended internal hole), paths that miss the profile, zero-length paths, and contours that cannot be safely stitched into simple loops. Each successful object is replaced in one undoable scene action.

@@ -809,3 +809,174 @@ export function createObroundCutout(center, overallLength, width, angle = 0, opt
   out.forEach(object => { object.feature = 'obround-cutout'; });
   return out;
 }
+
+/**
+ * Subtract a finite-width straight pass from a closed 2D contour.
+ *
+ * The pass is a rectangle swept from `start` to `end`, centred on that axis.
+ * Starting outside a profile and ending inside it creates a blind, open-to-edge
+ * slot with two exactly straight, parallel walls and a straight end cap. Passing
+ * completely through a profile returns two or more independent closed loops.
+ *
+ * This operation is intentionally suited to a single straight machining pass
+ * through several separately processed profiles (e.g. a large and a small
+ * circle). Curved profile edges remain sampled polylines; the two slot walls
+ * themselves are exact line segments parallel to the requested pass axis.
+ */
+export function cutClosedContourByStraightPass(vertices, start, end, width, {
+  eps = 1e-7,
+  rejectStartInside = true,
+} = {}) {
+  if (!Array.isArray(vertices) || vertices.length < 3) {
+    throw new TypeError('Для проходного выреза нужен замкнутый контур минимум из трёх точек');
+  }
+  vertices.forEach((p, i) => {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      throw new TypeError(`Вершина контура ${i + 1} должна содержать конечные координаты x и y`);
+    }
+  });
+  for (const [name, p] of [['Начальная точка', start], ['Конечная точка', end]]) {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      throw new TypeError(`${name} проходного выреза должна содержать координаты x и y`);
+    }
+  }
+  positive(width, 'Ширина проходного выреза');
+  if (!Number.isFinite(eps) || eps <= 0) throw new TypeError('Допуск геометрии должен быть положительным числом');
+
+  const clean = vertices.filter((p, i) => i === 0 || distance(p, vertices[i - 1]) > eps).map(p => ({ x: p.x, y: p.y }));
+  if (clean.length > 1 && distance(clean[0], clean.at(-1)) <= eps) clean.pop();
+  if (clean.length < 3 || !isSimplePolygon(clean, eps)) return { ok: false, reason: 'Исходный контур не является простым замкнутым контуром' };
+
+  const dx = end.x - start.x, dy = end.y - start.y, passLength = Math.hypot(dx, dy);
+  if (passLength <= eps) return { ok: false, reason: 'Протяни инструмент от начальной точки к конечной — длина прохода слишком мала' };
+  const ux = dx / passLength, uy = dy / passLength;
+  const nx = -uy, ny = ux, half = width / 2;
+  const area = signedArea(clean), orientationSign = Math.sign(area);
+  if (Math.abs(area) <= eps) return { ok: false, reason: 'Площадь исходного контура слишком мала' };
+  if (rejectStartInside && pointInPolygon(start, clean, eps)) {
+    return { ok: false, reason: 'Начни проход снаружи контура, чтобы получить ровный входящий паз' };
+  }
+
+  const offset = (p, side) => ({ x: p.x + nx * half * side, y: p.y + ny * half * side });
+  let cutter = [offset(start, 1), offset(end, 1), offset(end, -1), offset(start, -1)];
+  if (Math.sign(signedArea(cutter)) !== orientationSign) cutter.reverse();
+
+  const scale = Math.max(1, ...clean.map(p => Math.max(Math.abs(p.x), Math.abs(p.y))),
+    Math.abs(start.x), Math.abs(start.y), Math.abs(end.x), Math.abs(end.y), width);
+  const tol = Math.max(eps, scale * 1e-10);
+  const paramTol = Math.max(1e-10, tol / Math.max(passLength, width, 1));
+  const pointAt = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const segmentParameters = (a, b, c, d) => {
+    const r = sub(b, a), s = sub(d, c), den = cross(r, s);
+    const denTol = tol * Math.max(1, Math.hypot(r.x, r.y), Math.hypot(s.x, s.y));
+    if (Math.abs(den) <= denTol) return null; // parallel or collinear; handled by midpoint classification
+    const q = sub(c, a), t = cross(q, s) / den, u = cross(q, r) / den;
+    if (t < -paramTol || t > 1 + paramTol || u < -paramTol || u > 1 + paramTol) return null;
+    return { t: clamp(t, 0, 1), u: clamp(u, 0, 1) };
+  };
+  const dedupeParameters = values => values.sort((a, b) => a - b).filter((v, i, all) => i === 0 || Math.abs(v - all[i - 1]) > paramTol);
+  const insideStrip = p => {
+    const rx = p.x - start.x, ry = p.y - start.y;
+    const along = rx * ux + ry * uy, across = rx * nx + ry * ny;
+    return along > -tol && along < passLength + tol && Math.abs(across) < half - tol;
+  };
+
+  const boundaryPieces = [];
+  // Keep source-boundary portions outside the swept rectangle.
+  for (let i = 0; i < clean.length; i++) {
+    const a = clean[i], b = clean[(i + 1) % clean.length], ts = [0, 1];
+    for (let j = 0; j < cutter.length; j++) {
+      const hit = segmentParameters(a, b, cutter[j], cutter[(j + 1) % cutter.length]);
+      if (hit) ts.push(hit.t);
+    }
+    const cuts = dedupeParameters(ts);
+    for (let k = 0; k < cuts.length - 1; k++) {
+      const t0 = cuts[k], t1 = cuts[k + 1];
+      if (t1 - t0 <= paramTol) continue;
+      const p0 = pointAt(a, b, t0), p1 = pointAt(a, b, t1), mid = pointAt(a, b, (t0 + t1) / 2);
+      if (!insideStrip(mid) && distance(p0, p1) > tol) boundaryPieces.push({ a: p0, b: p1 });
+    }
+  }
+
+  // Add the cutter's boundary where it lies inside the material. Reversing
+  // its winding makes the retained material stay on the same side as the
+  // original contour, yielding clean external contours rather than a hole.
+  for (let i = 0; i < cutter.length; i++) {
+    const a = cutter[i], b = cutter[(i + 1) % cutter.length], ts = [0, 1];
+    for (let j = 0; j < clean.length; j++) {
+      const hit = segmentParameters(a, b, clean[j], clean[(j + 1) % clean.length]);
+      if (hit) ts.push(hit.t);
+    }
+    const cuts = dedupeParameters(ts);
+    for (let k = 0; k < cuts.length - 1; k++) {
+      const t0 = cuts[k], t1 = cuts[k + 1];
+      if (t1 - t0 <= paramTol) continue;
+      const p0 = pointAt(a, b, t0), p1 = pointAt(a, b, t1), mid = pointAt(a, b, (t0 + t1) / 2);
+      if (pointInPolygon(mid, clean, tol) && distance(p0, p1) > tol) boundaryPieces.push({ a: p1, b: p0 });
+    }
+  }
+
+  if (!boundaryPieces.length) return { ok: false, reason: 'Проход не пересекает выбранный контур' };
+  const nodeKey = p => `${Math.round(p.x / tol)},${Math.round(p.y / tol)}`;
+  const outgoing = new Map();
+  boundaryPieces.forEach((edge, index) => {
+    edge.index = index; edge.startKey = nodeKey(edge.a); edge.endKey = nodeKey(edge.b); edge.used = false;
+    if (!outgoing.has(edge.startKey)) outgoing.set(edge.startKey, []);
+    outgoing.get(edge.startKey).push(edge);
+  });
+
+  const loops = [];
+  for (const first of boundaryPieces) {
+    if (first.used) continue;
+    const loop = [{ ...first.a }];
+    let edge = first, closed = false, guard = 0;
+    while (edge && !edge.used && guard++ <= boundaryPieces.length + 2) {
+      edge.used = true;
+      loop.push({ ...edge.b });
+      if (edge.endKey === first.startKey) { closed = true; break; }
+      const candidates = (outgoing.get(edge.endKey) || []).filter(candidate => !candidate.used);
+      if (candidates.length === 1) edge = candidates[0];
+      else if (candidates.length > 1) {
+        // At a multi-way vertex, follow the tightest boundary turn while
+        // preserving the selected winding (the conventional face walk).
+        const incomingAngle = Math.atan2(edge.b.y - edge.a.y, edge.b.x - edge.a.x);
+        const turn = candidate => {
+          const angle = Math.atan2(candidate.b.y - candidate.a.y, candidate.b.x - candidate.a.x);
+          let delta = orientationSign > 0 ? (angle - incomingAngle + Math.PI * 2) % (Math.PI * 2)
+            : (incomingAngle - angle + Math.PI * 2) % (Math.PI * 2);
+          return delta;
+        };
+        candidates.sort((a, b) => turn(a) - turn(b)); edge = candidates[0];
+      } else edge = null;
+    }
+    if (!closed) continue;
+    loop.pop(); // duplicate closing point
+    const compact = loop.filter((p, i) => i === 0 || distance(p, loop[i - 1]) > tol);
+    if (compact.length >= 3 && Math.abs(signedArea(compact)) > tol * tol && isSimplePolygon(compact, tol * 4)) {
+      loops.push(compact);
+    }
+  }
+
+  if (!loops.length) return { ok: false, reason: 'Не удалось собрать замкнутые части после прохода. Проверь направление и ширину.' };
+  const wrongWinding = loops.some(loop => Math.sign(signedArea(loop)) !== orientationSign);
+  if (wrongWinding) return { ok: false, reason: 'Проход образовал внутреннюю полость вместо открытого паза. Начни линию за пределами детали.' };
+  const oldArea = Math.abs(area), newArea = loops.reduce((sum, loop) => sum + Math.abs(signedArea(loop)), 0);
+  const removedArea = oldArea - newArea;
+  if (!(removedArea > Math.max(tol * tol, oldArea * 1e-12))) {
+    return { ok: false, reason: 'Проход не удалил материал контура' };
+  }
+  return {
+    ok: true,
+    operation: 'straight-pass-cut',
+    fragments: loops,
+    metadata: {
+      oldArea, newArea, removedArea, fragmentCount: loops.length, passLength,
+      width, start: { ...start }, end: { ...end },
+      sideWalls: [
+        { start: offset(start, 1), end: offset(end, 1) },
+        { start: offset(start, -1), end: offset(end, -1) },
+      ],
+      blindEnd: pointInPolygon(end, clean, tol),
+    },
+  };
+}

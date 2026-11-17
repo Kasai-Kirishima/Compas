@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.15
+# CAD Geometry Core 1.5.16
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -11,6 +11,7 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - linear and diameter dimensions with text orientation, readable placement, decimal-comma formatting, line gaps beneath labels, and the dedicated `⌀` diameter symbol (legacy `Ø` / Cyrillic `Ш` prefixes are normalized).
 
 ### Editing
+- Straight pass-cut by left-button drag: sweep a fixed-width rectangular corridor through all visible, unlocked closed geometry profiles along the path; exact parallel side walls; through-cut splits a circle into two editable pieces, while stopping inside a later circle creates a shallow blind entry with a straight end cap;
 - Split open paths at any interior point, including the exact midpoint or very near an endpoint;
 - Split closed profiles into two independent closed contours by picking two boundary points;
 - Split support includes lines, construction/centre lines, arcs, open polylines, splines, freehand curves, rectangles, rounded rectangles, circles, ellipses, and closed polygonal contours;
@@ -64,6 +65,10 @@ Select a dimension and drag the dimension number itself. The number can move fre
 Use **Разделить объект** from the editing panel or the top ribbon. An open object (line, centre line, construction line, arc, open polyline, spline, or freehand path) is divided with one click anywhere along it. There is no 2% endpoint margin; any interior point is accepted. A closed object (rectangle, rounded rectangle, circle, ellipse, or closed polyline/spline) is divided with two clicks on its boundary. The straight chord between the points becomes a shared edge, and both resulting regions remain separate closed editable objects. Undo/Redo records the complete operation.
 
 A split cannot create a zero-length fragment. For concave profiles, the selected chord must remain inside the original contour; a chord crossing an exterior notch is rejected to avoid malformed geometry. Text, dimensions, leaders, and raster references are annotations/references rather than profile geometry and are not split by this tool.
+
+## Straight pass-cut across multiple circles / profiles
+
+Choose **Прямой проходной вырез**, set its width, press the left mouse button outside the first circle, drag the straight path through the large circle, and release a short distance inside the smaller circle. The same pass is applied to every visible, unlocked closed object on a working geometry layer that it intersects. The large circle is split into two separate closed profiles; the smaller circle receives only a short blind slot. Both slot walls are mathematically straight and parallel, with width constant over the full pass. Release beyond a profile to cut it fully through.
 
 ## Cutouts: important distinction
 

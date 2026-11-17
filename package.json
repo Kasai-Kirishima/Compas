@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.15",
+  "version": "1.5.16",
   "private": true,
   "type": "module",
-  "description": "2D mechanical CAD geometry with cursor-centred viewport wheel zoom and right-button drag panning, editable dimension arrowheads and independent dimension-label rotation, three edge-cutout modes, batch cutting, object splitting, duplicate placement and text insertion",
+  "description": "2D mechanical CAD geometry with cursor-centred viewport zoom and pan, precision straight pass-cut across multiple closed profiles, editable dimensions, three edge-cutout modes, batch cutting, splitting, duplicate placement and text insertion",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/cad-geometry-trim.mjs",
@@ -14,8 +14,8 @@
     "./wheel-navigation": "./src/wheel-navigation.mjs"
   },
   "scripts": {
-    "check": "node --check src/wheel-navigation.mjs && node --check tests/test-wheel-navigation.mjs && node --check src/cutouts.mjs && node --check tests/test-cutouts.mjs && node --check src/cad-geometry-trim.mjs && node --check src/eraser.mjs && node --check src/history.mjs && node --check src/index.mjs && node --check src/templates.mjs && node --check examples/demo.mjs && node --check js/app.js && node --check tests/test-app-cutout-dimension.mjs && node --check tests/test-app-duplicate-dimension.mjs && node --check tests/test-text-and-diameter-ui.mjs && node --check tests/test-app-dimension-editing.mjs && node --check tests/test-cad-geometry.mjs && node --check tests/test-eraser.mjs && node --check tests/test-eraser-properties.mjs && node --check tests/test-history.mjs && node --check tests/test-templates.mjs && node --check tests/test-dimension-render.mjs && node --check tests/test-sample-project.mjs && node --check tests/test-demo-contract.mjs",
-    "test": "npm run check && node tests/test-wheel-navigation.mjs && node tests/test-cad-geometry.mjs && node tests/test-eraser.mjs && node tests/test-eraser-properties.mjs && node tests/test-history.mjs && node tests/test-templates.mjs && node tests/test-dimension-render.mjs && node tests/test-cutouts.mjs && node tests/test-sample-project.mjs && node tests/test-demo-contract.mjs && node tests/test-app-cutout-dimension.mjs && node tests/test-app-duplicate-dimension.mjs && node tests/test-text-and-diameter-ui.mjs && node tests/test-app-dimension-editing.mjs"
+    "check": "node --check src/wheel-navigation.mjs && node --check tests/test-wheel-navigation.mjs && node --check src/cutouts.mjs && node --check tests/test-straight-pass-cut.mjs && node --check tests/test-cutouts.mjs && node --check src/cad-geometry-trim.mjs && node --check src/eraser.mjs && node --check src/history.mjs && node --check src/index.mjs && node --check src/templates.mjs && node --check examples/demo.mjs && node --check js/app.js && node --check tests/test-app-cutout-dimension.mjs && node --check tests/test-app-duplicate-dimension.mjs && node --check tests/test-text-and-diameter-ui.mjs && node --check tests/test-app-dimension-editing.mjs && node --check tests/test-cad-geometry.mjs && node --check tests/test-eraser.mjs && node --check tests/test-eraser-properties.mjs && node --check tests/test-history.mjs && node --check tests/test-templates.mjs && node --check tests/test-dimension-render.mjs && node --check tests/test-sample-project.mjs && node --check tests/test-demo-contract.mjs && node --check tests/test-app-straight-pass-cut.mjs",
+    "test": "npm run check && node tests/test-wheel-navigation.mjs && node tests/test-cad-geometry.mjs && node tests/test-eraser.mjs && node tests/test-eraser-properties.mjs && node tests/test-history.mjs && node tests/test-templates.mjs && node tests/test-dimension-render.mjs && node tests/test-cutouts.mjs && node tests/test-straight-pass-cut.mjs && node tests/test-sample-project.mjs && node tests/test-demo-contract.mjs && node tests/test-app-cutout-dimension.mjs && node tests/test-app-duplicate-dimension.mjs && node tests/test-text-and-diameter-ui.mjs && node tests/test-app-dimension-editing.mjs && node tests/test-app-straight-pass-cut.mjs"
   },
   "engines": {
     "node": ">=18"

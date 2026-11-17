@@ -234,3 +234,5 @@ html,body{font-size:15px;}
 @media(max-width:700px){.tool-category-tabs{top:0;margin:0 0 7px;padding:5px 0 7px;}.tool-category-tab{font-size:9px;min-height:27px;padding:4px 7px;}}
 
 .three-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.cutout-tool-choices .tool-tile{min-width:0;padding:6px 3px;font-size:10px;line-height:1.2}.cutout-tool-choices .tool-tile small{font-size:9px;color:#9eabb3}
+
+.cutout-straight-pass{width:100%;min-height:52px;margin:8px 0 4px;border-color:#147f9b;background:#2e4850}.cutout-straight-pass span{font-size:22px}.cutout-straight-pass small{font-size:9px;color:#a8c5ce}
