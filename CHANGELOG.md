@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.7
+- Added a dedicated **Дублировать** placement workflow for one or many selected objects, available from the ribbon, editing panel, and `Ctrl+D`.
+- Duplicate placement displays a live cursor-following preview; click to place or drag to position. New IDs and independent group IDs are assigned to the copies; `Escape` cancels and Undo reverses the completed duplication.
+- Dimension numbers can now be dragged directly by the text in any 2D direction, both along and perpendicular to the dimension line, closer to or farther from it.
+- The first pointer movement starts from the actually rendered label coordinates, preventing a jump from the automatic-clearance position. A manually placed label remains exactly where dropped, including at the nominal baseline.
+- Added regression checks for duplicate placement and no-jump, unrestricted 2D dimension-label movement.
+
+
 ## 1.5.5
 - Added a separate general-purpose **Разделить объект** tool to the main editor and top ribbon.
 - Open paths can be split with one click at any interior point, including the exact midpoint and points near endpoints; removed the previous arbitrary 2% minimum position limit.

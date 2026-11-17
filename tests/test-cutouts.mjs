@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
-import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 import { SceneHistory } from '../src/history.mjs';
 
 const near=(a,b,e=1e-7)=>assert.ok(Math.abs(a-b)<=e,`${a} != ${b}`);
@@ -160,6 +160,21 @@ const cutPocket=cutPolygonNotchAtPoint(pocket[0],{x:20,y:19},6,3,{hitTolerance:2
 assert.equal(cutPocket.ok,true,'A previously placed inner rectangular contour can be cut again');
 const cutHole=cutCircleNotchAtPoint(hole[0],{x:25,y:25},4,2,{hitTolerance:1});
 assert.equal(cutHole.ok,true,'A previously placed inner circular contour can be cut again');
+
+// The separate no-walls tool removes only a boundary arc and returns an open
+// contour: there are no added side-wall or bottom segments.
+const noWallsRect=[{x:0,y:0},{x:100,y:0},{x:100,y:60},{x:0,y:60}];
+const noWalls=cutClosedBoundaryGapAtPoint(noWallsRect,{x:50,y:0},20,{hitTolerance:1});
+assert.equal(noWalls.ok,true);
+assert.equal(noWalls.operation,'cutout-open-boundary');
+assert.equal(noWalls.path.length,6,'Only the two gap endpoints and surviving original corners remain');
+near(noWalls.metadata.removedLength,20);
+assert.equal(noWalls.path.some(p=>Math.abs(p.x-40)<1e-7&&Math.abs(p.y-0)<1e-7),true,'First open end lies on the original boundary');
+assert.equal(noWalls.path.some(p=>Math.abs(p.x-60)<1e-7&&Math.abs(p.y-0)<1e-7),true,'Second open end lies on the original boundary');
+const noWallsCircle=cutClosedBoundaryGapAtPoint(circleProfile,{x:40,y:0},12,{hitTolerance:1});
+assert.equal(noWallsCircle.ok,true,'No-walls cut can open a circular outline too');
+assert.ok(noWallsCircle.path.length>200,'Circular outline remains a finely sampled open curve');
+assert.equal(cutClosedBoundaryGapAtPoint(noWallsRect,{x:50,y:20},20,{hitTolerance:1}).ok,false,'The click must be near the boundary');
 
 // The cutout edit is compatible with transactional Undo/Redo.
 const h=new SceneHistory([rect]); h.apply(tx); assert.equal(h.scene.length,1); assert.notEqual(h.scene[0].id,rect.id);

@@ -661,6 +661,67 @@ export function splitClosedPolygonAtPoints(vertices, firstPoint, secondPoint, {
   };
 }
 
+/**
+ * Remove a measured segment from a closed contour without adding notch walls.
+ * The remaining perimeter is returned as one editable open path. Width is
+ * measured along the contour, centred at the closest point to the click.
+ */
+export function cutClosedBoundaryGapAtPoint(points, point, width, { hitTolerance = Infinity, eps = 1e-7 } = {}) {
+  if (!Array.isArray(points) || points.length < 3) return { ok: false, reason: 'Потрібен замкнутий контур' };
+  positive(width, 'Ширина розрізу');
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y) ||
+      (hitTolerance !== Infinity && (!Number.isFinite(hitTolerance) || hitTolerance < 0))) {
+    throw new TypeError('Неправильна точка або допуск розрізу');
+  }
+  const cumulative = [0];
+  let perimeter = 0, nearest = null;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i], b = points[(i + 1) % points.length];
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
+    if (len > eps) {
+      const t = clamp(((point.x - a.x) * dx + (point.y - a.y) * dy) / (len * len), 0, 1);
+      const projected = { x: a.x + dx * t, y: a.y + dy * t };
+      const d = distance(projected, point);
+      if (!nearest || d < nearest.distance) nearest = { distance: d, s: perimeter + t * len };
+      perimeter += len;
+    }
+    cumulative.push(perimeter);
+  }
+  if (!nearest || nearest.distance > hitTolerance) return { ok: false, reason: 'Щёлкните ближе к границе контура' };
+  if (width >= perimeter - eps) return { ok: false, reason: 'Ширина разреза должна быть меньше длины контура' };
+
+  const wrap = value => ((value % perimeter) + perimeter) % perimeter;
+  const atDistance = value => {
+    const d = wrap(value);
+    for (let i = 0; i < points.length; i++) {
+      const start = cumulative[i], end = cumulative[i + 1], len = end - start;
+      if (len > eps && d <= end + eps) {
+        const t = clamp((d - start) / len, 0, 1), a = points[i], b = points[(i + 1) % points.length];
+        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+      }
+    }
+    return { ...points[0] };
+  };
+  const begin = wrap(nearest.s + width / 2), remaining = perimeter - width, endTravel = begin + remaining;
+  const path = [atDistance(begin)];
+  // Keep vertices on the surviving arc, including the wrapped portion.
+  for (let cycle = 0; cycle <= 1; cycle++) {
+    for (let i = 0; i < points.length; i++) {
+      const d = cumulative[i] + cycle * perimeter;
+      if (d > begin + eps && d < endTravel - eps) path.push({ ...points[i] });
+    }
+  }
+  path.push(atDistance(endTravel));
+  const clean = path.filter((p, i) => i === 0 || distance(p, path[i - 1]) > eps);
+  if (clean.length < 2) return { ok: false, reason: 'Не удалось построить открытую границу' };
+  return {
+    ok: true,
+    operation: 'cutout-open-boundary',
+    path: clean,
+    metadata: { perimeter, removedLength: width, hitDistance: nearest.distance },
+  };
+}
+
 /** Closed inner rectangular contour. Use it as a 2D pocket/hole boundary. */
 export function createRectangularPocket(center, width, height, angle = 0, { style = { stroke: '#111111', lineWidth: 0.25, lineDash: [] }, ownerId = null } = {}) {
   positive(width, 'Ширина кишені'); positive(height, 'Висота кишені');

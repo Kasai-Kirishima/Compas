@@ -34,7 +34,7 @@
       <button class="ribbon-btn" data-tool="text"><span>Т</span>Текст</button><button class="ribbon-btn" id="addReferenceRibbonBtn"><span>▧</span>Референс</button><button class="ribbon-btn reference-quick-lock" id="quickReferenceLockBtn" type="button" disabled title="Выберите референс"><span>🔒</span>Блокировка</button><button class="ribbon-btn" id="gostRibbonBtn"><span>✓</span>ГОСТ-проверка</button>
     </div>
     <div class="ribbon-group">
-      <button class="ribbon-btn" data-action="duplicate"><span>▣</span>Копия</button>
+      <button class="ribbon-btn" data-action="duplicate"><span>▣</span>Дублировать</button>
       <button class="ribbon-btn" data-action="rotate"><span>⟳</span>Поворот</button>
       <button class="ribbon-btn" data-action="mirror"><span>⇋</span>Зеркально…</button>
       <button class="ribbon-btn" data-action="arrayRect"><span>▦</span>Массив</button><button class="ribbon-btn" data-action="arrayPolar"><span>◉</span>Круговий масив</button>
@@ -117,7 +117,10 @@
         <div class="panel-heading">РЕДАКТИРОВАНИЕ</div>
         <div class="cutout-controls">
           <div class="panel-heading spaced">ВЫРЕЗ И ОТВЕРСТИЯ</div>
-          <button class="tool-tile" type="button" data-tool="cutout"><span>⌑</span>Вырез / разрез</button>
+          <div class="two-fields cutout-tool-choices">
+            <button class="tool-tile" type="button" data-tool="cutout"><span>⌑</span>Вырез с боковыми стенками</button>
+            <button class="tool-tile" type="button" data-tool="cutoutNoWalls"><span>⌑</span>Вырез без стенок</button>
+          </div>
           <div class="two-fields">
             <label class="field-label">Ширина выреза / разреза, мм<input id="cutoutNotchWidth" type="number" min="0.5" max="500" step="0.5" value="18"></label>
             <label class="field-label">Глубина выреза (замкнутый контур), мм<input id="cutoutNotchDepth" type="number" min="0.5" max="500" step="0.5" value="10"></label>
@@ -136,10 +139,10 @@
           </div>
           <label class="field-label">Угол контура, °<input id="cutoutInnerAngle" type="number" min="-360" max="360" step="1" value="0"></label>
           <button class="secondary-btn" id="placeInnerCutoutBtn" type="button">＋ Разместить внутренний контур</button>
-          <div class="muted-hint">Вырез/разрез работает по прямоугольникам (в том числе скруглённым), окружностям, эллипсам, закрытым и открытым ломаным, сплайнам, свободным линиям, линиям обрыва, дугам и отрезкам. На замкнутом контуре вырезается паз внутрь; на открытой линии удаляется участок заданной ширины (глубина и перемычка для линии не применяются). Повторяйте операцию на стенках и дне уже созданного выреза или на оставшихся сегментах — фиксированного лимита количества операций нет. Внутренние отверстия/пазы остаются отдельными 2D-контурами; это не 3D-вычитание. Текст, размеры, выноски и подложки не разрезаются как геометрические профили.</div>
+          <div class="muted-hint">«Вырез с боковыми стенками»: на замкнутом контуре удаляется участок границы, остаются две боковые линии, а нижняя линия намеренно не рисуется — получается открытая ломаная. «Вырез без стенок»: удаляется только участок внешней границы без боковых линий. Оба инструмента работают с прямоугольниками (в том числе скруглёнными), окружностями, эллипсами и замкнутыми контурами. На отрезках, дугах и открытых линиях удаляется участок заданной ширины. Чтобы обработать несколько объектов, выделите их через Shift; щелчок в общей точке обработает все совпадающие границы, а отдельные объекты можно обработать последовательными щелчками, не снимая выделения. Результат сохраняется как редактируемая открытая линия. Внутренние отверстия остаются отдельными 2D-контурами; это не 3D-вычитание.</div>
         </div>
         <div class="action-grid">
-          <button class="secondary-btn" data-action="duplicate">Копировать</button>
+          <button class="secondary-btn" data-action="duplicate">Дублировать…</button>
           <button class="secondary-btn" data-action="moveBy">Сдвиг по X/Y</button>
           <button class="secondary-btn" data-action="zoomSelected">Показать выбранное</button>
           <button class="secondary-btn" data-action="rotate">Повернуть</button>
@@ -291,8 +294,8 @@ R17
             </label>
             <div class="two-fields"><label class="field-label">Отступ размера, мм<input id="dimensionSelectedOffset" type="number" min="10" max="200" step="0.5" value="10"></label><label class="field-label">Зазор ножек, мм<input id="dimensionExtensionGap" type="number" min="0" max="5" step="0.5" value="1"></label></div>
             <label class="field-label">Продолжение выносных линий за размерную, мм<input id="dimensionExtensionBeyond" type="number" min="1" max="5" step="0.5" value="2"></label>
-            <div class="two-fields"><label class="field-label">Смещение числа X, мм<input id="dimensionLabelDx" type="number" step="0.5" value="0"></label><label class="field-label">Смещение числа Y, мм<input id="dimensionLabelDy" type="number" step="0.5" value="0"></label></div>
-            <div class="muted-hint">Размерное число можно перетащить за голубую ручку. В горизонтальном режиме наклонный размер получает полку-ответвление; длина продолжения обеих выносных линий задаётся одинаково.</div>
+            <div class="two-fields"><label class="field-label">Смещение числа X, мм<input id="dimensionLabelDx" type="number" step="0.5" value="0"></label><label class="field-label">Смещение Y числа, мм<input id="dimensionLabelDy" type="number" step="0.5" value="0"></label></div>
+            <div class="muted-hint">Размерное число можно перетаскивать прямо за цифры или за голубую ручку: свободно вдоль размерной линии и перпендикулярно ей — ближе к линии или дальше. В горизонтальном режиме наклонный размер получает полку-ответвление; длина продолжения обеих выносных линий задаётся одинаково.</div>
           </div>
           <button class="secondary-btn" id="editContentBtn">Изменить текст / значение</button>
           <button class="secondary-btn" id="editTextFormatBtn">Все параметры текста</button>

@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.5
+# CAD Geometry Core 1.5.7
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -23,7 +23,8 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - width-defined gaps on open lines, arcs, construction/centre lines, breaklines, splines, freehand curves, and open polylines; the remaining fragments stay independently editable;
 - inner rectangular, circular, and obround cutout contours (available in the main editor as **Разместить внутренний контур**);
 - automatic dimension-label clearance without opaque white text masks or extra connector shelves;
-- rotate, translate, scale, mirror, polar array, and scene transactions;
+- dedicated duplicate placement for one or many selected objects, with cursor-following preview, click/drag placement, independent copied group IDs, `Ctrl+D`, Escape cancel, and Undo;
+- freely drag dimension numbers directly by the text in any 2D direction (along or perpendicular to the dimension line), including closer to or farther from the line;
 - OSNAP endpoint, midpoint, centre, and intersection points;
 - bounded Undo/Redo history;
 - JSON scene export/import.
@@ -41,6 +42,12 @@ python -m http.server 8000
 ```
 
 Open <http://localhost:8000/> for the main CAD editor. The simplified demo remains available at <http://localhost:8000/examples/demo.html>.
+
+## Duplicate objects and place dimension numbers
+
+Select one or more objects and choose **Дублировать** in the ribbon or editing panel, or press `Ctrl+D`. Move the pointer to see a live preview of the copies, then click to place them; dragging also places the copies at the final cursor position. Copies receive new object IDs and independent group IDs. Press `Escape` before placement to cancel. The completed operation is one Undo step.
+
+Select a dimension and drag the dimension number itself. The number can move freely in two dimensions: along the dimension line or perpendicular to it, closer to or farther from the measured geometry. The first movement starts at the currently displayed label position, and manual placement is retained rather than being automatically pushed away from the dimension line. Undo restores the previous label position.
 
 ## Split geometry
 
