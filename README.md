@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.11
+# CAD Geometry Core 1.5.12
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -126,3 +126,7 @@ See `START_HERE.md` for a short guided workflow and the `docs/` folder for detai
 - Ластик у звичайному режимі стирає тільки об’єкт, по якому розпочато штрих; стан «усі об’єкти» фіксується на початку жесту. Стара виділена сутність не підміняє об’єкт під курсором.
 - Внутрішній отвір/карман розміщується наступним кліком по полотну. Розмір і кут задаються полями, фіксованої координати вставки немає.
 - Завантажений зразок навколо початку координат автоматично центрується в демонстраційному полотні.
+
+### Wheel zoom fix — 1.5.12
+
+Wheel events are handled by the drawing viewport itself in capture phase, before SVG descendants. This avoids missed events from document-level target delegation. Wheel up zooms in and wheel down zooms out at the cursor. Manual zoom range is 10%–3200%; Shift+wheel and Alt+wheel retain horizontal and vertical panning.

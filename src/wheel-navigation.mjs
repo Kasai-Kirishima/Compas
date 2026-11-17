@@ -26,6 +26,7 @@ export function normalizeWheelDeltas(event, viewport = {}) {
 /**
  * Smooth zoom multiplier: a conventional 120-unit wheel notch changes scale
  * by approximately 10%, while trackpad deltas remain proportional and smooth.
+ * Negative deltaY is the conventional wheel-up direction (zoom in).
  */
 export function wheelZoomFactor(deltaY) {
   const delta = Number(deltaY);

@@ -46,8 +46,19 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   function dimensions(){ return window.KompasTemplate.dimensions(state.format); }
   function gridStep(){ return clamp(Number($('gridStep')?.value)||5,.1,100); }
   function updateZoom(){ const d=dimensions(); svg.style.width=`${d.w*state.zoom}px`; svg.style.height=`${d.h*state.zoom}px`; svg.style.transform=`translate(${state.viewPan.x}px, ${state.viewPan.y}px)`; $('zoomLabel').textContent=`${Math.round(state.zoom*100)}%`; }
-  function setZoom(z){ state.zoom=clamp(z,.25,6); updateZoom(); }
-  function setZoomAt(z,clientX,clientY){const before=svg.getBoundingClientRect(),fx=clamp((clientX-before.left)/before.width,0,1),fy=clamp((clientY-before.top)/before.height,0,1);state.zoom=clamp(z,.25,6);updateZoom();const after=svg.getBoundingClientRect();state.viewPan.x+=clientX-(after.left+fx*after.width);state.viewPan.y+=clientY-(after.top+fy*after.height);updateZoom();}
+  const MIN_ZOOM=.1, MAX_ZOOM=32;
+  function setZoom(z){ state.zoom=clamp(Number(z)||1,MIN_ZOOM,MAX_ZOOM); updateZoom(); }
+  function setZoomAt(z,clientX,clientY){
+    const before=svg.getBoundingClientRect();
+    const fx=before.width>0?clamp((clientX-before.left)/before.width,0,1):.5;
+    const fy=before.height>0?clamp((clientY-before.top)/before.height,0,1):.5;
+    state.zoom=clamp(Number(z)||state.zoom,MIN_ZOOM,MAX_ZOOM);
+    updateZoom();
+    const after=svg.getBoundingClientRect();
+    state.viewPan.x+=clientX-(after.left+fx*after.width);
+    state.viewPan.y+=clientY-(after.top+fy*after.height);
+    updateZoom();
+  }
   function resetViewPan(){state.viewPan={x:0,y:0};updateZoom();}
   function templateData(){
     const overrides=state.templateTextOverrides?.[state.titleForm]||{};
@@ -1897,19 +1908,20 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     e.preventDefault();e.stopPropagation();const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');
   });
   svg.addEventListener('pointerdown',e=>{if(e.button!==1&&!state.space)onCanvasPointerDown(e);});svg.addEventListener('dblclick',e=>{e.preventDefault();if(state.tool==='polyline'||state.tool==='spline'){finishPath();return;}if(state.tool==='select'&&!e.target.closest?.('.drawing-object[data-id]')&&!e.target.closest?.('[data-template-text-id]')){const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');}});svg.addEventListener('contextmenu',e=>{if(state.tool==='polyline'||state.tool==='spline'){e.preventDefault();finishPath();}else e.preventDefault();});window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);
-  // Capture at document level so wheel gestures over SVG child layers cannot be swallowed.
-  // Native scrolling remains untouched everywhere outside the drawing viewport.
-  document.addEventListener('wheel',e=>{
-    if(!drawingArea.contains(e.target))return;
+  // Handle the wheel on the viewport itself, in capture phase. This catches
+  // events before SVG descendants can stop propagation and avoids target/contains
+  // mismatches seen with document-level delegation.
+  drawingArea.addEventListener('wheel',e=>{
     if(e.target?.closest?.('input,textarea,select,[contenteditable="true"]'))return;
     const {deltaX,deltaY}=normalizeWheelDeltas(e,{width:drawingArea.clientWidth,height:drawingArea.clientHeight});
     if(deltaX===0&&deltaY===0)return;
     e.preventDefault();
     if(e.shiftKey){state.viewPan.x-=deltaY||deltaX;updateZoom();persistAutosave();return;}
     if(e.altKey){state.viewPan.y-=deltaY||deltaX;updateZoom();persistAutosave();return;}
-    // A purely horizontal trackpad gesture pans; vertical wheel motion zooms at the cursor.
+    // Horizontal trackpad movement pans. Vertical wheel movement zooms in/out.
     if(deltaY===0&&deltaX!==0){state.viewPan.x-=deltaX;updateZoom();persistAutosave();return;}
     setZoomAt(state.zoom*wheelZoomFactor(deltaY),e.clientX,e.clientY);
+    persistAutosave();
   },{capture:true,passive:false});
   window.addEventListener('keydown',e=>{const tag=document.activeElement.tagName;if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.toLowerCase()==='t'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){selectTool('text');e.preventDefault();}if(e.code==='Space'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){state.space=true;e.preventDefault();}if(e.key==='Enter'&&(state.tool==='polyline'||state.tool==='spline'))finishPath();if(e.key==='F8'){state.ortho=!state.ortho;$('orthoToggle').checked=state.ortho;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if((e.key==='Delete'||e.key==='Backspace')&&!['INPUT','TEXTAREA','SELECT'].includes(tag))deleteSelected();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('openBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key==='0'){e.preventDefault();$('fitBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();newDocument();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();if(e.shiftKey)redo();else undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();pasteClipboard();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();applyAction('duplicate');}if((e.ctrlKey||e.metaKey)&&e.altKey&&e.key.toLowerCase()==='r'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();applyAction('arrayPolar');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();toggleReferenceLock();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&!['INPUT','TEXTAREA'].includes(tag)){e.preventDefault();state.selectedIds=state.objects.map(o=>o.id);renderAll();}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA','SELECT'].includes(tag)&&state.selectedIds.length&&!e.repeat){e.preventDefault();const step=e.shiftKey?10:1,dx=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,dy=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;const movable=getSelected().filter(o=>!o.locked);if(!movable.length){setMessage('Выбранные объекты заблокированы');return;}commit();movable.forEach(o=>translateObject(o,dx,dy));renderAll();}if(e.key==='Escape'){if(state.duplicatePlacement){state.duplicatePlacement=null;previewLayer.innerHTML='';setMessage('Дублирование отменено');}if(state.rotateDrag){const before=state.rotateDrag.historyBefore;state.rotateDrag=null;drawingArea.classList.remove('rotating');restore(before);setMessage('Поворот отменён');}if(state.resize){const before=state.resize.historyBefore;state.resize=null;drawingArea.classList.remove('resizing');restore(before);setMessage('Изменение размера отменено');}if(state.dimensionLabelDrag){const before=state.dimensionLabelDrag.historyBefore;state.dimensionLabelDrag=null;restore(before);setMessage('Перемещение размерного числа отменено');}if(state.erasing){state.erasing=null;renderAll();setMessage('Стирание завершено');}if(!$('filesModal').classList.contains('hidden'))$('filesModal').classList.add('hidden');if(!$('polarArrayModal').classList.contains('hidden'))$('polarArrayModal').classList.add('hidden');state.pendingPolarCenter=false;if(!$('mirrorModal').classList.contains('hidden'))closeMirrorDialog();if(state.referenceCalibration){state.referenceCalibration=null;setMessage('Калибровка референса отменена');}if(!$('textModal').classList.contains('hidden')){closeTextDialog();return;}state.freehandDraft=null;state.points=[];state.selectionRect=null;previewLayer.innerHTML='';selectTool('select');}});
   window.addEventListener('keyup',e=>{if(e.code==='Space')state.space=false;});window.addEventListener('blur',()=>{state.space=false;if(state.duplicatePlacement?.dragging){state.duplicatePlacement=null;previewLayer.innerHTML='';renderAll();}if(state.rotateDrag){const before=state.rotateDrag.historyBefore;state.rotateDrag=null;drawingArea.classList.remove('rotating');restore(before);}if(state.resize){const before=state.resize.historyBefore;state.resize=null;drawingArea.classList.remove('resizing');restore(before);}if(state.dimensionLabelDrag){const r=state.dimensionLabelDrag;state.dimensionLabelDrag=null;const o=state.objects.find(x=>x.id===r.id);if(o&&(Math.abs((o.labelDx||0)-r.labelDx)>.001||Math.abs((o.labelDy||0)-r.labelDy)>.001))recordHistory(r.historyBefore);renderAll();}if(state.erasing){const r=state.erasing;state.erasing=null;if(r.seen.size)recordHistory(r.historyBefore);renderAll();}if(state.pan){state.pan=null;drawingArea.classList.remove('dragging');persistAutosave();}});

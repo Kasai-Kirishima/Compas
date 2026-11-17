@@ -1,6 +1,6 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.11",
+  "version": "1.5.12",
   "private": true,
   "type": "module",
   "description": "2D mechanical CAD geometry with reliable cursor-centred wheel zoom and trackpad navigation, editable dimension arrowheads and independent dimension-label rotation, three edge-cutout modes, batch cutting, object splitting, duplicate placement and text insertion",
