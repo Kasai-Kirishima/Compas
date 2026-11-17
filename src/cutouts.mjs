@@ -244,8 +244,225 @@ export function cutPolygonNotchAtPoint(polygon, point, width, depth, {
     if (!nearest || d < nearest.distance) nearest = { edgeIndex: i, distance: d, edgeLength: Math.sqrt(den), t };
   }
   if (!nearest || nearest.distance > hitTolerance) return { ok: false, reason: 'Клацніть ближче до ребра контуру' };
+  // Curved outlines are tessellated into many short edges. When the requested
+  // notch is wider than the nearest tessellation edge, measure its mouth along
+  // the whole contour instead of refusing a perfectly valid cut.
+  const minWeb = options.minWeb ?? 0;
+  const halfWidth = width / 2;
+  const centerS = nearest.t * nearest.edgeLength;
+  if (width > nearest.edgeLength + 1e-7 || centerS - halfWidth < minWeb - 1e-7 ||
+      centerS + halfWidth > nearest.edgeLength - minWeb + 1e-7) {
+    return cutPolygonNotchAlongBoundaryAtPoint(polygon, point, width, depth, { hitTolerance, ...options });
+  }
   const centerOffset = (nearest.t - 0.5) * nearest.edgeLength;
   return cutPolygonNotch(polygon, nearest.edgeIndex, width, depth, { ...options, centerOffset });
+}
+
+/**
+ * Cut an inward notch whose mouth may span several consecutive polygon edges.
+ * Width is measured as distance along the contour, which makes this suitable
+ * for ellipses, rounded rectangles and already-notched outlines. The generated
+ * notch has locally-normal side walls and a straight inner base.
+ */
+export function cutPolygonNotchAlongBoundaryAtPoint(polygon, point, width, depth, {
+  hitTolerance = Infinity,
+  minWeb = 0,
+  eps = 1e-7,
+  style = polygon?.style,
+} = {}) {
+  if (!(polygon instanceof Polygon)) throw new TypeError('Нужен замкнутый многоугольный контур');
+  if (polygon.locked) return { ok: false, reason: 'Контур заблоковано' };
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) throw new TypeError('Точка вирізу має містити координати x та y');
+  positive(width, 'Ширина вирізу'); positive(depth, 'Глубина выреза');
+  if ((hitTolerance !== Infinity && (!Number.isFinite(hitTolerance) || hitTolerance < 0)) || !Number.isFinite(minWeb) || minWeb < 0) {
+    throw new TypeError('Неправильні параметри допуску або перемички');
+  }
+
+  const vertices = polygon.vertices.map(p => ({ ...p }));
+  const area = signedArea(vertices), absArea = Math.abs(area);
+  if (absArea <= eps) return { ok: false, reason: 'Контур має нульову площу' };
+  const lengths = [], cumulative = [0];
+  for (let i = 0; i < vertices.length; i++) {
+    const len = distance(vertices[i], vertices[(i + 1) % vertices.length]);
+    if (len <= eps) return { ok: false, reason: 'Контур містить занадто коротке ребро' };
+    lengths.push(len); cumulative.push(cumulative[i] + len);
+  }
+  const perimeter = cumulative[cumulative.length - 1];
+  if (width >= perimeter - 2 * minWeb - eps) return { ok: false, reason: 'Ширина выреза слишком велика для периметра контура' };
+
+  let nearest = null;
+  for (let i = 0; i < vertices.length; i++) {
+    const a = vertices[i], b = vertices[(i + 1) % vertices.length], ab = sub(b, a), den = dot(ab, ab);
+    const t = den > 0 ? clamp(dot(sub(point, a), ab) / den, 0, 1) : 0;
+    const projected = add(a, mul(ab, t)), d = distance(point, projected);
+    if (!nearest || d < nearest.distance) nearest = { edgeIndex: i, distance: d, t, along: cumulative[i] + lengths[i] * t };
+  }
+  if (!nearest || nearest.distance > hitTolerance) return { ok: false, reason: 'Клацніть ближче до контуру' };
+
+  const start = ((nearest.along - width / 2) % perimeter + perimeter) % perimeter;
+  const end = start + width;
+  const pointAt = target => {
+    const s = ((target % perimeter) + perimeter) % perimeter;
+    for (let i = 0; i < lengths.length; i++) {
+      if (s <= cumulative[i + 1] + eps) {
+        const t = clamp((s - cumulative[i]) / lengths[i], 0, 1);
+        return { point: add(vertices[i], mul(sub(vertices[(i + 1) % vertices.length], vertices[i]), t)), edgeIndex: i };
+      }
+    }
+    return { point: { ...vertices[0] }, edgeIndex: 0 };
+  };
+  const mouth0 = pointAt(start), mouth1 = pointAt(end);
+  const inwardNormal = edgeIndex => {
+    const a = vertices[edgeIndex], b = vertices[(edgeIndex + 1) % vertices.length], d = sub(b, a), len = lengths[edgeIndex];
+    return area > 0 ? { x: -d.y / len, y: d.x / len } : { x: d.y / len, y: -d.x / len };
+  };
+  const p0 = mouth0.point, p1 = mouth1.point;
+  const n0 = inwardNormal(mouth0.edgeIndex), n1 = inwardNormal(mouth1.edgeIndex);
+  const q0 = add(p0, mul(n0, depth)), q1 = add(p1, mul(n1, depth));
+  if (!pointInPolygon(q0, vertices, eps) || !pointInPolygon(q1, vertices, eps)) {
+    return { ok: false, reason: 'Заданная глубина выходит за пределы контура детали' };
+  }
+  // A straight bottom across a strongly concave region could leave the part.
+  for (let i = 1; i < 8; i++) {
+    const t = i / 8, sample = add(q0, mul(sub(q1, q0), t));
+    if (!pointInPolygon(sample, vertices, eps)) return { ok: false, reason: 'Вырез пересекает вогнутую границу контура' };
+  }
+
+  const result = [p0, q0, q1, p1];
+  // Follow the uncut part of the original boundary from the second mouth
+  // point back to the first, naturally crossing the perimeter origin if needed.
+  const retainedVertices = [];
+  for (let i = 0; i < vertices.length; i++) {
+    let along = cumulative[i];
+    while (along <= end + eps) along += perimeter;
+    if (along < start + perimeter - eps) retainedVertices.push({ along, point: { ...vertices[i] } });
+  }
+  retainedVertices.sort((a, b) => a.along - b.along);
+  retainedVertices.forEach(({ point: p }) => result.push(p));
+  if (!isSimplePolygon(result, eps)) return { ok: false, reason: 'Такой вырез создаёт самопересечение контура' };
+  const newArea = Math.abs(signedArea(result));
+  if (!(newArea < absArea - eps) || Math.sign(signedArea(result)) !== Math.sign(area)) {
+    return { ok: false, reason: 'Не удалось корректно уменьшить площадь контура' };
+  }
+
+  const replacement = new Polygon(result, {
+    style: style ?? polygon.style,
+    visible: polygon.visible,
+    locked: polygon.locked,
+    ownerId: polygon.ownerId ?? polygon.id,
+  });
+  return {
+    ok: true,
+    operation: 'cutout',
+    remove: [polygon.id],
+    add: [replacement],
+    removed: { edgeIndex: nearest.edgeIndex, width, depth, start, end, alongBoundary: true },
+    metadata: { oldArea: absArea, newArea, removedArea: absArea - newArea, perimeter, remainingBoundary: perimeter - width },
+  };
+}
+
+/**
+ * Remove a finite-width gap from an open path (a line, arc approximation, or
+ * open polyline). The gap is measured along the path, centred on the nearest
+ * point to the click. It can be called repeatedly on any remaining fragment;
+ * there is deliberately no per-object cut-count limit.
+ *
+ * `points` are ordered from the start to the end of the path. The result
+ * contains zero, one, or two open point arrays in `fragments`.
+ */
+export function cutOpenPathGapAtPoint(points, point, width, {
+  hitTolerance = Infinity,
+  eps = 1e-7,
+} = {}) {
+  if (!Array.isArray(points) || points.length < 2) {
+    throw new TypeError('Для разреза нужен открытый путь минимум из двух точек');
+  }
+  points.forEach((p, i) => {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      throw new TypeError(`Точка пути ${i + 1} должна содержать конечные координаты x и y`);
+    }
+  });
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+    throw new TypeError('Точка разреза должна содержать координаты x и y');
+  }
+  positive(width, 'Ширина разреза');
+  if ((hitTolerance !== Infinity && (!Number.isFinite(hitTolerance) || hitTolerance < 0)) ||
+      !Number.isFinite(eps) || eps <= 0) {
+    throw new TypeError('Неправильный допуск разреза');
+  }
+
+  const lengths = [];
+  const cumulative = [0];
+  for (let i = 0; i < points.length - 1; i++) {
+    const length = distance(points[i], points[i + 1]);
+    lengths.push(length);
+    cumulative.push(cumulative[i] + length);
+  }
+  const totalLength = cumulative[cumulative.length - 1];
+  if (totalLength <= eps) return { ok: false, reason: 'Отрезок слишком короткий для разреза' };
+
+  let nearest = null;
+  for (let i = 0; i < lengths.length; i++) {
+    const a = points[i], b = points[i + 1], ab = sub(b, a), den = dot(ab, ab);
+    if (den <= eps * eps) continue;
+    const t = clamp(dot(sub(point, a), ab) / den, 0, 1);
+    const projected = add(a, mul(ab, t));
+    const d = distance(point, projected);
+    if (!nearest || d < nearest.distance) {
+      nearest = { segmentIndex: i, distance: d, t, along: cumulative[i] + lengths[i] * t, projected };
+    }
+  }
+  if (!nearest || nearest.distance > hitTolerance) {
+    return { ok: false, reason: 'Щёлкните ближе к отрезку или линии' };
+  }
+
+  const start = Math.max(0, nearest.along - width / 2);
+  const end = Math.min(totalLength, nearest.along + width / 2);
+  const removedLength = end - start;
+  if (removedLength <= eps) return { ok: false, reason: 'Не удалось определить участок разреза' };
+
+  const pointAtDistance = target => {
+    if (target <= 0) return { ...points[0] };
+    if (target >= totalLength) return { ...points[points.length - 1] };
+    for (let i = 0; i < lengths.length; i++) {
+      if (target <= cumulative[i + 1] + eps) {
+        const len = lengths[i];
+        const t = len > eps ? clamp((target - cumulative[i]) / len, 0, 1) : 0;
+        return add(points[i], mul(sub(points[i + 1], points[i]), t));
+      }
+    }
+    return { ...points[points.length - 1] };
+  };
+  const slicePath = (from, to) => {
+    if (to - from <= eps) return [];
+    const result = [pointAtDistance(from)];
+    for (let i = 1; i < points.length - 1; i++) {
+      if (cumulative[i] > from + eps && cumulative[i] < to - eps) result.push({ ...points[i] });
+    }
+    result.push(pointAtDistance(to));
+    return result.filter((p, i) => i === 0 || distance(p, result[i - 1]) > eps);
+  };
+
+  const fragments = [slicePath(0, start), slicePath(end, totalLength)]
+    .filter(fragment => fragment.length >= 2 &&
+      fragment.some((p, i) => i > 0 && distance(p, fragment[i - 1]) > eps));
+  if (!fragments.length) return { ok: false, reason: 'Разрез удаляет весь отрезок — оставшейся геометрии нет' };
+
+  return {
+    ok: true,
+    operation: 'segment-gap',
+    fragments,
+    removed: {
+      segmentIndex: nearest.segmentIndex,
+      clickDistance: nearest.distance,
+      centerDistance: nearest.along,
+      requestedWidth: width,
+      actualWidth: removedLength,
+      start,
+      end,
+    },
+    metadata: { oldLength: totalLength, newLength: totalLength - removedLength, removedLength, fragmentCount: fragments.length },
+  };
 }
 
 /** Closed inner rectangular contour. Use it as a 2D pocket/hole boundary. */

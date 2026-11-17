@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
-import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 import { SceneHistory } from '../src/history.mjs';
 
 const near=(a,b,e=1e-7)=>assert.ok(Math.abs(a-b)<=e,`${a} != ${b}`);
@@ -53,6 +53,61 @@ assert.equal(cutCircleNotchAtPoint(ring,{x:50,y:0},120,12,{hitTolerance:2}).ok,f
 assert.equal(cutCircleNotchAtPoint(ring,{x:50,y:0},20,50,{hitTolerance:2}).ok,false, 'Depth reaching the centre must be rejected');
 assert.equal(cutCircleNotchAtPoint(new Circle({x:0,y:0},50,{locked:true}),{x:50,y:0},20,12,{hitTolerance:2}).ok,false);
 
+// A second, deeper cut can be made directly in the floor of an existing notch.
+const nestedFirst=cutPolygonNotchAtPoint(rect,{x:50,y:0},20,10,{hitTolerance:2,minWeb:1});
+assert.equal(nestedFirst.ok,true);
+const nestedSecond=cutPolygonNotchAtPoint(nestedFirst.add[0],{x:50,y:10},8,4,{hitTolerance:2,minWeb:1});
+assert.equal(nestedSecond.ok,true,'A notch can be placed inside the floor of an existing notch');
+assert.ok(nestedSecond.metadata.newArea<nestedFirst.metadata.newArea);
+// Repeated operations on the resulting contour are not restricted to the original shape.
+const wallCut=cutPolygonNotchAtPoint(nestedSecond.add[0],{x:40,y:5},4,3,{hitTolerance:1.5,minWeb:0});
+assert.equal(wallCut.ok,true,'An existing notch wall can be cut again');
+
+// A sampled ellipse/rounded boundary can receive a mouth wider than one tiny tessellation edge.
+const sampledEllipse=new Polygon(Array.from({length:128},(_,i)=>({x:50*Math.cos(i*Math.PI/64),y:35*Math.sin(i*Math.PI/64)})));
+const ellipseCut=cutPolygonNotchAtPoint(sampledEllipse,{x:50,y:0},20,8,{hitTolerance:2,minWeb:2});
+assert.equal(ellipseCut.ok,true,'A notch can span multiple small edges on a curved contour');
+assert.ok(ellipseCut.add[0].vertices.length>100,'Most of the smooth ellipse boundary is retained');
+const curvedNested=cutPolygonNotchAtPoint(ellipseCut.add[0],{x:45,y:-8},4,3,{hitTolerance:3,minWeb:0});
+assert.equal(curvedNested.ok,true,'A new notch can be cut into the base of a previous curved-boundary notch');
+for(const edgeClick of [{x:0,y:35},{x:-50,y:0},{x:0,y:-35},{x:35,y:24}]){
+  const curvedSide=cutPolygonNotchAtPoint(sampledEllipse,edgeClick,18,7,{hitTolerance:2,minWeb:1});
+  assert.equal(curvedSide.ok,true,`A curved boundary should be cut at ${edgeClick.x}, ${edgeClick.y}`);
+}
+const roundedVertices=[];
+const roundedCorners=[{cx:90,cy:10,a:-Math.PI/2},{cx:90,cy:50,a:0},{cx:10,cy:50,a:Math.PI/2},{cx:10,cy:10,a:Math.PI}];
+roundedCorners.forEach(({cx,cy,a})=>{for(let i=0;i<=10;i++){const angle=a+i*Math.PI/20,p={x:cx+10*Math.cos(angle),y:cy+10*Math.sin(angle)};if(!roundedVertices.length||distanceForTest(p,roundedVertices.at(-1))>.001)roundedVertices.push(p);}});
+const roundedCut=cutPolygonNotchAtPoint(new Polygon(roundedVertices),{x:97,y:3},18,5,{hitTolerance:3,minWeb:1});
+assert.equal(roundedCut.ok,true,'A rounded rectangle corner can receive a notch');
+
+// A gap can be cut from an open segment; the API returns the remaining fragments.
+const gap=cutOpenPathGapAtPoint([{x:0,y:0},{x:100,y:0}],{x:50,y:1},20,{hitTolerance:2});
+assert.equal(gap.ok,true);
+assert.equal(gap.operation,'segment-gap');
+assert.equal(gap.fragments.length,2);
+near(gap.fragments[0][0].x,0); near(gap.fragments[0].at(-1).x,40);
+near(gap.fragments[1][0].x,60); near(gap.fragments[1].at(-1).x,100);
+// The tool remains usable on either leftover segment, creating an additional gap.
+const repeatedGap=cutOpenPathGapAtPoint(gap.fragments[0],{x:20,y:0},6,{hitTolerance:1});
+assert.equal(repeatedGap.ok,true);
+assert.equal(repeatedGap.fragments.length,2);
+const polylineGap=cutOpenPathGapAtPoint([{x:0,y:0},{x:50,y:0},{x:50,y:50}],{x:50,y:4},20,{hitTolerance:2});
+assert.equal(polylineGap.ok,true,'A single gap can span across several segments of an open polyline');
+assert.equal(polylineGap.fragments.length,2);
+assert.equal(cutOpenPathGapAtPoint([{x:0,y:0},{x:10,y:0}],{x:5,y:0},20,{hitTolerance:1}).ok,false,
+  'A gap that removes the entire object is refused rather than leaving invalid geometry');
+
+// No artificial cut-count cap: many edge notches can be applied successively.
+let many=new Polygon([{x:0,y:0},{x:240,y:0},{x:240,y:100},{x:0,y:100}]);
+for(let i=0;i<24;i++){
+  const x=6+i*9;
+  const y=i%2===0?0:100;
+  const txMany=cutPolygonNotchAtPoint(many,{x,y},4,3,{hitTolerance:1,minWeb:1});
+  assert.equal(txMany.ok,true,`Repeated notch ${i+1} should succeed`);
+  many=txMany.add[0];
+}
+assert.ok(many.vertices.length>4,'The contour stores every repeated cut without a fixed count limit');
+
 // Inner contour utilities stay separate from the outer boundary.
 const pocket=createRectangularPocket({x:20,y:25},30,12,Math.PI/6);
 assert.equal(pocket.length,1); assert(pocket[0] instanceof Polygon);
@@ -60,8 +115,15 @@ const hole=createCircularCutout({x:20,y:25},5);
 assert.equal(hole.length,1); assert(hole[0] instanceof Circle); assert.equal(hole[0].feature,'circular-cutout');
 const slot=createObroundCutout({x:0,y:0},40,10,0);
 assert.equal(slot.length,4); assert(slot.every(o=>o.feature==='obround-cutout'));
+// Inner contours are regular editable geometry too, so they can receive further cuts.
+const cutPocket=cutPolygonNotchAtPoint(pocket[0],{x:20,y:19},6,3,{hitTolerance:2,minWeb:0});
+assert.equal(cutPocket.ok,true,'A previously placed inner rectangular contour can be cut again');
+const cutHole=cutCircleNotchAtPoint(hole[0],{x:25,y:25},4,2,{hitTolerance:1});
+assert.equal(cutHole.ok,true,'A previously placed inner circular contour can be cut again');
 
 // The cutout edit is compatible with transactional Undo/Redo.
 const h=new SceneHistory([rect]); h.apply(tx); assert.equal(h.scene.length,1); assert.notEqual(h.scene[0].id,rect.id);
 h.undo(); assert.equal(h.scene[0].id,rect.id); h.redo(); assert.equal(h.scene[0].vertices.length,8);
-console.log('All profile cutout tests passed (9 groups, including circular edge notches).');
+console.log('All profile cutout tests passed (nested/repeated boundary cuts and open-path segment gaps included).');
+
+function distanceForTest(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}

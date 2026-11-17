@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.4
+- Extended edge notches to ellipses, rounded rectangles and curved/tessellated boundaries; notch widths can span multiple consecutive boundary edges.
+- Enabled repeated and nested cuts on an already-notched contour, including its walls and base; invalid self-intersecting results remain safely rejected.
+- Added width-defined gaps for open segments, arcs, construction/centre lines and open polylines; remaining fragments stay independently editable and can be cut again.
+- Removed any per-object cutout-count cap; the practical limit is drawing complexity and available memory.
+- Added regression coverage for nested, repeated, curved-boundary and open-path cuts.
+
+
 ## 1.5.3
 - Extended the main edge-cutout tool to circular boundaries; click the circumference to create a radial inward notch using the existing width, depth and minimum-web controls.
 - Converts the edited circle into a single smooth closed polyline while retaining its object ID, name, color and line width.

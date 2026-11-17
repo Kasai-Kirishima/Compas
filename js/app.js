@@ -1,5 +1,5 @@
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
-import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 
 (() => {
   'use strict';
@@ -518,25 +518,100 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, createRectangularPocket,
   function appContourToPolygon(o){
     if(!o||o.locked)return null;
     let vertices=null;
-    if(o.type==='rect'&&!Number(o.rx||0)){
+    if(o.type==='rect'&&Number(o.rx||0)>0){
+      const x=Math.min(o.x,o.x2),y=Math.min(o.y,o.y2),w=Math.abs(o.x2-o.x),h=Math.abs(o.y2-o.y),r=clamp(Number(o.rx)||0,0,Math.min(w,h)/2),steps=10;
+      if(r>0){
+        const corners=[
+          {cx:x+w-r,cy:y+r,a:-Math.PI/2},
+          {cx:x+w-r,cy:y+h-r,a:0},
+          {cx:x+r,cy:y+h-r,a:Math.PI/2},
+          {cx:x+r,cy:y+r,a:Math.PI},
+        ];
+        vertices=[];
+        corners.forEach(({cx,cy,a})=>{for(let i=0;i<=steps;i++){const t=a+i*(Math.PI/2)/steps;const p={x:mm(cx+r*Math.cos(t)),y:mm(cy+r*Math.sin(t))};if(!vertices.length||Math.hypot(p.x-vertices[vertices.length-1].x,p.y-vertices[vertices.length-1].y)>.001)vertices.push(p);}});
+      }
+    }else if(o.type==='rect'){
       const x1=Math.min(o.x,o.x2),x2=Math.max(o.x,o.x2),y1=Math.min(o.y,o.y2),y2=Math.max(o.y,o.y2);
       vertices=[{x:x1,y:y1},{x:x2,y:y1},{x:x2,y:y2},{x:x1,y:y2}];
+    }else if(o.type==='ellipse'){
+      const cx=(o.x+o.x2)/2,cy=(o.y+o.y2)/2,rx=Math.abs(o.x2-o.x)/2,ry=Math.abs(o.y2-o.y)/2;
+      if(rx>0&&ry>0)vertices=Array.from({length:128},(_,i)=>({x:mm(cx+rx*Math.cos(i*Math.PI/64)),y:mm(cy+ry*Math.sin(i*Math.PI/64))}));
     }else if(o.type==='polyline'&&o.closed&&Array.isArray(o.points))vertices=deep(o.points);
+    else if(['spline','freehand'].includes(o.type)&&o.closed&&Array.isArray(o.points)&&o.points.length>=3)vertices=sampleSmoothPath(o.points,o.type==='freehand'?(o.smooth??65):100);
     if(!vertices||vertices.length<3)return null;
     return new Polygon(vertices,{ownerId:o.id,style:{stroke:o.color||'#20252a',lineWidth:o.width||state.gost.mainLine,lineDash:[]}});
   }
   function isCuttableBoundary(o){
-    return !!o&&!o.locked&&(o.type==='circle'||!!appContourToPolygon(o));
+    return !!o&&!o.hidden&&!o.locked&&(o.type==='circle'||!!appContourToPolygon(o));
+  }
+  function appOpenPathPoints(o){
+    if(!o||o.locked||o.hidden)return null;
+    if(['line','construction','centerline'].includes(o.type))return ['wave','zigzag'].includes(o.linePattern)?linePatternPoints(o):[{x:o.x,y:o.y},{x:o.x2,y:o.y2}];
+    if(o.type==='arc'){
+      const r=Number(o.r)||0;if(!(r>0))return null;
+      const sweep=((o.end-o.start)%(Math.PI*2)+Math.PI*2)%(Math.PI*2),count=Math.max(16,Math.ceil(sweep*48));
+      return Array.from({length:count+1},(_,i)=>{const a=o.start+sweep*i/count;return{x:o.x+r*Math.cos(a),y:o.y+r*Math.sin(a)};});
+    }
+    if(['spline','freehand'].includes(o.type)&&!o.closed&&Array.isArray(o.points)&&o.points.length>=2)return sampleSmoothPath(o.points,o.type==='freehand'?(o.smooth??65):100);
+    if(o.type==='breakline'&&!o.closed&&Array.isArray(o.points)&&o.points.length===2){
+      const[a,b]=o.points,dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1,nx=-dy/len,ny=dx/len,amp=Math.min(1.4,len/12),samples=[{x:a.x,y:a.y}];
+      for(let i=1;i<=8;i++){const t=i/8,v=(i%2?1:-1)*amp;samples.push({x:a.x+dx*t+nx*v,y:a.y+dy*t+ny*v});}
+      return samples;
+    }
+    if(o.type==='polyline'&&!o.closed&&Array.isArray(o.points)&&o.points.length>=2)return deep(o.points);
+    return null;
+  }
+  function sampleSmoothPath(points,amount=70,steps=10){
+    if(!Array.isArray(points)||points.length<2)return[];
+    if(points.length===2||amount<=0)return deep(points);
+    const t=clamp(Number(amount)||0,0,100)/100,out=[deep(points[0])];
+    const sampleQuad=(a,c,b)=>{for(let j=1;j<=steps;j++){const u=j/steps,v=1-u;out.push({x:a.x*v*v+2*c.x*v*u+b.x*u*u,y:a.y*v*v+2*c.y*v*u+b.y*u*u});}};
+    let current=points[0],lastControl=null;
+    for(let i=1;i<points.length-1;i++){
+      const p=points[i],n=points[i+1],mid={x:(p.x+n.x)/2,y:(p.y+n.y)/2},control={x:mid.x+(p.x-mid.x)*t,y:mid.y+(p.y-mid.y)*t};
+      sampleQuad(current,control,mid);current=mid;lastControl=control;
+    }
+    if(lastControl){const control={x:2*current.x-lastControl.x,y:2*current.y-lastControl.y};sampleQuad(current,control,points[points.length-1]);}
+    return out;
+  }
+  function isCuttableOpenPath(o){return !!appOpenPathPoints(o);}
+  function replaceWithOpenFragments(source,fragments){
+    const originalType=source.type,base=deep(source),idx=state.objects.findIndex(o=>o.id===source.id);
+    if(idx<0)return false;
+    const replacements=fragments.map((points,i)=>{
+      const obj={...deep(base),id:i===0?source.id:newId(),type:'polyline',points:points.map(p=>({x:mm(p.x),y:mm(p.y)})),closed:false};
+      delete obj.x;delete obj.y;delete obj.x2;delete obj.y2;delete obj.r;delete obj.start;delete obj.end;delete obj.rx;
+      if(originalType==='line'||originalType==='construction'||originalType==='centerline'){
+        obj.type=originalType;obj.x=mm(points[0].x);obj.y=mm(points[0].y);obj.x2=mm(points[points.length-1].x);obj.y2=mm(points[points.length-1].y);delete obj.points;delete obj.closed;
+      }
+      if(originalType==='arc')obj.name=obj.name||'Дуга после разреза';
+      return obj;
+    });
+    state.objects.splice(idx,1,...replacements);
+    state.selectedIds=replacements.map(o=>o.id);
+    return true;
   }
   function applyEdgeCutout(point,clickedId=null){
     const clicked=clickedId?state.objects.find(o=>o.id===clickedId):null;
-    const selected=getSelected().find(isCuttableBoundary);
-    const source=clicked&&isCuttableBoundary(clicked)?clicked:selected;
-    if(!source){setMessage('Для выреза выберите замкнутый прямоугольник, окружность или замкнутую ломаную. Скруглённые прямоугольники пока не поддерживаются.');return false;}
+    const selected=getSelected().find(o=>isCuttableBoundary(o)||isCuttableOpenPath(o));
+    const source=clicked&&(isCuttableBoundary(clicked)||isCuttableOpenPath(clicked))?clicked:selected;
+    if(!source){setMessage('Щёлкните по геометрии: прямоугольнику, скруглённому прямоугольнику, окружности, эллипсу, замкнутой/открытой ломаной, дуге или отрезку.');return false;}
     if(source.locked){setMessage('Контур заблокирован — снимите блокировку перед вырезанием.');return false;}
     const width=Number($('cutoutNotchWidth').value),depth=Number($('cutoutNotchDepth').value),minWeb=Number($('cutoutMinWeb').value);
     if(!Number.isFinite(width)||width<=0||!Number.isFinite(depth)||depth<=0||!Number.isFinite(minWeb)||minWeb<0){setMessage('Введите положительные ширину и глубину, а также неотрицательную перемычку.');return false;}
     const hitTolerance=clamp(7/Math.max(.25,state.zoom),1.5,9);
+    if(isCuttableOpenPath(source)){
+      let path=appOpenPathPoints(source);
+      // Smooth drawing tools are stored as control points; sample each span so
+      // the gap follows the visible open path more closely than a single chord.
+      const tx=cutOpenPathGapAtPoint(path,point,width,{hitTolerance});
+      if(!tx.ok){setMessage(tx.reason||'Не удалось выполнить разрез отрезка');return false;}
+      const before=snapshot();
+      if(!replaceWithOpenFragments(source,tx.fragments)){setMessage('Не удалось обновить отрезок');return false;}
+      commit(before);renderAll();
+      setMessage(`Разрез выполнен: удалён участок ${mm(tx.metadata.removedLength)} мм. Осталось фрагментов: ${tx.fragments.length}.`);
+      return true;
+    }
     let tx;
     if(source.type==='circle'){
       const radius=Math.hypot(source.x2-source.x,source.y2-source.y);
@@ -552,7 +627,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, createRectangularPocket,
     delete source.x;delete source.y;delete source.x2;delete source.y2;delete source.rx;
     source.name=source.name||'Контур с вырезом';
     state.selectedIds=[source.id];renderAll();
-    setMessage(`Вырез создан: ${mm(width)} × ${mm(depth)} мм. Контур обновлён.`);
+    setMessage(`Вырез создан: ${mm(width)} × ${mm(depth)} мм. Контур обновлён. Можно продолжать вырезать этот же контур.`);
     return true;
   }
   function cutoutPrimitivesToAppObjects(primitives,shape){
@@ -599,7 +674,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, createRectangularPocket,
     addObject({type:'hatch',name:'Штриховка',points,closed:true,pattern:$('hatchPattern').value,angle:Number($('hatchAngle').value)||45,spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a',layer:'annotation',boundaryOf:src.id});
     setMessage('Штриховка создана внутри выделенного контура. Контур сохранён отдельно.');
   }
-  function selectTool(tool){state.tool=tool;if(tool!=='select')state.referenceCalibration=null;state.points=[];state.freehandDraft=null;previewLayer.innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор: щелчок — объект, Shift — добавить, рамка — выделить область. Размерное число перетаскивайте за голубую ручку.',cutout:'Вырез по краю: щёлкните по краю замкнутого прямоугольника, окружности или многоугольной ломаной. На окружности паз строится внутрь по радиусу. Ширина и глубина задаются слева.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная прямая: две точки',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',polygon:'Многоугольник: центр и радиус',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Текст: щёлкните на листе',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Прямоугольная штриховка: укажите два противоположных угла. Для замкнутого контура выделите его и нажмите «Заштриховать выделенный контур»',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
+  function selectTool(tool){state.tool=tool;if(tool!=='select')state.referenceCalibration=null;state.points=[];state.freehandDraft=null;previewLayer.innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор: щелчок — объект, Shift — добавить, рамка — выделить область. Размерное число перетаскивайте за голубую ручку.',cutout:'Вырез/разрез: щёлкните по границе замкнутой детали или по отрезку, дуге либо открытой линии. На замкнутом контуре паз уходит внутрь; на открытой линии удаляется участок заданной ширины. Можно повторять на уже вырезанных контурах и оставшихся фрагментах.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная прямая: две точки',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',polygon:'Многоугольник: центр и радиус',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Текст: щёлкните на листе',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Прямоугольная штриховка: укажите два противоположных угла. Для замкнутого контура выделите его и нажмите «Заштриховать выделенный контур»',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
   function snapToObjects(p){if(!state.objectSnap)return p;const candidates=[];for(const o of state.objects){if(o.points){o.points.forEach(q=>candidates.push(q));}else if(o.type==='circle'){candidates.push({x:o.x,y:o.y});candidates.push({x:(o.x+o.x2)/2,y:(o.y+o.y2)/2});}else if(o.type==='rect'||o.type==='line'||o.type==='construction'||o.type==='centerline'){const a={x:o.x,y:o.y},b={x:o.x2,y:o.y2};candidates.push(a,b,{x:(a.x+b.x)/2,y:(a.y+b.y)/2});}else if(o.type==='ellipse'){candidates.push({x:(o.x+o.x2)/2,y:(o.y+o.y2)/2});}}
     let best=null,dist=2.1;candidates.forEach(q=>{const d=Math.hypot(q.x-p.x,q.y-p.y);if(d<dist){dist=d;best=q;}});return best?{x:mm(best.x),y:mm(best.y)}:p;}
   function pointFromEvent(e,raw=false){const r=svg.getBoundingClientRect(),d=dimensions();let x=(e.clientX-r.left)/r.width*d.w,y=(e.clientY-r.top)/r.height*d.h;const step=gridStep();if(raw)return{x:mm(x),y:mm(y)};if(state.snap){x=Math.round(x/step)*step;y=Math.round(y/step)*step;}const a=state.points[state.points.length-1];const lineTools=['line','polyline','spline','construction','centerline','breakline','section','dimension','dimAuto','dimH','dimV'];if(a&&e.shiftKey&&lineTools.includes(state.tool)){const angleStep=clamp(Number($('angleStep').value)||15,1,90)*Math.PI/180,dx=x-a.x,dy=y-a.y,len=Math.hypot(dx,dy),angle=Math.atan2(dy,dx),snapped=Math.round(angle/angleStep)*angleStep;x=a.x+Math.cos(snapped)*len;y=a.y+Math.sin(snapped)*len;}if(a&&state.ortho&&lineTools.includes(state.tool)){if(Math.abs(x-a.x)>=Math.abs(y-a.y))y=a.y;else x=a.x;}if(a&&state.ruler&&state.rulerMode!=='off'&&lineTools.includes(state.tool)){let ux=state.ruler.b.x-state.ruler.a.x,uy=state.ruler.b.y-state.ruler.a.y,len=Math.hypot(ux,uy)||1;ux/=len;uy/=len;if(state.rulerMode==='perpendicular'){const t=ux;ux=-uy;uy=t;}const dx=x-a.x,dy=y-a.y,t=dx*ux+dy*uy;x=a.x+ux*t;y=a.y+uy*t;}const p={x:mm(x),y:mm(y)};return snapToObjects(p);}

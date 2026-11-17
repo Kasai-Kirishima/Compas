@@ -24,7 +24,7 @@
       <button class="ribbon-btn" id="redoBtn" disabled title="Ctrl+Y"><span>↷</span>Повторить</button>
     </div>
     <div class="ribbon-group">
-      <button class="ribbon-btn" data-tool="select"><span>↖</span>Выбор</button><button class="ribbon-btn" data-tool="eraser"><span>⌫</span>Ластик</button><button class="ribbon-btn" data-tool="cutout"><span>⌑</span>Вырез</button>
+      <button class="ribbon-btn" data-tool="select"><span>↖</span>Выбор</button><button class="ribbon-btn" data-tool="eraser"><span>⌫</span>Ластик</button><button class="ribbon-btn" data-tool="cutout"><span>⌑</span>Вырез / разрез</button>
       <button class="ribbon-btn" data-tool="line"><span>／</span>Отрезок</button>
       <button class="ribbon-btn" data-tool="ruler"><span>▤</span>Линейка</button>
       <button class="ribbon-btn" data-tool="freehand"><span>✎</span>Свободная</button>
@@ -117,10 +117,10 @@
         <div class="panel-heading">РЕДАКТИРОВАНИЕ</div>
         <div class="cutout-controls">
           <div class="panel-heading spaced">ВЫРЕЗ И ОТВЕРСТИЯ</div>
-          <button class="tool-tile" type="button" data-tool="cutout"><span>⌑</span>Вырез по краю</button>
+          <button class="tool-tile" type="button" data-tool="cutout"><span>⌑</span>Вырез / разрез</button>
           <div class="two-fields">
-            <label class="field-label">Ширина выреза, мм<input id="cutoutNotchWidth" type="number" min="0.5" max="500" step="0.5" value="18"></label>
-            <label class="field-label">Глубина, мм<input id="cutoutNotchDepth" type="number" min="0.5" max="500" step="0.5" value="10"></label>
+            <label class="field-label">Ширина выреза / разреза, мм<input id="cutoutNotchWidth" type="number" min="0.5" max="500" step="0.5" value="18"></label>
+            <label class="field-label">Глубина выреза (замкнутый контур), мм<input id="cutoutNotchDepth" type="number" min="0.5" max="500" step="0.5" value="10"></label>
           </div>
           <label class="field-label">Минимальная перемычка, мм<input id="cutoutMinWeb" type="number" min="0" max="100" step="0.5" value="2"></label>
           <label class="field-label">Внутренний контур
@@ -136,7 +136,7 @@
           </div>
           <label class="field-label">Угол контура, °<input id="cutoutInnerAngle" type="number" min="-360" max="360" step="1" value="0"></label>
           <button class="secondary-btn" id="placeInnerCutoutBtn" type="button">＋ Разместить внутренний контур</button>
-          <div class="muted-hint">Для выреза по краю щёлкните по ребру прямоугольника/ломаной или по окружности: на окружности паз будет направлен к центру. Для отверстия или паза нажмите кнопку и укажите центр на чертеже. Это 2D-контуры, не 3D-вычитание.</div>
+          <div class="muted-hint">Вырез/разрез работает по прямоугольникам (в том числе скруглённым), окружностям, эллипсам, закрытым и открытым ломаным, сплайнам, свободным линиям, линиям обрыва, дугам и отрезкам. На замкнутом контуре вырезается паз внутрь; на открытой линии удаляется участок заданной ширины (глубина и перемычка для линии не применяются). Повторяйте операцию на стенках и дне уже созданного выреза или на оставшихся сегментах — фиксированного лимита количества операций нет. Внутренние отверстия/пазы остаются отдельными 2D-контурами; это не 3D-вычитание. Текст, размеры, выноски и подложки не разрезаются как геометрические профили.</div>
         </div>
         <div class="action-grid">
           <button class="secondary-btn" data-action="duplicate">Копировать</button>
@@ -152,7 +152,7 @@
           <button class="secondary-btn" data-action="arrayPolar">Круговой массив…</button><button class="secondary-btn" data-action="repeatPolarArray">Повторить круговой массив</button><div class="muted-hint action-wide-hint">Для отворів: створіть одне коло на потрібному радіусі → виділіть його → «Круговий масив» → 5 → вкажіть центр деталі → 360°. Кількість включає оригінал.</div>
           <button class="secondary-btn" data-action="split">Разбить линию</button>
           <button class="secondary-btn" data-action="trim">Усечь линию</button>
-          <div class="muted-hint action-wide-hint">«Усечь линию» обрезает выбранный отрезок до пересечения. «Линия сечения» только обозначает направление разреза и сама не вырезает материал и не строит новый вид.</div>
+          <div class="muted-hint action-wide-hint">«Вырез / разрез» работает также с открытыми отрезками и линиями: щёлкните по линии, чтобы удалить участок шириной из поля «Ширина выреза». «Разбить линию» делит сегмент на две части без удаления материала. «Усечь линию» обрезает до пересечения.</div>
           <button class="secondary-btn danger" id="deleteBtn">Удалить</button>
         </div>
         <div class="panel-heading">УПРАВЛЕНИЕ ОБЪЕКТАМИ</div>

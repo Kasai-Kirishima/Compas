@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.3
+# CAD Geometry Core 1.5.4
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -15,7 +15,9 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - partial freehand erasing for lines, centre lines, circles, arcs, polygon edges, and dimension linework;
 - safe single-target erasing (`eraseTargetAlongPath`) so a stroke does not affect unrelated nearby objects;
 - complete-object erasing is deliberately disabled by the UI eraser; use Delete for whole-object removal;
-- edge notch / cutout on closed rectangular and polygonal profiles (available in the main editor as **Вырез по краю**);
+- repeatable edge notches on rectangles (including rounded corners), circles, ellipses, and closed polylines; curved boundaries are tessellated and can receive notches wider than one sampled edge;
+- nested cutouts on existing notch walls and bases, with geometry checks that reject self-intersections;
+- width-defined gaps on open lines, arcs, construction/centre lines, breaklines, splines, freehand curves, and open polylines; the remaining fragments stay independently editable;
 - inner rectangular, circular, and obround cutout contours (available in the main editor as **Разместить внутренний контур**);
 - automatic dimension-label clearance without opaque white text masks or extra connector shelves;
 - rotate, translate, scale, mirror, polar array, and scene transactions;
@@ -41,7 +43,7 @@ Open <http://localhost:8000/> for the main CAD editor. The simplified demo remai
 
 `cutPolygonNotch` modifies the boundary of one simple polygon by inserting a rectangular notch open to a selected edge. `createRectangularPocket`, `createCircularCutout`, and `createObroundCutout` create separate closed 2D contours for drafting holes or pockets.
 
-These are 2D drafting tools, not 3D solid Boolean operations. The package does not yet implement arbitrary polygon-minus-polygon Boolean subtraction or a solid modeller.
+These are 2D drafting tools, not 3D solid Boolean operations. Repeated and nested notches are stored in the same editable contour; a new cut that would create a self-intersection or leave the profile is rejected. Internal hole contours are separate linework, not an automatic polygon-minus-polygon Boolean subtraction.
 
 ## Safer eraser behavior
 
@@ -53,7 +55,7 @@ The demo starts in Select mode. When Eraser is chosen, the first stroke is restr
 src/
   cad-geometry-trim.mjs  primitives, intersections, Trim, dimensions, transforms, OSNAP, JSON
   eraser.mjs             partial eraser and single-target safe wrapper
-  cutouts.mjs            polygon edge notch and inner cutout contours
+  cutouts.mjs            closed-boundary notches, open-path gaps and inner cutout contours
   templates.mjs          parametric mechanical drawing templates
   history.mjs            Undo/Redo transaction history
   index.mjs              public exports
@@ -82,7 +84,7 @@ examples/
 ## Scope / known limitations
 
 - Coordinates are model-space numbers (normally millimetres); Canvas scaling is a renderer concern.
-- Cutout operations are 2D contours. Arbitrary concave polygon Boolean subtraction is not implemented.
+- Cutout operations are 2D contours; there is no 3D material subtraction. A risky overlapping notch that would create a self-intersection is rejected rather than corrupting the outline. Inner circles/slots are separate contours.
 - Arc creation in the demo uses a counter-clockwise sweep from the specified start point to end point.
 - DXF/DWG file import/export and 3D modelling are not included.
 
