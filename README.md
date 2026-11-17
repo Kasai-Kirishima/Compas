@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.16
+# CAD Geometry Core 1.5.17
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -11,7 +11,7 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - linear and diameter dimensions with text orientation, readable placement, decimal-comma formatting, line gaps beneath labels, and the dedicated `⌀` diameter symbol (legacy `Ø` / Cyrillic `Ш` prefixes are normalized).
 
 ### Editing
-- Straight pass-cut by left-button drag: sweep a fixed-width rectangular corridor through all visible, unlocked closed geometry profiles along the path; exact parallel side walls; through-cut splits a circle into two editable pieces, while stopping inside a later circle creates a shallow blind entry with a straight end cap;
+- Straight pass-cut by left-button drag: sweep a fixed-width straight corridor through visible unlocked closed profiles; choose **Без нижней стенки** to retain exact parallel side walls while leaving a blind end open, or **Без стенок** to remove only boundary portions without adding side lines; through-cuts remain editable fragments;
 - Split open paths at any interior point, including the exact midpoint or very near an endpoint;
 - Split closed profiles into two independent closed contours by picking two boundary points;
 - Split support includes lines, construction/centre lines, arcs, open polylines, splines, freehand curves, rectangles, rounded rectangles, circles, ellipses, and closed polygonal contours;
@@ -68,7 +68,12 @@ A split cannot create a zero-length fragment. For concave profiles, the selected
 
 ## Straight pass-cut across multiple circles / profiles
 
-Choose **Прямой проходной вырез**, set its width, press the left mouse button outside the first circle, drag the straight path through the large circle, and release a short distance inside the smaller circle. The same pass is applied to every visible, unlocked closed object on a working geometry layer that it intersects. The large circle is split into two separate closed profiles; the smaller circle receives only a short blind slot. Both slot walls are mathematically straight and parallel, with width constant over the full pass. Release beyond a profile to cut it fully through.
+Choose **Прямой проходной вырез**, set its width, select a boundary mode, press the left mouse button outside the first profile, drag along the desired straight path, and release at the required depth. The same pass applies automatically to every visible, unlocked closed profile it intersects; no separate multi-selection is required. Lock or hide profiles that must be protected.
+
+- **Без нижней стенки** (default) retains two exactly straight, parallel side walls. If the drag stops inside a later/smaller circle, the inner end cap is removed and the contour becomes an open editable polyline; both side walls remain and end freely at the release point. If the drag exits a profile completely, it becomes two closed editable pieces joined by the straight side walls.
+- **Без стенок** removes the original boundary portions covered by the pass corridor and adds no side walls or end cap. A blind entry leaves one open boundary arc; a complete through-cut leaves the two remaining boundary arcs as separate open editable paths.
+
+Curved outer arcs remain sampled polylines. In **Без нижней стенки**, the new side walls use exact line coordinates parallel to the drag axis. This is a 2D profile edit, not 3D milling simulation.
 
 ## Cutouts: important distinction
 

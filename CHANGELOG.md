@@ -1,3 +1,8 @@
+## 1.5.17
+- Added a mode selector to **Прямой проходной вырез**: **Без нижней стенки** (default) preserves two exact parallel side walls but removes the transverse blind-end cap, leaving an open editable path; **Без стенок** removes only the boundary spans covered by the pass and adds no new side lines.
+- Through-cuts retain closed split profiles in no-bottom mode; no-walls mode produces open boundary arcs. The selected mode is captured at pointer-down and applied consistently to all visible, unlocked intersected profiles in one undoable operation.
+- Added geometry tests for blind and through passes in both modes, including assertions that no-bottom mode retains both straight walls without an end cap and no-walls mode creates no wall edges.
+
 ## 1.5.16 — прямой проходной вырез через несколько контуров
 
 - Добавлен отдельный инструмент «Прямой проходной вырез»: зажать левую кнопку мыши снаружи детали, протянуть прямую полосу и отпустить в конечной точке.

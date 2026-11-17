@@ -10,6 +10,7 @@ const area = points => points.reduce((sum, p, i) => {
   return sum + p.x * q.y - q.x * p.y;
 }, 0) / 2;
 const edges = points => points.map((a, i) => ({ a, b: points[(i + 1) % points.length] }));
+const openEdges = points => points.slice(1).map((b, i) => ({ a: points[i], b }));
 const near = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} != ${b}`);
 
 // One straight drag starts outside the large profile, crosses it completely,
@@ -70,4 +71,42 @@ assert.equal(cutClosedContourByStraightPass(circle(0, 0, 20), { x: -40, y: 0 }, 
 assert.throws(() => cutClosedContourByStraightPass(rectangle, start, end, 0), RangeError);
 assert.equal(cutClosedContourByStraightPass(rectangle, start, start, 4).ok, false);
 
-console.log('Straight pass-cut tests passed: through-cut, blind entry, two-circle path, exact parallel walls, angled path, invalid start and miss handling.');
+// The new no-bottom-wall mode keeps the two exact parallel pass walls but
+// removes the transverse end cap when the drag stops inside the smaller circle.
+const blindNoBottom = cutClosedContourByStraightPass(circle(70, 0, 15), start, end, width, { mode: 'noBottom' });
+assert.equal(blindNoBottom.ok, true, blindNoBottom.reason);
+assert.equal(blindNoBottom.fragments.length, 0, 'A blind no-bottom cut is stored as an open editable contour');
+assert.equal(blindNoBottom.openFragments.length, 1);
+assert.equal(blindNoBottom.metadata.bottomWallRemoved, true);
+const noBottomEdges = openEdges(blindNoBottom.openFragments[0]);
+assert.ok(noBottomEdges.some(e => Math.abs(e.a.y - width / 2) < 1e-7 && Math.abs(e.b.y - width / 2) < 1e-7), 'The upper straight side wall remains');
+assert.ok(noBottomEdges.some(e => Math.abs(e.a.y + width / 2) < 1e-7 && Math.abs(e.b.y + width / 2) < 1e-7), 'The lower straight side wall remains');
+assert.equal(noBottomEdges.some(e => Math.abs(e.a.x - end.x) < 1e-7 && Math.abs(e.b.x - end.x) < 1e-7), false, 'The blind end cap is omitted');
+for (const wallEdge of noBottomEdges.filter(e => Math.abs(e.a.y - e.b.y) < 1e-7 && Math.abs(Math.abs(e.a.y) - width / 2) < 1e-7)) {
+  near(wallEdge.a.y, wallEdge.b.y, 1e-9);
+}
+
+// A fully traversed profile stays split into closed pieces in no-bottom mode:
+// there is no blind end cap to remove, and the straight side walls remain.
+const throughNoBottom = cutClosedContourByStraightPass(circle(0, 0, 40), start, end, width, { mode: 'noBottom' });
+assert.equal(throughNoBottom.ok, true, throughNoBottom.reason);
+assert.equal(throughNoBottom.fragments.length, 2);
+assert.equal(throughNoBottom.openFragments.length, 0);
+
+// No-walls mode removes the newly generated longitudinal walls (and cap),
+// leaving only the original boundary pieces as open editable paths.
+const blindNoWalls = cutClosedContourByStraightPass(circle(70, 0, 15), start, end, width, { mode: 'noWalls' });
+assert.equal(blindNoWalls.ok, true, blindNoWalls.reason);
+assert.equal(blindNoWalls.fragments.length, 0);
+assert.equal(blindNoWalls.openFragments.length, 1);
+assert.equal(blindNoWalls.metadata.sideWallsRemoved, true);
+const noWallEdges = openEdges(blindNoWalls.openFragments[0]);
+assert.equal(noWallEdges.some(e => Math.abs(e.a.y - e.b.y) < 1e-7 && Math.abs(Math.abs(e.a.y) - width / 2) < 1e-7), false,
+  'No-walls mode must not add either straight side wall');
+const throughNoWalls = cutClosedContourByStraightPass(circle(0, 0, 40), start, end, width, { mode: 'noWalls' });
+assert.equal(throughNoWalls.ok, true, throughNoWalls.reason);
+assert.equal(throughNoWalls.fragments.length, 0);
+assert.equal(throughNoWalls.openFragments.length, 2, 'A through cut without walls leaves two open boundary arcs');
+assert.throws(() => cutClosedContourByStraightPass(circle(0, 0, 10), start, end, width, { mode: 'unknown' }), RangeError);
+
+console.log('Straight pass-cut tests passed: full walls, open-bottom walls, no-walls gaps, blind and through cuts, two-circle path, exact parallel walls, angled path and invalid paths.');

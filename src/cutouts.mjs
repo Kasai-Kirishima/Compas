@@ -814,18 +814,21 @@ export function createObroundCutout(center, overallLength, width, angle = 0, opt
  * Subtract a finite-width straight pass from a closed 2D contour.
  *
  * The pass is a rectangle swept from `start` to `end`, centred on that axis.
- * Starting outside a profile and ending inside it creates a blind, open-to-edge
- * slot with two exactly straight, parallel walls and a straight end cap. Passing
- * completely through a profile returns two or more independent closed loops.
+ * `mode: 'walls'` retains the conventional side walls and blind end cap;
+ * `mode: 'noBottom'` keeps the two exact parallel side walls but opens the blind
+ * end; `mode: 'noWalls'` removes only the original boundary spans covered by
+ * the strip and adds no new wall edges. Open results are returned in
+ * `openFragments`, through-cut regions in `fragments`.
  *
- * This operation is intentionally suited to a single straight machining pass
- * through several separately processed profiles (e.g. a large and a small
- * circle). Curved profile edges remain sampled polylines; the two slot walls
- * themselves are exact line segments parallel to the requested pass axis.
+ * This operation is suited to one straight pass through several separately
+ * processed profiles (e.g. a large and a small circle). Curved source edges
+ * remain sampled polylines; created side walls are exact segments parallel to
+ * the requested pass axis.
  */
 export function cutClosedContourByStraightPass(vertices, start, end, width, {
   eps = 1e-7,
   rejectStartInside = true,
+  mode = 'walls', // 'walls' | 'noBottom' | 'noWalls'
 } = {}) {
   if (!Array.isArray(vertices) || vertices.length < 3) {
     throw new TypeError('Для проходного выреза нужен замкнутый контур минимум из трёх точек');
@@ -841,6 +844,7 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
     }
   }
   positive(width, 'Ширина проходного выреза');
+  if (!['walls', 'noBottom', 'noWalls'].includes(mode)) throw new RangeError('Неподдерживаемый режим прямого проходного выреза');
   if (!Number.isFinite(eps) || eps <= 0) throw new TypeError('Допуск геометрии должен быть положительным числом');
 
   const clean = vertices.filter((p, i) => i === 0 || distance(p, vertices[i - 1]) > eps).map(p => ({ x: p.x, y: p.y }));
@@ -965,18 +969,88 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
   if (!(removedArea > Math.max(tol * tol, oldArea * 1e-12))) {
     return { ok: false, reason: 'Проход не удалил материал контура' };
   }
+
+  // Convert the conventional closed Boolean result into the requested open
+  // boundary style. The geometry is first fully stitched and area-checked;
+  // then only the generated cutter edges are removed. This keeps the circle's
+  // remaining sampled arc unchanged and leaves the two pass walls mathematically
+  // collinear with the requested drag axis.
+  const blindEnd = pointInPolygon(end, clean, tol);
+  const local = p => {
+    const rx = p.x - start.x, ry = p.y - start.y;
+    return { along: rx * ux + ry * uy, across: rx * nx + ry * ny };
+  };
+  const edgeIsSideWall = (a, b) => {
+    const A = local(a), B = local(b), dx = B.along - A.along, dy = B.across - A.across;
+    const len = Math.hypot(dx, dy);
+    return len > tol && Math.abs(dy) <= tol * 8 &&
+      Math.abs(Math.abs((A.across + B.across) / 2) - half) <= tol * 8 &&
+      Math.abs(dx) >= len - tol * 8 &&
+      Math.max(A.along, B.along) >= -tol * 8 && Math.min(A.along, B.along) <= passLength + tol * 8;
+  };
+  const edgeIsEndCap = (a, b) => {
+    const A = local(a), B = local(b);
+    return Math.abs(A.along - passLength) <= tol * 8 && Math.abs(B.along - passLength) <= tol * 8 &&
+      Math.abs(Math.abs(A.across) - half) <= tol * 8 && Math.abs(Math.abs(B.across) - half) <= tol * 8;
+  };
+  const edgeIsStartCap = (a, b) => {
+    const A = local(a), B = local(b);
+    return Math.abs(A.along) <= tol * 8 && Math.abs(B.along) <= tol * 8 &&
+      Math.abs(Math.abs(A.across) - half) <= tol * 8 && Math.abs(Math.abs(B.across) - half) <= tol * 8;
+  };
+  const openFragments = [], closedFragments = [];
+  for (const loop of loops) {
+    const n = loop.length;
+    const removeEdge = Array.from({ length: n }, (_, i) => {
+      const a = loop[i], b = loop[(i + 1) % n];
+      if (mode === 'noWalls') return edgeIsSideWall(a, b) || edgeIsEndCap(a, b) || edgeIsStartCap(a, b);
+      if (mode === 'noBottom') return blindEnd && edgeIsEndCap(a, b);
+      return false;
+    });
+    if (!removeEdge.some(Boolean)) { closedFragments.push(loop); continue; }
+    if (removeEdge.every(Boolean)) continue;
+    const kept = removeEdge.map(value => !value), visited = new Set();
+    for (let i = 0; i < n; i++) {
+      const previous = (i - 1 + n) % n;
+      if (!kept[i] || kept[previous]) continue;
+      const path = [{ ...loop[i] }]; let edgeIndex = i, guard = 0;
+      while (kept[edgeIndex] && !visited.has(edgeIndex) && guard++ <= n + 1) {
+        visited.add(edgeIndex);
+        path.push({ ...loop[(edgeIndex + 1) % n] });
+        edgeIndex = (edgeIndex + 1) % n;
+      }
+      const compact = path.filter((point, j) => j === 0 || distance(point, path[j - 1]) > tol);
+      if (compact.length >= 2) openFragments.push(compact);
+    }
+    // Defensive fallback for a directed cycle without a clean first open edge.
+    for (let i = 0; i < n; i++) {
+      if (!kept[i] || visited.has(i)) continue;
+      const path = [{ ...loop[i] }]; let edgeIndex = i, guard = 0;
+      while (kept[edgeIndex] && !visited.has(edgeIndex) && guard++ <= n + 1) {
+        visited.add(edgeIndex); path.push({ ...loop[(edgeIndex + 1) % n] }); edgeIndex = (edgeIndex + 1) % n;
+      }
+      const compact = path.filter((point, j) => j === 0 || distance(point, path[j - 1]) > tol);
+      if (compact.length >= 2) openFragments.push(compact);
+    }
+  }
+  if (!closedFragments.length && !openFragments.length) {
+    return { ok: false, reason: 'Режим выреза удалил всю границу контура; уменьши ширину или глубину прохода' };
+  }
   return {
     ok: true,
     operation: 'straight-pass-cut',
-    fragments: loops,
+    fragments: closedFragments,
+    openFragments,
     metadata: {
-      oldArea, newArea, removedArea, fragmentCount: loops.length, passLength,
-      width, start: { ...start }, end: { ...end },
+      oldArea, newArea, removedArea, fragmentCount: closedFragments.length, openFragmentCount: openFragments.length, passLength,
+      width, mode, start: { ...start }, end: { ...end },
       sideWalls: [
         { start: offset(start, 1), end: offset(end, 1) },
         { start: offset(start, -1), end: offset(end, -1) },
       ],
-      blindEnd: pointInPolygon(end, clean, tol),
+      blindEnd,
+      bottomWallRemoved: mode === 'noBottom' && blindEnd,
+      sideWallsRemoved: mode === 'noWalls',
     },
   };
 }
