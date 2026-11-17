@@ -134,6 +134,99 @@ export function cutPolygonNotch(polygon, edgeIndex, width, depth, {
   };
 }
 
+/**
+ * Cut an inward, open-to-edge notch into a circular boundary.
+ * The opening width is measured as the straight chord between its two mouth points;
+ * the side walls follow the circle's radial directions and the bottom is a chord.
+ * The circular arc is tessellated into a closed Polygon because the editor stores
+ * the resulting notched boundary as one editable polyline.
+ */
+export function cutCircleNotchAtPoint(circle, point, width, depth, {
+  hitTolerance = Infinity,
+  minWeb = 0,
+  segmentsPerTurn = 360,
+  eps = 1e-7,
+  style = circle?.style,
+} = {}) {
+  if (!(circle instanceof Circle)) throw new TypeError('Виріз по краю окружності підтримує лише об’єкт Circle');
+  if (circle.locked) return { ok: false, reason: 'Контур заблоковано' };
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+    throw new TypeError('Точка вирізу має містити координати x та y');
+  }
+  positive(width, 'Ширина вирізу');
+  positive(depth, 'Глибина вирізу');
+  if ((hitTolerance !== Infinity && (!Number.isFinite(hitTolerance) || hitTolerance < 0)) ||
+      !Number.isFinite(minWeb) || minWeb < 0 || !Number.isInteger(segmentsPerTurn) || segmentsPerTurn < 36) {
+    throw new TypeError('Неправильні параметри допуску, перемички або точності дуги');
+  }
+
+  const radius = circle.radius;
+  const radialDistance = distance(circle.center, point);
+  if (radialDistance <= eps) return { ok: false, reason: 'Щёлкните ближе к окружности, а не к её центру' };
+  if (Math.abs(radialDistance - radius) > hitTolerance) {
+    return { ok: false, reason: 'Клацніть ближче до лінії окружності' };
+  }
+  if (width >= 2 * radius - eps) {
+    return { ok: false, reason: 'Ширина выреза должна быть меньше диаметра окружности' };
+  }
+  if (depth >= radius - eps) {
+    return { ok: false, reason: 'Глубина выреза не должна достигать центра окружности' };
+  }
+
+  const halfAngle = Math.asin(width / (2 * radius));
+  const openingSweep = 2 * halfAngle;
+  const remainingArcLength = radius * (2 * Math.PI - openingSweep);
+  if (remainingArcLength < 2 * minWeb - eps) {
+    return { ok: false, reason: 'Слишком мало материала на оставшейся дуге для заданной минимальной перемычки' };
+  }
+
+  const angle = Math.atan2(point.y - circle.center.y, point.x - circle.center.x);
+  const a0 = angle - halfAngle;
+  const a1 = angle + halfAngle;
+  const innerRadius = radius - depth;
+  const pointAt = (r, a) => ({
+    x: circle.center.x + r * Math.cos(a),
+    y: circle.center.y + r * Math.sin(a),
+  });
+  const p0 = pointAt(radius, a0);
+  const q0 = pointAt(innerRadius, a0);
+  const q1 = pointAt(innerRadius, a1);
+  const p1 = pointAt(radius, a1);
+
+  const remainingSweep = 2 * Math.PI - openingSweep;
+  const segmentCount = Math.max(2, Math.ceil(segmentsPerTurn * remainingSweep / (2 * Math.PI)));
+  const vertices = [p0, q0, q1, p1];
+  // Walk the remaining outer arc in the same direction and close back to p0.
+  for (let i = 1; i < segmentCount; i++) {
+    const a = a1 + remainingSweep * i / segmentCount;
+    vertices.push(pointAt(radius, a));
+  }
+
+  if (!isSimplePolygon(vertices, eps)) {
+    return { ok: false, reason: 'Такой вырез создаёт самопересечение контура' };
+  }
+  const oldArea = Math.PI * radius * radius;
+  const newArea = Math.abs(signedArea(vertices));
+  if (!(newArea < oldArea - eps)) {
+    return { ok: false, reason: 'Не удалось корректно уменьшить площадь окружности' };
+  }
+
+  const replacement = new Polygon(vertices, {
+    style: style ?? circle.style,
+    visible: circle.visible,
+    locked: circle.locked,
+    ownerId: circle.ownerId ?? circle.id,
+  });
+  return {
+    ok: true,
+    operation: 'cutout',
+    remove: [circle.id],
+    add: [replacement],
+    removed: { circleId: circle.id, width, depth, angle, halfAngle },
+    metadata: { oldArea, newArea, removedArea: oldArea - newArea, remainingArcLength },
+  };
+}
+
 /** Pick the nearest polygon edge to the click and cut a centred notch there. */
 export function cutPolygonNotchAtPoint(polygon, point, width, depth, {
   hitTolerance = Infinity,

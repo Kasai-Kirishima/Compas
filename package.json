@@ -1,6 +1,6 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "private": true,
   "type": "module",
   "description": "2D mechanical CAD geometry core with reliable partial eraser targeting, parametric radial-slot cover template, trim, cutouts, OSNAP and history",

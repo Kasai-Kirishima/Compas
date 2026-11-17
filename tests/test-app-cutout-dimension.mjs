@@ -9,6 +9,8 @@ assert.match(html, /data-tool="cutout"/, 'The main editor must expose an edge-cu
 assert.match(html, /id="placeInnerCutoutBtn"/, 'The main editor must expose inner-contour placement');
 assert.match(html, /id="cutoutShape"[\s\S]*value="slot"/, 'Inner-contour selector must include an obround slot');
 assert.match(app, /cutPolygonNotchAtPoint/, 'Edge-cutout tool must call the polygon cutout engine');
+assert.match(app, /cutCircleNotchAtPoint/, 'Edge-cutout tool must call the circular boundary cutout engine');
+assert.match(app, /source\.type==='circle'[\s\S]*cutCircleNotchAtPoint/, 'Main editor must route circular selections to circular notch geometry');
 assert.match(app, /createRectangularPocket[\s\S]*createCircularCutout[\s\S]*createObroundCutout/, 'Inner rectangular, circular and obround contours must be connected');
 assert.match(app, /keepDimensionLabelClearOfLine/, 'Dimension labels must be kept clear of their dimension line automatically');
 assert.doesNotMatch(app, /data-dimension-text-mask|fill:\s*'#ffffff'[^\n]*dimension/, 'Dimension numbers must not have an opaque white background');

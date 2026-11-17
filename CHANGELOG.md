@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.3
+- Extended the main edge-cutout tool to circular boundaries; click the circumference to create a radial inward notch using the existing width, depth and minimum-web controls.
+- Converts the edited circle into a single smooth closed polyline while retaining its object ID, name, color and line width.
+- Added geometric and main-editor regression tests for valid and rejected circular notches.
+
 ## 1.5.2
 - Connected edge-notch and inner-contour tools to the main CAD editor UI.
 - Added editable edge-notch width, depth and minimum-web settings, plus rectangular, circular and obround inner-contour placement.

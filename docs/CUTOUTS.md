@@ -2,7 +2,9 @@
 
 The core supports two distinct 2D drafting workflows:
 
-1. **Edge notch (`cutPolygonNotch`)** — changes a closed `Polygon` boundary by inserting a rectangular open notch into one edge. The result is a single replacement polygon and is returned as a `SceneHistory` transaction.
+1. **Polygon edge notch (`cutPolygonNotch`)** — changes a closed `Polygon` boundary by inserting a rectangular open notch into one edge.
+2. **Circular edge notch (`cutCircleNotchAtPoint`)** — cuts an inward notch into a `Circle` at the clicked point on its circumference. The remaining arc is tessellated into one smooth closed `Polygon` so the editor can continue to edit it as a polyline.
+3. **Internal contour tools** — add separate rectangular, circular or obround closed contours.
 2. **Internal contour (`createRectangularPocket`, `createCircularCutout`, `createObroundCutout`)** — adds a closed inner contour representing a rectangular pocket, circular hole, or obround slot in a 2D engineering drawing.
 
 These tools edit 2D linework. They do not perform 3D solid Boolean subtraction and do not infer material removal in a filled CAD solid.
@@ -31,6 +33,22 @@ scene.apply(tx);
 
 The operation refuses invalid edits: locked polygons, a notch wider than its selected edge, a depth that leaves the original contour, self-intersecting output, or an insufficient web/edge margin.
 
+## Circular edge notch
+
+```js
+import { Circle, cutCircleNotchAtPoint } from './src/index.mjs';
+
+const outer = new Circle({ x: 0, y: 0 }, 50);
+const tx = cutCircleNotchAtPoint(outer, { x: 50, y: 0 }, 18, 10, {
+  hitTolerance: 3,
+  minWeb: 2
+});
+if (!tx.ok) throw new Error(tx.reason);
+// tx.add[0] is one closed Polygon with an inward-facing notch.
+```
+
+The width is the straight distance between the notch mouth points. The notch sides follow radial directions; the depth is measured inward from the circumference toward the circle centre. A click must land close to the circumference. Widths greater than or equal to the diameter and depths reaching the centre are rejected. The remaining outer arc is sampled at a fine angular step and stored as a closed polygonal contour.
+
 ## Inner contour tools
 
 ```js
@@ -50,7 +68,7 @@ For a standards-oriented drawing, keep inner hole contours as separate closed en
 ## Main editor workflow
 
 1. Open the **Редактирование → Вырез и отверстия** section.
-2. For an edge notch, set width/depth/minimum web, choose **Вырез по краю**, then click the edge of a closed rectangle or polygonal polyline.
+2. For an edge notch, set width/depth/minimum web, choose **Вырез по краю**, then click the edge of a closed rectangle or polygonal polyline, or click directly on a circle circumference to cut inward toward its centre.
 3. For an internal contour, choose rectangle/circle/slot, press **Разместить внутренний контур**, then click its centre.
 4. Use Undo if the result is not suitable.
 

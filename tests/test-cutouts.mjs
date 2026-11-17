@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
-import { cutPolygonNotch, cutPolygonNotchAtPoint, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 import { SceneHistory } from '../src/history.mjs';
 
 const near=(a,b,e=1e-7)=>assert.ok(Math.abs(a-b)<=e,`${a} != ${b}`);
@@ -37,6 +37,22 @@ assert.equal(cutPolygonNotch(new Polygon(rect.vertices,{locked:true}),0,10,5).ok
 assert.throws(()=>cutPolygonNotch(rect,99,10,5),RangeError);
 assert.throws(()=>cutPolygonNotch(rect,0,0,5),RangeError);
 
+// A circular outer boundary accepts an inward notch at the clicked circumference.
+const ring = new Circle({x:0,y:0},50,{id:'outer-ring',ownerId:'outer-ring'});
+const ringTx = cutCircleNotchAtPoint(ring,{x:50,y:0},20,12,{hitTolerance:2,minWeb:2});
+assert.equal(ringTx.ok,true);
+assert.deepEqual(ringTx.remove,['outer-ring']);
+assert(ringTx.add[0] instanceof Polygon);
+assert(ringTx.add[0].vertices.length > 200, 'Circular remainder should be smooth, not a coarse polygon');
+assert.ok(ringTx.metadata.newArea < ringTx.metadata.oldArea);
+assert.ok(ringTx.metadata.removedArea > 0);
+assert.ok(ringTx.add[0].vertices.some(p=>Math.abs(Math.hypot(p.x,p.y)-38)<1e-6), 'Notch base should be 12 mm inside the 50 mm radius');
+assert.equal(cutCircleNotchAtPoint(ring,{x:0,y:0},20,12,{hitTolerance:2}).ok,false, 'Centre click is not a valid circle edge target');
+assert.equal(cutCircleNotchAtPoint(ring,{x:30,y:0},20,12,{hitTolerance:2}).ok,false, 'Click too far from circumference should be rejected');
+assert.equal(cutCircleNotchAtPoint(ring,{x:50,y:0},120,12,{hitTolerance:2}).ok,false, 'A mouth wider than the diameter must be rejected');
+assert.equal(cutCircleNotchAtPoint(ring,{x:50,y:0},20,50,{hitTolerance:2}).ok,false, 'Depth reaching the centre must be rejected');
+assert.equal(cutCircleNotchAtPoint(new Circle({x:0,y:0},50,{locked:true}),{x:50,y:0},20,12,{hitTolerance:2}).ok,false);
+
 // Inner contour utilities stay separate from the outer boundary.
 const pocket=createRectangularPocket({x:20,y:25},30,12,Math.PI/6);
 assert.equal(pocket.length,1); assert(pocket[0] instanceof Polygon);
@@ -48,4 +64,4 @@ assert.equal(slot.length,4); assert(slot.every(o=>o.feature==='obround-cutout'))
 // The cutout edit is compatible with transactional Undo/Redo.
 const h=new SceneHistory([rect]); h.apply(tx); assert.equal(h.scene.length,1); assert.notEqual(h.scene[0].id,rect.id);
 h.undo(); assert.equal(h.scene[0].id,rect.id); h.redo(); assert.equal(h.scene[0].vertices.length,8);
-console.log('All profile cutout tests passed (8 groups).');
+console.log('All profile cutout tests passed (9 groups, including circular edge notches).');
