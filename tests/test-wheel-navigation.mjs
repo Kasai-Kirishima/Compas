@@ -16,5 +16,10 @@ assert.match(app,/drawingArea\.addEventListener\('wheel',[\s\S]*?\{capture:true,
 assert.doesNotMatch(app,/document\.addEventListener\('wheel'/,'wheel handling must not rely on document target delegation');
 assert.match(app,/setZoomAt\(state\.zoom\*wheelZoomFactor\(deltaY\),e\.clientX,e\.clientY\)/,'zoom must remain centred on the cursor');
 assert.match(app,/const MIN_ZOOM=\.1, MAX_ZOOM=32/,'manual zoom should allow deep zoom in and out');
+assert.match(app,/drawingArea\.addEventListener\('pointerdown',[\s\S]*?\{capture:true\}\)/,'pan gestures must be intercepted at the viewport in capture phase');
+assert.match(app,/if\(e\.button===1\|\|state\.space\)[\s\S]*?state\.pan=\{[\s\S]*?drawingArea\.setPointerCapture\(e\.pointerId\)/,'middle mouse and Space-drag must start viewport panning and capture the pointer');
+assert.match(app,/if\(state\.pan\)[\s\S]*?state\.pan\.pointerId!==undefined&&e\.pointerId!==state\.pan\.pointerId/,'only the captured pointer may move the viewport');
+assert.match(app,/function finishPan\(pointerId=null\)[\s\S]*?drawingArea\.classList\.remove\('dragging'\)[\s\S]*?persistAutosave\(\)/,'pan must clean up and persist the view on release');
+assert.match(app,/addEventListener\('pointercancel',onPointerUp\)/,'cancelled pointer gestures must also release panning');
 
-console.log('PASS: wheel zoom, legacy input, trackpad normalization and scoped capture');
+console.log('PASS: wheel zoom, trackpad normalization, middle-button pan and pointer capture');
