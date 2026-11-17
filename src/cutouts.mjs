@@ -828,6 +828,7 @@ export function createObroundCutout(center, overallLength, width, angle = 0, opt
 export function cutClosedContourByStraightPass(vertices, start, end, width, {
   eps = 1e-7,
   rejectStartInside = true,
+  autoReverseIfStartInside = false,
   mode = 'walls', // 'walls' | 'noBottom' | 'noWalls'
 } = {}) {
   if (!Array.isArray(vertices) || vertices.length < 3) {
@@ -857,8 +858,32 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
   const nx = -uy, ny = ux, half = width / 2;
   const area = signedArea(clean), orientationSign = Math.sign(area);
   if (Math.abs(area) <= eps) return { ok: false, reason: 'Площадь исходного контура слишком мала' };
-  if (rejectStartInside && pointInPolygon(start, clean, eps)) {
-    return { ok: false, reason: 'Начни проход снаружи контура, чтобы получить ровный входящий паз' };
+  const startInside = pointInPolygon(start, clean, eps);
+  const endInside = pointInPolygon(end, clean, eps);
+  if (rejectStartInside && startInside) {
+    // The UI accepts a drag from either side. If the user begins inside a
+    // profile and releases outside it, reverse the local pass direction so
+    // the opening is formed at the user's starting side rather than rejecting
+    // the operation. Through-cuts (both endpoints outside) are unchanged;
+    // a segment with both endpoints inside is still rejected as an internal
+    // pocket, which is a separate CAD operation.
+    if (autoReverseIfStartInside && !endInside) {
+      const reversed = cutClosedContourByStraightPass(clean, end, start, width, {
+        eps, rejectStartInside: true, autoReverseIfStartInside: false, mode,
+      });
+      if (!reversed.ok) return reversed;
+      return {
+        ...reversed,
+        metadata: {
+          ...reversed.metadata,
+          requestedStart: { ...start }, requestedEnd: { ...end },
+          directionReversed: true,
+        },
+      };
+    }
+    return { ok: false, reason: endInside
+      ? 'Обе точки прохода находятся внутри контура. Начни или закончи жест за пределами детали.'
+      : 'Начни проход снаружи контура, чтобы получить ровный входящий паз' };
   }
 
   const offset = (p, side) => ({ x: p.x + nx * half * side, y: p.y + ny * half * side });

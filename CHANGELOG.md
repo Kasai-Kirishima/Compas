@@ -1,3 +1,10 @@
+## 1.5.18 — произвольный угол и оба направления прямого прохода
+
+- Прямой проходной вырез принимает произвольный вектор жеста: вертикально, горизонтально и под любым диагональным углом; геометрия полосы и две боковые стенки строятся строго по фактическому направлению жеста.
+- Исправлена асимметрия направления для нескольких контуров: если начало жеста находится внутри конкретного профиля, а конец снаружи, направление прохода для этого профиля автоматически разворачивается. Это позволяет выполнять тот же проход с противоположной стороны, не меняя результат на остальных пересекаемых контурах.
+- Добавлена стрелка направления и отображение текущего угла в предпросмотре.
+- Добавлены регрессионные тесты на 17 направлений для режимов «Без нижней стенки», «Без стенок» и полного выреза, включая обратное направление на втором частично затронутом круге.
+
 ## 1.5.17
 - Added a mode selector to **Прямой проходной вырез**: **Без нижней стенки** (default) preserves two exact parallel side walls but removes the transverse blind-end cap, leaving an open editable path; **Без стенок** removes only the boundary spans covered by the pass and adds no new side lines.
 - Through-cuts retain closed split profiles in no-bottom mode; no-walls mode produces open boundary arcs. The selected mode is captured at pointer-down and applied consistently to all visible, unlocked intersected profiles in one undoable operation.

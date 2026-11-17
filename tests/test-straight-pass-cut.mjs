@@ -109,4 +109,58 @@ assert.equal(throughNoWalls.fragments.length, 0);
 assert.equal(throughNoWalls.openFragments.length, 2, 'A through cut without walls leaves two open boundary arcs');
 assert.throws(() => cutClosedContourByStraightPass(circle(0, 0, 10), start, end, width, { mode: 'unknown' }), RangeError);
 
-console.log('Straight pass-cut tests passed: full walls, open-bottom walls, no-walls gaps, blind and through cuts, two-circle path, exact parallel walls, angled path and invalid paths.');
+// Arbitrary-angle / bidirectional regression: rotate the same two-circle
+// operation around the origin, preserving one constant-width corridor. The
+// large circle is traversed, the small circle is entered only part-way.
+for (const degrees of [0, 15, 30, 45, 60, 90, 120, 135, 165, 180, 210, 225, 255, 270, 300, 315, 345]) {
+  const a = degrees * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
+  const startRot = { x: -60 * ux, y: -60 * uy };
+  const endRot = { x: 60 * ux, y: 60 * uy };
+  const bigRot = cutClosedContourByStraightPass(circle(0, 0, 40), startRot, endRot, width, { mode: 'noBottom' });
+  assert.equal(bigRot.ok, true, `angled through-cut at ${degrees}°: ${bigRot.reason}`);
+  assert.equal(bigRot.fragments.length, 2, `large circle separates at ${degrees}°`);
+  const side = bigRot.metadata.sideWalls[0], vx = side.end.x - side.start.x, vy = side.end.y - side.start.y;
+  near((endRot.x - startRot.x) * vy - (endRot.y - startRot.y) * vx, 0, 1e-5);
+
+  const smallCenter = { x: 70 * ux, y: 70 * uy };
+  const smallCircle = circle(smallCenter.x, smallCenter.y, 15);
+  const smallRot = cutClosedContourByStraightPass(smallCircle, startRot, endRot, width, { mode: 'noBottom' });
+  assert.equal(smallRot.ok, true, `angled blind entry at ${degrees}°: ${smallRot.reason}`);
+  assert.equal(smallRot.openFragments.length, 1, `small circle has open entry at ${degrees}°`);
+  assert.equal(smallRot.metadata.blindEnd, true);
+
+  // Reverse the user's drag. The small circle now sees its start point inside
+  // and its end outside; app mode must flip that individual contour direction.
+  const reverseRot = cutClosedContourByStraightPass(smallCircle, endRot, startRot, width, {
+    mode: 'noBottom', autoReverseIfStartInside: true,
+  });
+  assert.equal(reverseRot.ok, true, `reverse angled blind entry at ${degrees}°: ${reverseRot.reason}`);
+  assert.equal(reverseRot.openFragments.length, 1);
+  assert.equal(reverseRot.metadata.blindEnd, true);
+  assert.equal(reverseRot.metadata.directionReversed, true);
+
+  for (const mode of ['walls', 'noWalls']) {
+    const pass = cutClosedContourByStraightPass(circle(0, 0, 40), startRot, endRot, width, { mode });
+    assert.equal(pass.ok, true, `${mode} angled through-cut at ${degrees}°: ${pass.reason}`);
+    if (mode === 'walls') assert.equal(pass.fragments.length, 2);
+    else assert.equal(pass.openFragments.length, 2);
+    const blind = cutClosedContourByStraightPass(smallCircle, startRot, endRot, width, { mode });
+    assert.equal(blind.ok, true, `${mode} angled blind entry at ${degrees}°: ${blind.reason}`);
+    assert.ok(blind.openFragments.length === 1 || blind.fragments.length === 1);
+    const blindReverse = cutClosedContourByStraightPass(smallCircle, endRot, startRot, width, {
+      mode, autoReverseIfStartInside: true,
+    });
+    assert.equal(blindReverse.ok, true, `${mode} reverse angled blind entry at ${degrees}°: ${blindReverse.reason}`);
+    assert.ok(blindReverse.openFragments.length === 1 || blindReverse.fragments.length === 1);
+    assert.equal(blindReverse.metadata.directionReversed, true);
+  }
+}
+
+// The direct API remains conservative by default, while the editor opts into
+// safe per-profile direction reversal for a drag started inside one contour.
+const circleReverse = cutClosedContourByStraightPass(circle(0, 0, 20), { x: 0, y: 0 }, { x: 40, y: 0 }, 4, { autoReverseIfStartInside: true });
+assert.equal(circleReverse.ok, true, circleReverse.reason);
+assert.equal(circleReverse.metadata.directionReversed, true);
+assert.equal(circleReverse.metadata.blindEnd, true);
+
+console.log('Straight pass-cut tests passed: full walls, open-bottom walls, no-walls gaps, blind and through cuts, two-circle path, arbitrary-angle passes in 17 directions, reverse drag direction, exact parallel walls and invalid paths.');

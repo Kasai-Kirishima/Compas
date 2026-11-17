@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.17
+# CAD Geometry Core 1.5.18
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -68,7 +68,7 @@ A split cannot create a zero-length fragment. For concave profiles, the selected
 
 ## Straight pass-cut across multiple circles / profiles
 
-Choose **Прямой проходной вырез**, set its width, select a boundary mode, press the left mouse button outside the first profile, drag along the desired straight path, and release at the required depth. The same pass applies automatically to every visible, unlocked closed profile it intersects; no separate multi-selection is required. Lock or hide profiles that must be protected.
+Choose **Прямой проходной вырез**, set its width, select a boundary mode, press the left mouse button and drag along the desired straight path at any angle and from either side. If the drag begins inside a profile and ends outside it, the editor reverses the local direction for that profile so the open end remains on the starting side. The same pass applies automatically to every visible, unlocked closed profile it intersects; no separate multi-selection is required. Lock or hide profiles that must be protected.
 
 - **Без нижней стенки** (default) retains two exactly straight, parallel side walls. If the drag stops inside a later/smaller circle, the inner end cap is removed and the contour becomes an open editable polyline; both side walls remain and end freely at the release point. If the drag exits a profile completely, it becomes two closed editable pieces joined by the straight side walls.
 - **Без стенок** removes the original boundary portions covered by the pass corridor and adds no side walls or end cap. A blind entry leaves one open boundary arc; a complete through-cut leaves the two remaining boundary arcs as separate open editable paths.

@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.17",
+  "version": "1.5.18",
   "private": true,
   "type": "module",
-  "description": "2D mechanical CAD geometry with cursor-centred viewport zoom and pan, precision straight pass-cut with selectable no-bottom-wall and no-walls modes across multiple closed profiles, editable dimensions, three edge-cutout modes, batch cutting, splitting, duplicate placement and text insertion",
+  "description": "2D mechanical CAD geometry with cursor-centred viewport zoom and pan, arbitrary-angle and bidirectional straight pass-cut with selectable no-bottom-wall and no-walls modes across multiple closed profiles, editable dimensions, three edge-cutout modes, batch cutting, splitting, duplicate placement and text insertion",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/cad-geometry-trim.mjs",
