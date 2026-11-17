@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
-import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBottomAtPoint, cutCircleNotchWithoutBottomAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 import { SceneHistory } from '../src/history.mjs';
 
 const near=(a,b,e=1e-7)=>assert.ok(Math.abs(a-b)<=e,`${a} != ${b}`);
@@ -52,6 +52,37 @@ assert.equal(cutCircleNotchAtPoint(ring,{x:30,y:0},20,12,{hitTolerance:2}).ok,fa
 assert.equal(cutCircleNotchAtPoint(ring,{x:50,y:0},120,12,{hitTolerance:2}).ok,false, 'A mouth wider than the diameter must be rejected');
 assert.equal(cutCircleNotchAtPoint(ring,{x:50,y:0},20,50,{hitTolerance:2}).ok,false, 'Depth reaching the centre must be rejected');
 assert.equal(cutCircleNotchAtPoint(new Circle({x:0,y:0},50,{locked:true}),{x:50,y:0},20,12,{hitTolerance:2}).ok,false);
+
+// Third edge-cutout mode: side walls remain but the bottom/base line is removed.
+const openBaseRect=cutPolygonNotchWithoutBottomAtPoint(rect,{x:50,y:0},20,10,{hitTolerance:2,minWeb:1});
+assert.equal(openBaseRect.ok,true);
+assert.equal(openBaseRect.operation,'cutout-open-base');
+assert.equal(openBaseRect.metadata.bottomWallRemoved,true);
+assert.equal(openBaseRect.metadata.retainedSideWalls,true);
+assert.ok(Math.hypot(openBaseRect.path[0].x-openBaseRect.metadata.notch.innerEnd.x,openBaseRect.path[0].y-openBaseRect.metadata.notch.innerEnd.y)<1e-6);
+assert.ok(Math.hypot(openBaseRect.path.at(-1).x-openBaseRect.metadata.notch.innerStart.x,openBaseRect.path.at(-1).y-openBaseRect.metadata.notch.innerStart.y)<1e-6);
+assert.ok(openBaseRect.path.some((p,i)=>i>0&&Math.hypot(p.x-openBaseRect.metadata.notch.mouthEnd.x,p.y-openBaseRect.metadata.notch.mouthEnd.y)<1e-6), 'Right side wall is retained');
+assert.ok(openBaseRect.path.some((p,i)=>i>0&&Math.hypot(p.x-openBaseRect.metadata.notch.mouthStart.x,p.y-openBaseRect.metadata.notch.mouthStart.y)<1e-6), 'Left side wall is retained');
+const innerStart=openBaseRect.metadata.notch.innerStart,innerEnd=openBaseRect.metadata.notch.innerEnd;
+assert.equal(openBaseRect.path.slice(1).some((p,i)=>{
+  const q=openBaseRect.path[i];
+  return (Math.hypot(q.x-innerStart.x,q.y-innerStart.y)<1e-6&&Math.hypot(p.x-innerEnd.x,p.y-innerEnd.y)<1e-6)||
+    (Math.hypot(q.x-innerEnd.x,q.y-innerEnd.y)<1e-6&&Math.hypot(p.x-innerStart.x,p.y-innerStart.y)<1e-6);
+}),false,'The bottom/base connector is absent');
+const hasEdge=(a,b)=>openBaseRect.path.slice(1).some((p,i)=>{
+  const q=openBaseRect.path[i];
+  return (Math.hypot(q.x-a.x,q.y-a.y)<1e-6&&Math.hypot(p.x-b.x,p.y-b.y)<1e-6)||
+    (Math.hypot(q.x-b.x,q.y-b.y)<1e-6&&Math.hypot(p.x-a.x,p.y-a.y)<1e-6);
+});
+assert.equal(hasEdge(innerEnd,openBaseRect.metadata.notch.mouthEnd),true,'Right side wall remains connected');
+assert.equal(hasEdge(innerStart,openBaseRect.metadata.notch.mouthStart),true,'Left side wall remains connected');
+assert.equal(openBaseRect.path.slice(1).some((p,i)=>Math.hypot(p.x-openBaseRect.path[i].x,p.y-openBaseRect.path[i].y)<1e-8),false,'The open path has no zero-length segment');
+const openBaseCircle=cutCircleNotchWithoutBottomAtPoint(ring,{x:50,y:0},20,12,{hitTolerance:2,minWeb:2});
+assert.equal(openBaseCircle.ok,true,'A circular profile supports a notch without its bottom wall');
+assert.equal(openBaseCircle.metadata.bottomWallRemoved,true);
+assert.ok(openBaseCircle.path.length>200,'The circular open-base notch keeps a smooth remaining arc');
+assert.ok(Math.hypot(openBaseCircle.path[0].x-openBaseCircle.metadata.notch.innerEnd.x,openBaseCircle.path[0].y-openBaseCircle.metadata.notch.innerEnd.y)<1e-6);
+assert.ok(Math.hypot(openBaseCircle.path.at(-1).x-openBaseCircle.metadata.notch.innerStart.x,openBaseCircle.path.at(-1).y-openBaseCircle.metadata.notch.innerStart.y)<1e-6);
 
 // A second, deeper cut can be made directly in the floor of an existing notch.
 const nestedFirst=cutPolygonNotchAtPoint(rect,{x:50,y:0},20,10,{hitTolerance:2,minWeb:1});

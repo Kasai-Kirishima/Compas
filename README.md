@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.7
+# CAD Geometry Core 1.5.10
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -8,7 +8,7 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - finite line segments and centre lines;
 - circles and signed-sweep arcs;
 - regular and user-vertex polygons;
-- linear and diameter dimensions with text orientation, readable placement, decimal-comma formatting, and line gaps beneath labels.
+- linear and diameter dimensions with text orientation, readable placement, decimal-comma formatting, line gaps beneath labels, and the dedicated `⌀` diameter symbol (legacy `Ø` / Cyrillic `Ш` prefixes are normalized).
 
 ### Editing
 - Split open paths at any interior point, including the exact midpoint or very near an endpoint;
@@ -18,13 +18,17 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - partial freehand erasing for lines, centre lines, circles, arcs, polygon edges, and dimension linework;
 - safe single-target erasing (`eraseTargetAlongPath`) so a stroke does not affect unrelated nearby objects;
 - complete-object erasing is deliberately disabled by the UI eraser; use Delete for whole-object removal;
-- repeatable edge notches on rectangles (including rounded corners), circles, ellipses, and closed polylines; curved boundaries are tessellated and can receive notches wider than one sampled edge;
+- three edge-cutout modes on rectangles (including rounded corners), circles, ellipses, and closed polylines: full notch with both side walls and a bottom, open-bottom notch with side walls retained, and boundary opening without added walls;
+- batch edge-cutting: select several geometries and click once to project the click to each selected object's nearest boundary; each compatible selected object receives the same width/depth operation;
 - nested cutouts on existing notch walls and bases, with geometry checks that reject self-intersections;
 - width-defined gaps on open lines, arcs, construction/centre lines, breaklines, splines, freehand curves, and open polylines; the remaining fragments stay independently editable;
 - inner rectangular, circular, and obround cutout contours (available in the main editor as **Разместить внутренний контур**);
 - automatic dimension-label clearance without opaque white text masks or extra connector shelves;
 - dedicated duplicate placement for one or many selected objects, with cursor-following preview, click/drag placement, independent copied group IDs, `Ctrl+D`, Escape cancel, and Undo;
+- edit dimension arrowheads as filled triangles, open V-arrows, diagonal ticks, dots, or no arrow; the first and second ends can use independent styles and per-dimension size;
+- rotate only the dimension number from -360° to +360° without rotating the dimension line, extension lines, or measured geometry; reset the text rotation to 0°;
 - freely drag dimension numbers directly by the text in any 2D direction (along or perpendicular to the dimension line), including closer to or farther from the line;
+- insert multi-line text from the ribbon or annotation panel, press `T` to activate the text tool, or double-click an empty drawing area; adjust font, height, width, rotation, alignment, line/letter spacing, color, emphasis and frame; double-click an existing text object to edit it;
 - OSNAP endpoint, midpoint, centre, and intersection points;
 - bounded Undo/Redo history;
 - JSON scene export/import.
@@ -43,6 +47,12 @@ python -m http.server 8000
 
 Open <http://localhost:8000/> for the main CAD editor. The simplified demo remains available at <http://localhost:8000/examples/demo.html>.
 
+## Dimension arrowheads and independent label rotation
+
+Select a dimension and open **Параметры размера** in the object properties panel. Choose a common arrowhead style: filled triangle, open V, diagonal tick, dot, or none. The first and second arrowheads can override the common style independently, or inherit it. Adjust arrow size separately for each dimension.
+
+The **Поворот только цифры** field rotates the dimension label from -360° to +360° while leaving the dimension line, extension lines, measured points and arrowheads untouched. Use **Сбросить до 0°** to restore the default text angle. The setting works with linear, horizontal, vertical, radius, diameter and angular dimensions and is stored with the drawing.
+
 ## Duplicate objects and place dimension numbers
 
 Select one or more objects and choose **Дублировать** in the ribbon or editing panel, or press `Ctrl+D`. Move the pointer to see a live preview of the copies, then click to place them; dragging also places the copies at the final cursor position. Copies receive new object IDs and independent group IDs. Press `Escape` before placement to cancel. The completed operation is one Undo step.
@@ -57,7 +67,7 @@ A split cannot create a zero-length fragment. For concave profiles, the selected
 
 ## Cutouts: important distinction
 
-`cutPolygonNotch` modifies the boundary of one simple polygon by inserting a rectangular notch open to a selected edge. `createRectangularPocket`, `createCircularCutout`, and `createObroundCutout` create separate closed 2D contours for drafting holes or pockets.
+`cutPolygonNotch` modifies the boundary of one simple polygon by inserting a rectangular notch open to a selected edge. The main editor exposes three modes: full notch (two side walls plus the bottom edge), no-bottom-wall notch (two side walls remain while the bottom edge is removed and the contour is open), and no-walls gap (only an outer boundary segment is removed). Multi-selection batch mode applies the same width/depth to every selected editable object by projecting the click to each object's nearest boundary. `createRectangularPocket`, `createCircularCutout`, and `createObroundCutout` create separate closed 2D contours for drafting holes or pockets.
 
 These are 2D drafting tools, not 3D solid Boolean operations. Repeated and nested notches are stored in the same editable contour; a new cut that would create a self-intersection or leave the profile is rejected. Internal hole contours are separate linework, not an automatic polygon-minus-polygon Boolean subtraction.
 
@@ -71,7 +81,7 @@ The demo starts in Select mode. When Eraser is chosen, the first stroke is restr
 src/
   cad-geometry-trim.mjs  primitives, intersections, Trim, dimensions, transforms, OSNAP, JSON
   eraser.mjs             partial eraser and single-target safe wrapper
-  cutouts.mjs            closed-boundary notches, open-path gaps, open-path splitting, closed-profile splitting and inner contours
+  cutouts.mjs            three edge-notch modes, batch-ready boundary helpers, open-path gaps, splitting and inner contours
   templates.mjs          parametric mechanical drawing templates
   history.mjs            Undo/Redo transaction history
   index.mjs              public exports

@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.5.10
+- Added editable dimension arrowheads: filled triangles, open V-arrows, diagonal ticks, dots, or no arrow. The first and second endpoints can use independent overrides or inherit the common style.
+- Added per-dimension arrow size, independently adjustable from 0.8 to 12 mm.
+- Added independent dimension-number rotation from -360° to +360° with a one-click reset to 0°. It rotates only the label and does not rotate the dimension line or extension lines.
+- Applied label rotation consistently to linear, horizontal, vertical, radius, diameter and angular dimensions; label dragging and placement remain independent.
+- Added regression checks for the arrow-style controls, endpoint overrides, arrow size, and independent label rotation.
+
+
+## 1.5.9
+- Replaced the displayed diameter prefix with the dedicated Unicode diameter sign `⌀` in dimension labels, toolbar controls, tolerances and assignment examples. Legacy `Ø`, `ø` and Cyrillic `Ш/ш` prefixes are still accepted and normalized when reading diameter dimension labels.
+- Made text insertion more discoverable: the ribbon and annotation panel now say **Добавить текст**, the `T` key activates the text tool, and double-clicking an empty drawing area in Select mode opens the text editor at that point.
+- Retained multiline text entry and formatting for font, height, width, rotation, alignment, line spacing, letter spacing, color, bold/italic/underline/overline/strike and frame; existing text can be edited by double-clicking it.
+- Added regression tests for diameter glyph normalization and text insertion entry points.
+
+
+## 1.5.8
+- Added a third **Без нижней стенки** edge-cutout mode: both side walls remain while the bottom/base connector is omitted, producing one editable open contour. Works on polygonal profiles and circles.
+- Kept the existing full-notch mode (side walls + bottom line) and no-walls boundary-gap mode as separate controls with clearer labels.
+- Added one-click batch processing for multiple selected objects: the click point is projected to each selected object's nearest boundary/path and the same cut width/depth is applied to all compatible objects. Successful edits are committed as one Undo step; incompatible/locked objects are skipped.
+- Added core and main-editor regression tests for open-bottom notches on rectangles and circles, all three UI modes, and multi-selection batch projection.
+
 ## 1.5.7
 - Added a dedicated **Дублировать** placement workflow for one or many selected objects, available from the ribbon, editing panel, and `Ctrl+D`.
 - Duplicate placement displays a live cursor-following preview; click to place or drag to position. New IDs and independent group IDs are assigned to the copies; `Escape` cancels and Undo reverses the completed duplication.

@@ -711,9 +711,9 @@ function textMetrics(ctx, label, height) {
   return { width, height: Math.max(actualHeight, height) };
 }
 function dimensionLabel(dimension, value, diameter = false) {
-  if (dimension.text != null) return String(dimension.text);
+  if (dimension.text != null) return String(dimension.text).replace(/^\s*(?:Ш|ш|Ø|ø|⌀)\s*/u, '⌀');
   const number = formatDimensionValue(value, dimension);
-  return diameter ? `Ø${number}` : number;
+  return diameter ? `⌀${number}` : number;
 }
 
 /** Shared text-placement data, also used by the partial eraser for hit testing. */
@@ -863,7 +863,7 @@ export function drawDiameterDimension(ctx, dimension, { format = null, textPaddi
   let layout = null;
   if (dimension.showValue) {
     layout = getDimensionTextLayout(dimension);
-    if (format) layout.label = `Ø${String(format(g.value))}`;
+    if (format) layout.label = `⌀${String(format(g.value))}`;
     ctx.font = `${dimension.textHeight}px "GOST type B", "ISO 3098", sans-serif`;
   }
   const metrics = layout ? textMetrics(ctx, layout.label, dimension.textHeight) : { width: 0, height: 0 };

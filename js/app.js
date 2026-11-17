@@ -1,5 +1,5 @@
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
-import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBottomAtPoint, cutCircleNotchWithoutBottomAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 
 (() => {
   'use strict';
@@ -98,18 +98,32 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     el.setAttribute('fill',o.fill||'none'); el.setAttribute('stroke-linecap','round'); el.setAttribute('stroke-linejoin','round');
     if(o.dash) el.setAttribute('stroke-dasharray',o.dash);
   }
-  // ГОСТ 2.307: closed, filled triangular arrowhead for dimension lines.
-  // The included angle is 18 degrees (within the 15–20 degree range).
-  function dimensionArrow(g,x,y,ux,uy,color,size=2.5){
+  // Editable ГОСТ-style dimension arrowhead. The default remains a closed,
+  // filled triangle; each dimension can override the shape and size globally
+  // or independently at its first and second endpoints.
+  function dimensionArrow(g,x,y,ux,uy,color,size=2.5,style='filled'){
     const v=Math.hypot(ux,uy);
     if(!Number.isFinite(v)||v<1e-8||!Number.isFinite(size)||size<=0)return null;
+    style=['filled','open','tick','dot','none'].includes(style)?style:'filled';
+    if(style==='none')return null;
     ux/=v; uy/=v;
     const nx=-uy,ny=ux,half=size*Math.tan(9*Math.PI/180),baseX=x-ux*size,baseY=y-uy*size;
+    if(style==='dot')return add(g,'circle',{cx:x,cy:y,r:Math.max(.35,size*.22),fill:color,stroke:color,'stroke-width':.1,'data-dimension-arrow':'true','data-arrow-style':style});
+    if(style==='tick'){
+      const tx=(ux-uy)*.70710678,ty=(uy+ux)*.70710678,halfTick=size*.34;
+      return add(g,'path',{d:`M ${x-tx*halfTick} ${y-ty*halfTick} L ${x+tx*halfTick} ${y+ty*halfTick}`,fill:'none',stroke:color,'stroke-width':Math.max(.35,size*.13),'stroke-linecap':'round','data-dimension-arrow':'true','data-arrow-style':style});
+    }
+    const path=style==='open'
+      ? `M ${baseX+nx*half} ${baseY+ny*half} L ${x} ${y} L ${baseX-nx*half} ${baseY-ny*half}`
+      : `M ${x} ${y} L ${baseX+nx*half} ${baseY+ny*half} L ${baseX-nx*half} ${baseY-ny*half} Z`;
     return add(g,'path',{
-      d:`M ${x} ${y} L ${baseX+nx*half} ${baseY+ny*half} L ${baseX-nx*half} ${baseY-ny*half} Z`,
-      fill:color,stroke:color,'stroke-width':.12,'stroke-linejoin':'miter','vector-effect':'none',
-      'data-dimension-arrow':'true','data-arrow-standard':'gost-2.307'
+      d:path,fill:style==='filled'?color:'none',stroke:color,'stroke-width':style==='open'?Math.max(.35,size*.13):.12,'stroke-linejoin':'miter','vector-effect':'none',
+      'data-dimension-arrow':'true','data-arrow-standard':'gost-2.307','data-arrow-style':style
     });
+  }
+  function dimensionArrowStyle(o,end){
+    const specific=o[`arrow${end}Style`];
+    return ['filled','open','tick','dot','none'].includes(specific)?specific:(['filled','open','tick','dot','none'].includes(o.arrowStyle)?o.arrowStyle:'filled');
   }
   // ГОСТ 2.305: open V-shaped view-direction arrow, distinct from a dimension arrow.
   function viewDirectionArrow(g,x,y,ux,uy,color,size=5){
@@ -207,7 +221,8 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     const color=selected?'#078db2':(o.color||'#20252a');
     const kind=o.kind||'linear',thin=state.gost.thinLine;
     const textSize=clamp(Number(o.textSize)||state.gost.dimensionTextHeight||state.gost.textHeight||5,1.8,20);
-    const arrowSize=clamp(Number(state.gost.arrowLength)||3.5,2.5,5);
+    const arrowSize=clamp(Number(o.arrowSize)||Number(state.gost.arrowLength)||3.5,.8,12);
+    const labelRotationExtra=clamp(Number(o.labelRotationDeg)||0,-360,360);
     const extension=clamp(Number(o.extensionBeyond??2),1,5); // equal extension beyond the dimension line, ГОСТ 2.307-2011
     const extensionGap=clamp(Number(o.extensionGap??1),0,5);
     const makeLine=(a,b,width=thin)=>add(g,'line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:color,'stroke-width':width,fill:'none'});
@@ -224,21 +239,21 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
         // Diameter arrows terminate at the two opposite points of the circle.
         // Their tips point from the centre out towards the circular contour.
         const aSize=Math.min(arrowSize,Math.max(1.8,r*.48));
-        dimensionArrow(g,p1.x,p1.y,-ux,-uy,color,aSize);
-        dimensionArrow(g,p2.x,p2.y,ux,uy,color,aSize);
+        dimensionArrow(g,p1.x,p1.y,-ux,-uy,color,aSize,dimensionArrowStyle(o,'Start'));
+        dimensionArrow(g,p2.x,p2.y,ux,uy,color,aSize,dimensionArrowStyle(o,'End'));
         const label=dimensionNumber(o,2*r).trim().replace(/^(?:Ш|ш|Ø|ø|⌀)\s*/u,'');
-        // Normalize a manually entered legacy prefix so Ø is never duplicated or replaced by Cyrillic Ш.
+        // Normalize legacy diameter prefixes (including a mis-entered Cyrillic Ш) to the diameter sign ⌀.
         // ГОСТ 2.307-2011, 5.25: move the diameter number away from the line centre.
         const rawLabelX=cx-nx*(textSize*.85+1)+Number(o.labelDx||0),rawLabelY=cy-ny*(textSize*.85+1)+Number(o.labelDy||0);
-        const safeLabel=resolveDimensionLabelPosition(o,{x:rawLabelX,y:rawLabelY},p1,p2,`Ø${label}`,textSize,0,-1),labelX=safeLabel.x,labelY=safeLabel.y;
-        if(!o.hideValue){dimensionLabel(g,labelX,labelY,`Ø${label}`,textSize,color);drawDimensionLabelHandle(g,labelX,labelY,selected&&!o.locked,Math.max(textSize*1.5,(`Ø${label}`).length*textSize*.62),textSize);}
+        const safeLabel=resolveDimensionLabelPosition(o,{x:rawLabelX,y:rawLabelY},p1,p2,`⌀${label}`,textSize,labelRotationExtra,-1),labelX=safeLabel.x,labelY=safeLabel.y;
+        if(!o.hideValue){dimensionLabel(g,labelX,labelY,`⌀${label}`,textSize,color,labelRotationExtra);drawDimensionLabelHandle(g,labelX,labelY,selected&&!o.locked,Math.max(textSize*1.5,(`⌀${label}`).length*textSize*.62),textSize);}
       }else{
         // A radius dimension has one arrowhead at the measured arc.
-        dimensionArrow(g,p2.x,p2.y,ux,uy,color,arrowSize);
+        dimensionArrow(g,p2.x,p2.y,ux,uy,color,arrowSize,dimensionArrowStyle(o,'End'));
         const label=dimensionNumber(o,r).trim().replace(/^R\s*/i,'');
         const rawMx=(cx+p2.x)/2-nx*(textSize*.75+1)+Number(o.labelDx||0),rawMy=(cy+p2.y)/2-ny*(textSize*.75+1)+Number(o.labelDy||0);
-        const safeLabel=resolveDimensionLabelPosition(o,{x:rawMx,y:rawMy},{x:cx,y:cy},p2,`R${label}`,textSize,0,-1),mx=safeLabel.x,my=safeLabel.y;
-        if(!o.hideValue){dimensionLabel(g,mx,my,`R${label}`,textSize,color);drawDimensionLabelHandle(g,mx,my,selected&&!o.locked,Math.max(textSize*1.5,(`R${label}`).length*textSize*.62),textSize);}
+        const safeLabel=resolveDimensionLabelPosition(o,{x:rawMx,y:rawMy},{x:cx,y:cy},p2,`R${label}`,textSize,labelRotationExtra,-1),mx=safeLabel.x,my=safeLabel.y;
+        if(!o.hideValue){dimensionLabel(g,mx,my,`R${label}`,textSize,color,labelRotationExtra);drawDimensionLabelHandle(g,mx,my,selected&&!o.locked,Math.max(textSize*1.5,(`R${label}`).length*textSize*.62),textSize);}
       }
       return;
     }
@@ -255,12 +270,12 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
       add(g,'path',{d:`M ${p1.x} ${p1.y} A ${rad} ${rad} 0 ${delta>Math.PI?1:0} 1 ${p2.x} ${p2.y}`,fill:'none',stroke:color,'stroke-width':thin});
       const arcLen=rad*delta,aSize=Math.min(arrowSize,Math.max(1.4,arcLen*.32));
       // Tangents of the dimension arc: both tips face into the measured sector.
-      dimensionArrow(g,p1.x,p1.y,-Math.sin(start),Math.cos(start),color,aSize);
-      dimensionArrow(g,p2.x,p2.y,Math.sin(end),-Math.cos(end),color,aSize);
+      dimensionArrow(g,p1.x,p1.y,-Math.sin(start),Math.cos(start),color,aSize,dimensionArrowStyle(o,'Start'));
+      dimensionArrow(g,p2.x,p2.y,Math.sin(end),-Math.cos(end),color,aSize,dimensionArrowStyle(o,'End'));
       const mid=start+delta/2,rr=rad+textSize*.8+1.5;
       const label=dimensionNumber(o,delta*180/Math.PI).trim().replace(/°$/,'')+'°';
       const labelX=vx+Math.cos(mid)*rr+Number(o.labelDx||0),labelY=vy+Math.sin(mid)*rr+Number(o.labelDy||0);
-      if(!o.hideValue){dimensionLabel(g,labelX,labelY,label,textSize,color);drawDimensionLabelHandle(g,labelX,labelY,selected&&!o.locked,Math.max(textSize*1.5,label.length*textSize*.62),textSize);}
+      if(!o.hideValue){dimensionLabel(g,labelX,labelY,label,textSize,color,labelRotationExtra);drawDimensionLabelHandle(g,labelX,labelY,selected&&!o.locked,Math.max(textSize*1.5,label.length*textSize*.62),textSize);}
       return;
     }
 
@@ -294,22 +309,23 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
       // а размерная линия продолжается за ними.
       const start={x:ax-ux*(arrowSize+1),y:ay-uy*(arrowSize+1)},end={x:bx+ux*(arrowSize+1),y:by+uy*(arrowSize+1)};
       makeLine(start,end);
-      dimensionArrow(g,ax,ay,ux,uy,color,arrowSize);
-      dimensionArrow(g,bx,by,-ux,-uy,color,arrowSize);
+      dimensionArrow(g,ax,ay,ux,uy,color,arrowSize,dimensionArrowStyle(o,'Start'));
+      dimensionArrow(g,bx,by,-ux,-uy,color,arrowSize,dimensionArrowStyle(o,'End'));
     }else{
       // Внутреннее размещение: основания стрелок обращены к середине размера.
       makeLine({x:ax,y:ay},{x:bx,y:by});
-      dimensionArrow(g,ax,ay,-ux,-uy,color,arrowSize);
-      dimensionArrow(g,bx,by,ux,uy,color,arrowSize);
+      dimensionArrow(g,ax,ay,-ux,-uy,color,arrowSize,dimensionArrowStyle(o,'Start'));
+      dimensionArrow(g,bx,by,ux,uy,color,arrowSize,dimensionArrowStyle(o,'End'));
     }
     // Размерное число остаётся читаемым и автоматически отодвигается от размерной линии.
     const midX=(ax+bx)/2,midY=(ay+by)/2,labelOffset=textSize*.75+1;
     const baseX=midX-labelNx*labelOffset,baseY=midY-labelNy*labelOffset;
     const horizontal=(o.textOrientation||'horizontal')!=='aligned';
+    const finalLabelRotation=(horizontal?0:labelRotation)+labelRotationExtra;
     const rawLabel={x:baseX+Number(o.labelDx||0),y:baseY+Number(o.labelDy||0)};
-    const safeLabel=resolveDimensionLabelPosition(o,rawLabel,{x:ax,y:ay},{x:bx,y:by},label,textSize,horizontal?0:labelRotation,labelNx||1);
+    const safeLabel=resolveDimensionLabelPosition(o,rawLabel,{x:ax,y:ay},{x:bx,y:by},label,textSize,finalLabelRotation,labelNx||1);
     const lx=safeLabel.x,ly=safeLabel.y;
-    if(!o.hideValue){dimensionLabel(g,lx,ly,label,textSize,color,horizontal?0:labelRotation);
+    if(!o.hideValue){dimensionLabel(g,lx,ly,label,textSize,color,finalLabelRotation);
     drawDimensionLabelHandle(g,lx,ly,selected&&!o.locked,Math.max(textSize*1.5,String(label).length*textSize*.62),textSize);}
   }
   function renderObject(o){
@@ -395,7 +411,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     } else if(o.type==='roughness'){
       const s=o.size||5;add(g,'path',{d:`M ${o.x-s*.45} ${o.y+s*.25} L ${o.x} ${o.y-s*.45} L ${o.x+s*.45} ${o.y+s*.25} L ${o.x+s*1.8} ${o.y+s*.25}`,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});if(o.label)addText(g,o.x+s*.8,o.y-s*.5,o.label,o.textSize||state.gost.textHeight,c,'middle');
     } else if(o.type==='tolerance'){
-      const ts=o.textSize||state.gost.textHeight,w=Math.max(20,(o.text||'Ø0.05 | A').length*ts*.62+4),h=Math.max(7,ts*1.55);add(g,'rect',{x:o.x,y:o.y-h,width:w,height:h,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});addText(g,o.x+w/2,o.y-ts*.45,o.text||'Ø0.05 | A',ts,c);
+      const ts=o.textSize||state.gost.textHeight,w=Math.max(20,(o.text||'⌀0.05 | A').length*ts*.62+4),h=Math.max(7,ts*1.55);add(g,'rect',{x:o.x,y:o.y-h,width:w,height:h,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});addText(g,o.x+w/2,o.y-ts*.45,o.text||'⌀0.05 | A',ts,c);
     } else if(o.type==='weld'){
       add(g,'line',{x1:o.x,y1:o.y,x2:o.x+18,y2:o.y,stroke:c,'stroke-width':state.gost.thinLine});add(g,'path',{d:`M ${o.x+5} ${o.y} L ${o.x+9} ${o.y-5} L ${o.x+13} ${o.y} Z`,fill:'none',stroke:c,'stroke-width':state.gost.thinLine});addText(g,o.x+19,o.y-1,o.text||'a4',o.textSize||state.gost.textHeight,c,'start');
     } else if(o.type==='table'){
@@ -509,7 +525,26 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     $('noSelection').classList.toggle('hidden',arr.length>0);$('selectionFields').classList.toggle('hidden',arr.length===0);const refsOnly=arr.length>0&&arr.every(x=>x.type==='reference'),allRefsLocked=refsOnly&&arr.every(x=>x.locked);$('quickReferenceLockBtn').disabled=!refsOnly;$('quickReferenceLockBtn').innerHTML=refsOnly?(allRefsLocked?'<span>🔓</span>Разрешить движение':'<span>🔒</span>Запретить движение'):'<span>🔒</span>Блокировка';$('quickReferenceLockBtn').setAttribute('aria-pressed',String(!!allRefsLocked));$('quickReferenceLockBtn').title=refsOnly?(allRefsLocked?'Разблокировать выбранные референсы':'Закрепить выбранные референсы'):'Выберите референс, чтобы переключить перемещение';
     if(arr.length>1)$('noSelection').textContent=`Выбрано объектов: ${arr.length}`;
     else $('noSelection').textContent='Объект не выбран';
-    $('editTextFormatBtn').classList.toggle('hidden',!(o&&['text','techReq'].includes(o.type)));$('referenceSelectionFields').classList.toggle('hidden',!(o&&o.type==='reference'));$('dimensionSelectionFields').classList.toggle('hidden',!(o&&o.type==='dimension'));$('objectTextSizeField').classList.toggle('hidden',!!(o&&o.type==='dimension'));$('objectLocked').checked=!!(o&&o.locked);$('objectGeometryFields').classList.toggle('hidden',!o);if(o){$('dimensionArrowPlacement').value=['inside','outside','auto'].includes(o.arrowPlacement)?o.arrowPlacement:'auto';if(o.type==='dimension'){$('dimensionTextHeight').value=String(Number(o.textSize)||state.gost.dimensionTextHeight||state.gost.textHeight||5);$('dimensionTextOrientation').value=o.textOrientation||'horizontal';$('dimensionSelectedOffset').value=Number(o.offset)||10;$('dimensionExtensionGap').value=Number(o.extensionGap??1);$('dimensionExtensionBeyond').value=Number(o.extensionBeyond??2);$('dimensionLabelDx').value=Number(o.labelDx)||0;$('dimensionLabelDy').value=Number(o.labelDy)||0;$('dimensionShowValue').checked=o.hideValue!==true;}const derivedRotation=(o.type==='line'||o.type==='centerline'||o.type==='construction')?Math.atan2(o.y2-o.y,o.x2-o.x)*180/Math.PI:0;$('objectRotationAngle').value=mm(o.rotationTotal??o.rotation??derivedRotation);$('objectColor').value=o.color||'#20252a';$('objectWidth').value=o.width||.35;$('objectDash').value=o.linePattern==='wave'?'WAVE':o.linePattern==='zigzag'?'ZIGZAG':(o.dash||'');$('objectLayer').value=layerFor(o)==='reference'?'geometry':layerFor(o);$('objectName').value=o.name||'';$('objectTextSize').value=o.size||o.textSize||state.gost.textHeight||5;const box=objectBounds(o);if(box){$('objectBoxX').value=mm(box.x);$('objectBoxY').value=mm(box.y);$('objectBoxW').value=mm(Math.max(.1,box.w));$('objectBoxH').value=mm(Math.max(.1,box.h));}if(o.type==='reference'){$('referenceOpacity').value=Math.round((o.opacity??.35)*100);$('referenceOpacityValue').textContent=$('referenceOpacity').value+'%';$('referenceWidth').value=o.w||100;$('referenceHeight').value=o.h||60;$('referenceX').value=o.x||0;$('referenceY').value=o.y||0;$('referenceRotation').value=o.rotation||0;$('referenceLockStatus').textContent=o.locked?'🔒 Переміщення заборонено':'● Переміщення дозволено';$('referenceLockStatus').classList.toggle('locked',!!o.locked);$('referenceLockStatus').classList.toggle('unlocked',!o.locked);$('referenceLockBtn').textContent=o.locked?'🔓 Дозволити переміщення':'🔒 Заборонити переміщення';$('referenceLockBtn').setAttribute('aria-pressed',String(!!o.locked));$('quickReferenceLockBtn').disabled=false;$('quickReferenceLockBtn').innerHTML=o.locked?'<span>🔓</span>Дозволити рух':'<span>🔒</span>Заборонити рух';$('quickReferenceLockBtn').setAttribute('aria-pressed',String(!!o.locked));$('quickReferenceLockBtn').title=o.locked?'Клацніть, щоб дозволити переміщення референсу':'Клацніть, щоб заборонити переміщення референсу';$('referenceExportable').checked=!!o.exportable;$('referenceKeepAspect').checked=o.keepAspect!==false;}}
+    $('editTextFormatBtn').classList.toggle('hidden',!(o&&['text','techReq'].includes(o.type)));$('referenceSelectionFields').classList.toggle('hidden',!(o&&o.type==='reference'));$('dimensionSelectionFields').classList.toggle('hidden',!(arr.length>0&&arr.every(x=>x.type==='dimension')));$('objectTextSizeField').classList.toggle('hidden',arr.length>0&&arr.every(x=>x.type==='dimension'));$('objectLocked').checked=!!(o&&o.locked);$('objectGeometryFields').classList.toggle('hidden',!o);if(o){$('dimensionArrowPlacement').value=['inside','outside','auto'].includes(o.arrowPlacement)?o.arrowPlacement:'auto';if(o.type==='dimension'){$('dimensionTextHeight').value=String(Number(o.textSize)||state.gost.dimensionTextHeight||state.gost.textHeight||5);$('dimensionTextOrientation').value=o.textOrientation||'horizontal';$('dimensionSelectedOffset').value=Number(o.offset)||10;$('dimensionExtensionGap').value=Number(o.extensionGap??1);$('dimensionExtensionBeyond').value=Number(o.extensionBeyond??2);$('dimensionLabelDx').value=Number(o.labelDx)||0;$('dimensionLabelDy').value=Number(o.labelDy)||0;$('dimensionLabelRotation').value=Number(o.labelRotationDeg)||0;$('dimensionArrowStyle').value=['filled','open','tick','dot','none'].includes(o.arrowStyle)?o.arrowStyle:'filled';$('dimensionArrowStartStyle').value=['filled','open','tick','dot','none'].includes(o.arrowStartStyle)?o.arrowStartStyle:'inherit';$('dimensionArrowEndStyle').value=['filled','open','tick','dot','none'].includes(o.arrowEndStyle)?o.arrowEndStyle:'inherit';$('dimensionArrowSize').value=Number(o.arrowSize)||Number(state.gost.arrowLength)||3.5;$('dimensionShowValue').checked=o.hideValue!==true;}const derivedRotation=(o.type==='line'||o.type==='centerline'||o.type==='construction')?Math.atan2(o.y2-o.y,o.x2-o.x)*180/Math.PI:0;$('objectRotationAngle').value=mm(o.rotationTotal??o.rotation??derivedRotation);$('objectColor').value=o.color||'#20252a';$('objectWidth').value=o.width||.35;$('objectDash').value=o.linePattern==='wave'?'WAVE':o.linePattern==='zigzag'?'ZIGZAG':(o.dash||'');$('objectLayer').value=layerFor(o)==='reference'?'geometry':layerFor(o);$('objectName').value=o.name||'';$('objectTextSize').value=o.size||o.textSize||state.gost.textHeight||5;const box=objectBounds(o);if(box){$('objectBoxX').value=mm(box.x);$('objectBoxY').value=mm(box.y);$('objectBoxW').value=mm(Math.max(.1,box.w));$('objectBoxH').value=mm(Math.max(.1,box.h));}if(o.type==='reference'){$('referenceOpacity').value=Math.round((o.opacity??.35)*100);$('referenceOpacityValue').textContent=$('referenceOpacity').value+'%';$('referenceWidth').value=o.w||100;$('referenceHeight').value=o.h||60;$('referenceX').value=o.x||0;$('referenceY').value=o.y||0;$('referenceRotation').value=o.rotation||0;$('referenceLockStatus').textContent=o.locked?'🔒 Переміщення заборонено':'● Переміщення дозволено';$('referenceLockStatus').classList.toggle('locked',!!o.locked);$('referenceLockStatus').classList.toggle('unlocked',!o.locked);$('referenceLockBtn').textContent=o.locked?'🔓 Дозволити переміщення':'🔒 Заборонити переміщення';$('referenceLockBtn').setAttribute('aria-pressed',String(!!o.locked));$('quickReferenceLockBtn').disabled=false;$('quickReferenceLockBtn').innerHTML=o.locked?'<span>🔓</span>Дозволити рух':'<span>🔒</span>Заборонити рух';$('quickReferenceLockBtn').setAttribute('aria-pressed',String(!!o.locked));$('quickReferenceLockBtn').title=o.locked?'Клацніть, щоб дозволити переміщення референсу':'Клацніть, щоб заборонити переміщення референсу';$('referenceExportable').checked=!!o.exportable;$('referenceKeepAspect').checked=o.keepAspect!==false;}}
+    // Dimension controls remain available for a multi-selection containing only
+    // dimensions; edits are applied to every unlocked selected dimension.
+    const dimensionSample=arr.length>0&&arr.every(x=>x.type==='dimension')?arr[0]:null;
+    if(dimensionSample&&arr.length>1){
+      $('dimensionArrowPlacement').value=['inside','outside','auto'].includes(dimensionSample.arrowPlacement)?dimensionSample.arrowPlacement:'auto';
+      $('dimensionTextHeight').value=String(Number(dimensionSample.textSize)||state.gost.dimensionTextHeight||state.gost.textHeight||5);
+      $('dimensionTextOrientation').value=dimensionSample.textOrientation||'horizontal';
+      $('dimensionSelectedOffset').value=Number(dimensionSample.offset)||10;
+      $('dimensionExtensionGap').value=Number(dimensionSample.extensionGap??1);
+      $('dimensionExtensionBeyond').value=Number(dimensionSample.extensionBeyond??2);
+      $('dimensionLabelDx').value=Number(dimensionSample.labelDx)||0;
+      $('dimensionLabelDy').value=Number(dimensionSample.labelDy)||0;
+      $('dimensionLabelRotation').value=Number(dimensionSample.labelRotationDeg)||0;
+      $('dimensionArrowStyle').value=['filled','open','tick','dot','none'].includes(dimensionSample.arrowStyle)?dimensionSample.arrowStyle:'filled';
+      $('dimensionArrowStartStyle').value=['filled','open','tick','dot','none'].includes(dimensionSample.arrowStartStyle)?dimensionSample.arrowStartStyle:'inherit';
+      $('dimensionArrowEndStyle').value=['filled','open','tick','dot','none'].includes(dimensionSample.arrowEndStyle)?dimensionSample.arrowEndStyle:'inherit';
+      $('dimensionArrowSize').value=Number(dimensionSample.arrowSize)||Number(state.gost.arrowLength)||3.5;
+      $('dimensionShowValue').checked=dimensionSample.hideValue!==true;
+    }
   }
   function applySelectedGeometry(){
     const selected=getSelected();if(selected.length!==1){setMessage('Для точного ввода габаритов выберите один объект');return;}
@@ -671,7 +706,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     const tx=cutClosedBoundaryGapAtPoint(points,point,width,options);
     return tx.ok?{ok:true,points:tx.path,metadata:tx.metadata}:tx;
   }
-  function applyEdgeCutout(point,clickedId=null,withWalls=true){
+  function applyEdgeCutout(point,clickedId=null,mode='walls'){
     const clicked=clickedId?state.objects.find(o=>o.id===clickedId):null;
     const isEditable=o=>!!o&&(isCuttableBoundary(o)||isCuttableOpenPath(o));
     const selected=getSelected().filter(isEditable);
@@ -681,18 +716,21 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     if(!targets.length){setMessage('Щёлкните по геометрии или заранее выделите один или несколько объектов.');return false;}
     const width=Number($('cutoutNotchWidth').value),depth=Number($('cutoutNotchDepth').value),minWeb=Number($('cutoutMinWeb').value);
     if(!Number.isFinite(width)||width<=0||!Number.isFinite(depth)||depth<=0||!Number.isFinite(minWeb)||minWeb<0){setMessage('Введите положительные ширину и глубину, а также неотрицательную перемычку.');return false;}
-    const hitTolerance=clamp(7/Math.max(.25,state.zoom),1.5,9),before=snapshot(),successes=[],failures=[];
+    const hitTolerance=clamp(7/Math.max(.25,state.zoom),1.5,9),batch=targets.length>1,before=snapshot(),successes=[],failures=[];
+    // In a multi-selection batch, one click is the shared placement reference:
+    // each selected object's closest boundary/path point receives the same cut.
+    const tolerance=batch?Infinity:hitTolerance;
     for(const source of targets){
       if(source.locked){failures.push('объект заблокирован');continue;}
       if(isCuttableOpenPath(source)){
-        const path=appOpenPathPoints(source),tx=cutOpenPathGapAtPoint(path,point,width,{hitTolerance});
+        const path=appOpenPathPoints(source),tx=cutOpenPathGapAtPoint(path,point,width,{hitTolerance:tolerance});
         if(!tx.ok){failures.push(tx.reason||'разрез не попал в открытую линию');continue;}
         if(!replaceWithOpenFragments(source,tx.fragments)){failures.push('не удалось обновить открытую линию');continue;}
         successes.push({id:source.id,parts:tx.fragments.length,removed:mm(tx.metadata.removedLength)});
         continue;
       }
-      if(!withWalls){
-        const contour=appClosedContourPoints(source),tx=cutClosedBoundaryWithoutWalls(contour,point,width,{hitTolerance});
+      if(mode==='noWalls'){
+        const contour=appClosedContourPoints(source),tx=cutClosedBoundaryWithoutWalls(contour,point,width,{hitTolerance:tolerance});
         if(!tx.ok){failures.push(tx.reason||'не удалось удалить участок границы');continue;}
         if(!replaceWithOpenFragments(source,[tx.points])){failures.push('не удалось преобразовать контур в открытую линию');continue;}
         successes.push({id:source.id,parts:1,removed:mm(tx.metadata.removedLength)});
@@ -702,22 +740,31 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
       if(source.type==='circle'){
         const radius=Math.hypot(source.x2-source.x,source.y2-source.y);
         const circle=new Circle({x:source.x,y:source.y},radius,{id:source.id,ownerId:source.id,locked:source.locked,style:{stroke:source.color||'#20252a',lineWidth:source.width||state.gost.mainLine,lineDash:[]}});
-        tx=cutCircleNotchAtPoint(circle,point,width,depth,{hitTolerance,minWeb});
+        tx=mode==='noBottom'
+          ?cutCircleNotchWithoutBottomAtPoint(circle,point,width,depth,{hitTolerance:tolerance,minWeb})
+          :cutCircleNotchAtPoint(circle,point,width,depth,{hitTolerance:tolerance,minWeb});
       }else{
         const polygon=appContourToPolygon(source);
-        tx=cutPolygonNotchAtPoint(polygon,point,width,depth,{hitTolerance,minWeb});
+        tx=mode==='noBottom'
+          ?cutPolygonNotchWithoutBottomAtPoint(polygon,point,width,depth,{hitTolerance:tolerance,minWeb})
+          :cutPolygonNotchAtPoint(polygon,point,width,depth,{hitTolerance:tolerance,minWeb});
       }
       if(!tx.ok){failures.push(tx.reason||'не удалось выполнить вырез');continue;}
-      source.type='polyline';source.points=tx.add[0].vertices.map(p=>({x:mm(p.x),y:mm(p.y)}));source.closed=true;
-      delete source.x;delete source.y;delete source.x2;delete source.y2;delete source.rx;
-      source.name=source.name||'Контур с вырезом';
+      if(mode==='noBottom'){
+        if(!replaceWithOpenFragments(source,[tx.path])){failures.push('не удалось создать вырез без нижней стенки');continue;}
+      }else{
+        const replacement=tx.add[0];
+        source.type='polyline';source.points=replacement.vertices.map(p=>({x:mm(p.x),y:mm(p.y)}));source.closed=true;
+        delete source.x;delete source.y;delete source.x2;delete source.y2;delete source.rx;
+        source.name=source.name||'Контур с вырезом';
+      }
       successes.push({id:source.id,parts:1,removed:mm(width)});
     }
     if(!successes.length){setMessage(failures[0]||'Не удалось выполнить операцию');return false;}
-    state.selectedIds=successes.flatMap(x=>state.objects.filter(o=>o.id===x.id).map(o=>o.id));
+    state.selectedIds=[...new Set(successes.flatMap(x=>state.objects.filter(o=>o.id===x.id).map(o=>o.id)))];
     commit(before);renderAll();
-    const mode=withWalls?'Вырез с боковыми стенками':'Вырез без стенок';
-    setMessage(`${mode}: обработано объектов ${successes.length}${failures.length?` · пропущено ${failures.length}`:''}. Можно продолжать вырезать этот же контур и другие выбранные объекты.`);
+    const modeLabel=mode==='noWalls'?'Вырез без стенок':mode==='noBottom'?'Вырез без нижней стенки':'Полный вырез (боковые и нижняя стенки)';
+    setMessage(`${modeLabel}: обработано объектов ${successes.length}${batch?' · пакетный режим':''}${failures.length?` · пропущено ${failures.length}`:''}. При нескольких выбранных объектах один щелчок проецируется на ближайшую границу каждого объекта. Можно продолжать вырезать этот же контур и другие выбранные объекты.`);
     return true;
   }
   function cutoutPrimitivesToAppObjects(primitives,shape){
@@ -764,7 +811,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     addObject({type:'hatch',name:'Штриховка',points,closed:true,pattern:$('hatchPattern').value,angle:Number($('hatchAngle').value)||45,spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a',layer:'annotation',boundaryOf:src.id});
     setMessage('Штриховка создана внутри выделенного контура. Контур сохранён отдельно.');
   }
-  function selectTool(tool){if(state.duplicatePlacement&&tool!=='select'){state.duplicatePlacement=null;previewLayer.innerHTML='';}state.tool=tool;if(tool!=='select')state.referenceCalibration=null;state.points=[];state.freehandDraft=null;state.splitPending=null;previewLayer.innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор: щелчок — объект, Shift — добавить, рамка — выделить область. Размерное число можно перетаскивать прямо за цифры или голубую ручку в любом направлении.',cutoutNoWalls:'Вырез без стенок: удалите участок границы без боковых соединительных линий. Выделите несколько объектов и щёлкайте по ним последовательно; совпадающие места можно обработать одним щелчком.',split:'Разделить объект: по открытой линии щёлкните один раз в любом месте, в том числе точно посередине. По замкнутому контуру щёлкните две точки границы — объект разделится на две самостоятельные замкнутые части.',cutout:'Вырез/разрез: щёлкните по границе замкнутой детали или по отрезку, дуге либо открытой линии. На замкнутом контуре паз уходит внутрь; на открытой линии удаляется участок заданной ширины. Можно повторять на уже вырезанных контурах и оставшихся фрагментах.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная прямая: две точки',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',polygon:'Многоугольник: центр и радиус',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Текст: щёлкните на листе',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Прямоугольная штриховка: укажите два противоположных угла. Для замкнутого контура выделите его и нажмите «Заштриховать выделенный контур»',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
+  function selectTool(tool){if(state.duplicatePlacement&&tool!=='select'){state.duplicatePlacement=null;previewLayer.innerHTML='';}state.tool=tool;if(tool!=='select')state.referenceCalibration=null;state.points=[];state.freehandDraft=null;state.splitPending=null;previewLayer.innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор: щелчок — объект, Shift — добавить, рамка — выделить область. Размерное число можно перетаскивать прямо за цифры или голубую ручку в любом направлении.',cutoutNoWalls:'Вырез без стенок: удаляется участок границы без боковых и нижней линий. Выделите несколько объектов и щёлкните один раз — каждый получит вырез у ближайшей к курсору границы.',cutoutNoBottom:'Вырез без нижней стенки: сохраняются обе боковые линии паза, но нижняя соединительная линия отсутствует. При нескольких выделенных объектах один щелчок применяет вырез ко всем по ближайшей точке границы.',split:'Разделить объект: по открытой линии щёлкните один раз в любом месте, в том числе точно посередине. По замкнутому контуру щёлкните две точки границы — объект разделится на две самостоятельные замкнутые части.',cutout:'Полный вырез: на замкнутом контуре остаются две боковые стенки и нижняя соединительная линия. На открытой линии удаляется участок заданной ширины. При нескольких выделенных объектах один щелчок применяется ко всем по ближайшей точке.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная прямая: две точки',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',polygon:'Многоугольник: центр и радиус',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Добавить текст: выберите инструмент (или нажмите T), затем щёлкните по листу. Двойной щелчок по пустому месту также откроет редактор надписи',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Прямоугольная штриховка: укажите два противоположных угла. Для замкнутого контура выделите его и нажмите «Заштриховать выделенный контур»',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
   function snapToObjects(p){if(!state.objectSnap)return p;const candidates=[];for(const o of state.objects){if(o.points){o.points.forEach(q=>candidates.push(q));}else if(o.type==='circle'){candidates.push({x:o.x,y:o.y});candidates.push({x:(o.x+o.x2)/2,y:(o.y+o.y2)/2});}else if(o.type==='rect'||o.type==='line'||o.type==='construction'||o.type==='centerline'){const a={x:o.x,y:o.y},b={x:o.x2,y:o.y2};candidates.push(a,b,{x:(a.x+b.x)/2,y:(a.y+b.y)/2});}else if(o.type==='ellipse'){candidates.push({x:(o.x+o.x2)/2,y:(o.y+o.y2)/2});}}
     let best=null,dist=2.1;candidates.forEach(q=>{const d=Math.hypot(q.x-p.x,q.y-p.y);if(d<dist){dist=d;best=q;}});return best?{x:mm(best.x),y:mm(best.y)}:p;}
   function pointFromEvent(e,raw=false){const r=svg.getBoundingClientRect(),d=dimensions();let x=(e.clientX-r.left)/r.width*d.w,y=(e.clientY-r.top)/r.height*d.h;const step=gridStep();if(raw)return{x:mm(x),y:mm(y)};if(state.snap){x=Math.round(x/step)*step;y=Math.round(y/step)*step;}const a=state.points[state.points.length-1];const lineTools=['line','polyline','spline','construction','centerline','breakline','section','dimension','dimAuto','dimH','dimV'];if(a&&e.shiftKey&&lineTools.includes(state.tool)){const angleStep=clamp(Number($('angleStep').value)||15,1,90)*Math.PI/180,dx=x-a.x,dy=y-a.y,len=Math.hypot(dx,dy),angle=Math.atan2(dy,dx),snapped=Math.round(angle/angleStep)*angleStep;x=a.x+Math.cos(snapped)*len;y=a.y+Math.sin(snapped)*len;}if(a&&state.ortho&&lineTools.includes(state.tool)){if(Math.abs(x-a.x)>=Math.abs(y-a.y))y=a.y;else x=a.x;}if(a&&state.ruler&&state.rulerMode!=='off'&&lineTools.includes(state.tool)){let ux=state.ruler.b.x-state.ruler.a.x,uy=state.ruler.b.y-state.ruler.a.y,len=Math.hypot(ux,uy)||1;ux/=len;uy/=len;if(state.rulerMode==='perpendicular'){const t=ux;ux=-uy;uy=t;}const dx=x-a.x,dy=y-a.y,t=dx*ux+dy*uy;x=a.x+ux*t;y=a.y+uy*t;}const p={x:mm(x),y:mm(y)};return snapToObjects(p);}
@@ -905,11 +952,11 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
       let matched=0,missing=0,invalid=0;
       assignmentLines.forEach(line=>{
         const normalized=line.replace(/,/g,'.');
-        const prefix=(normalized.match(/^\s*(Ø|⌀|R|D|∠)/i)||[])[1]||'';
+        const prefix=(normalized.match(/^\s*(⌀|Ø|ø|Ш|ш|R|D|∠)/i)||[])[1]||'';
         const suffixAngle=/°\s*$/.test(normalized);
         const num=normalized.match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/);
-        if(!num){invalid++;warnings.push(`Не вдалося прочитати очікуваний розмір «${line}». Введіть число або префікс Ø, R чи кут у градусах.`);return;}
-        const expected=Number(num[0]),type=/^(Ø|⌀|D)$/i.test(prefix)?'diameter':/^R$/i.test(prefix)?'radius':(/^∠$/i.test(prefix)||suffixAngle)?'angle':'length';
+        if(!num){invalid++;warnings.push(`Не вдалося прочитати очікуваний розмір «${line}». Введіть число або префікс ⌀, R чи кут у градусах.`);return;}
+        const expected=Number(num[0]),type=/^(?:⌀|Ø|ø|Ш|ш|D)$/i.test(prefix)?'diameter':/^R$/i.test(prefix)?'radius':(/^∠$/i.test(prefix)||suffixAngle)?'angle':'length';
         const candidates=actual.filter(a=>!a.used&&(!type||a.type===type));
         const tolerance=type==='angle'||suffixAngle?0.1:Math.max(.05,Math.abs(expected)*.0005);
         let best=null,bestDiff=Infinity;candidates.forEach(a=>{const diff=Math.abs(a.value-expected);if(diff<bestDiff){best=a;bestDiff=diff;}});
@@ -919,7 +966,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
       if(matched===assignmentLines.length)passed.push(`Проверка задания: совпали все ${matched} ожидаемых размеров.`);
       else warnings.push(`Проверка задания: совпало ${matched} из ${assignmentLines.length} ожидаемых размеров; не совпало/не найдено ${missing}.`);
       if(invalid)warnings.push(`В списке задания есть ${invalid} некорректных строк.`);
-    }else info.push('Размеры задания не заданы. Для сравнения с листом преподавателя внесите Ø, R, угловые и линейные значения в поле «Проверка размеров по заданию».');
+    }else info.push('Размеры задания не заданы. Для сравнения с листом преподавателя внесите ⌀, R, угловые и линейные значения в поле «Проверка размеров по заданию».');
     const dimensionKinds=new Set(['linear','horizontal','vertical','radius','diameter','angular']);
     const malformed=dims.filter(o=>!dimensionKinds.has(o.kind||'linear')||!Number.isFinite(Number(o.x))||!Number.isFinite(Number(o.y))||!Number.isFinite(Number(o.x2))||!Number.isFinite(Number(o.y2)));
     if(malformed.length)errors.push(`${malformed.length} розмірів мають неповні координати або невідомий тип.`);
@@ -1153,9 +1200,10 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     }
     const target=e.target.closest('[data-id]');
     if(state.tool==='split'){const raw=pointFromEvent(e,true),clickedId=target?.getAttribute('data-id')||null;applySplitTool(raw,clickedId);return;}
-    if(state.tool==='cutout'||state.tool==='cutoutNoWalls'){
+    if(state.tool==='cutout'||state.tool==='cutoutNoWalls'||state.tool==='cutoutNoBottom'){
       const p=pointFromEvent(e),clickedId=target?.getAttribute('data-id')||null;
-      applyEdgeCutout(p,clickedId,state.tool==='cutout');return;
+      const mode=state.tool==='cutoutNoWalls'?'noWalls':state.tool==='cutoutNoBottom'?'noBottom':'walls';
+      applyEdgeCutout(p,clickedId,mode);return;
     }
     if(state.tool==='cutoutInner'){placeInnerCutout(pointFromEvent(e));return;}
     if(state.tool==='select'){
@@ -1167,7 +1215,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     if(state.tool==='text'||state.tool==='roughness'||state.tool==='tolerance'||state.tool==='weld'||state.tool==='centerMark'||state.tool==='table'){
       if(state.tool==='text'){openTextDialog({x:p.x,y:p.y},null);}
       if(state.tool==='roughness'){const value=prompt('Обозначение шероховатости:','Ra 3,2');if(value!==null)addObject({type:'roughness',x:p.x,y:p.y,label:value,size:5,layer:'annotation'});}
-      if(state.tool==='tolerance'){const value=prompt('Значение допуска (например Ø0.05 | A):','Ø0.05 | A');if(value!==null)addObject({type:'tolerance',x:p.x,y:p.y,text:value,layer:'annotation'});}
+      if(state.tool==='tolerance'){const value=prompt('Значение допуска (например ⌀0.05 | A):','⌀0.05 | A');if(value!==null)addObject({type:'tolerance',x:p.x,y:p.y,text:value,layer:'annotation'});}
       if(state.tool==='weld'){const value=prompt('Параметр сварного шва:','a4');if(value!==null)addObject({type:'weld',x:p.x,y:p.y,text:value,layer:'annotation'});}
       if(state.tool==='centerMark')addObject({type:'centerMark',x:p.x,y:p.y,size:5,layer:'annotation'});
       if(state.tool==='table'){const rows=clamp(Number(prompt('Количество строк:','3'))||3,1,20),cols=clamp(Number(prompt('Количество столбцов:','3'))||3,1,12);addObject({type:'table',x:p.x,y:p.y,rows,cols,w:60,h:Math.max(10,rows*7),cells:Array(rows*cols).fill(''),layer:'annotation'});}
@@ -1777,11 +1825,17 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
   $('applyObjectGeometryBtn').addEventListener('click',applySelectedGeometry);
   $('objectColor').addEventListener('change',e=>{const o=getSelected()[0];if(o){commit();getSelected().forEach(x=>x.color=e.target.value);renderAll();}});
   $('objectTextSize').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>{const requested=clamp(Number(e.target.value)||5,.5,50);if(['text','techReq'].includes(o.type))o.size=requested;else if(o.type==='dimension'){o.textSize=GOST_DIMENSION_TEXT_HEIGHTS.reduce((best,v)=>Math.abs(v-requested)<Math.abs(best-requested)?v:best,GOST_DIMENSION_TEXT_HEIGHTS[0]);}else o.textSize=requested;});renderAll();}});
-  $('dimensionTextHeight').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension');const value=Number(e.target.value);if(!dims.length||!GOST_DIMENSION_TEXT_HEIGHTS.includes(value))return;commit();dims.forEach(o=>o.textSize=value);renderAll();setMessage(`Высота размерных чисел: ${value.toLocaleString('ru-RU')} мм (ГОСТ 2.304, тип Б)`);});
+  $('dimensionTextHeight').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);const value=Number(e.target.value);if(!dims.length||!GOST_DIMENSION_TEXT_HEIGHTS.includes(value))return;commit();dims.forEach(o=>o.textSize=value);renderAll();setMessage(`Высота размерных чисел: ${value.toLocaleString('ru-RU')} мм (ГОСТ 2.304, тип Б)`);});
   $('dimensionShowValue').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length){e.target.checked=true;setMessage('Выберите незаблокированный размер');return;}commit();dims.forEach(o=>o.hideValue=!e.target.checked);renderAll();setMessage(e.target.checked?'Числовое значение размера показано':'Числовое значение размера скрыто');});
   $('defaultDimensionTextHeight').addEventListener('change',e=>{const value=Number(e.target.value);if(!GOST_DIMENSION_TEXT_HEIGHTS.includes(value))return;commit();state.gost.dimensionTextHeight=value;state.gost.dimensionTextDefaultsVersion=3;persistAutosave();setMessage(`Новые размеры будут создаваться с высотой чисел ${value.toLocaleString('ru-RU')} мм`);});
-  $('dimensionArrowPlacement').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension');if(!dims.length)return;commit();dims.forEach(o=>o.arrowPlacement=e.target.value);renderAll();setMessage(`Размещение стрелок: ${e.target.value==='auto'?'автоматически':e.target.value==='inside'?'внутри':'снаружи'}`);});
+  $('dimensionArrowPlacement').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>o.arrowPlacement=e.target.value);renderAll();setMessage(`Размещение стрелок: ${e.target.value==='auto'?'автоматически':e.target.value==='inside'?'внутри':'снаружи'}`);});
   $('dimensionTextOrientation').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>o.textOrientation=e.target.value);renderAll();setMessage('Ориентация размерного числа обновлена');});
+  $('dimensionArrowStyle').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>{o.arrowStyle=e.target.value;delete o.arrowStartStyle;delete o.arrowEndStyle;});renderAll();setMessage('Стиль обеих размерных стрелок обновлён');});
+  $('dimensionArrowStartStyle').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>{if(e.target.value==='inherit')delete o.arrowStartStyle;else o.arrowStartStyle=e.target.value;});renderAll();setMessage('Стиль первой размерной стрелки обновлён');});
+  $('dimensionArrowEndStyle').addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>{if(e.target.value==='inherit')delete o.arrowEndStyle;else o.arrowEndStyle=e.target.value;});renderAll();setMessage('Стиль второй размерной стрелки обновлён');});
+  updateSelectedDimension('arrowSize','dimensionArrowSize',.8,12,'Размер стрелок обновлён');
+  updateSelectedDimension('labelRotationDeg','dimensionLabelRotation',-360,360,'Поворот размерного числа обновлён отдельно от размерной линии');
+  $('resetDimensionLabelRotation').addEventListener('click',()=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;commit();dims.forEach(o=>o.labelRotationDeg=0);$('dimensionLabelRotation').value='0';renderAll();setMessage('Поворот размерного числа сброшен до 0°');});
   const updateSelectedDimension=(field,input,min,max,message)=>$(input).addEventListener('change',e=>{const dims=getSelected().filter(o=>o.type==='dimension'&&!o.locked);if(!dims.length)return;const value=clamp(Number(e.target.value)||0,min,max);commit();dims.forEach(o=>o[field]=value);renderAll();setMessage(message);});
   updateSelectedDimension('offset','dimensionSelectedOffset',5,200,'Отступ размера обновлён');updateSelectedDimension('extensionGap','dimensionExtensionGap',0,5,'Зазор выносных линий обновлён');updateSelectedDimension('extensionBeyond','dimensionExtensionBeyond',1,5,'Продолжение обеих выносных линий обновлено');updateSelectedDimension('labelDx','dimensionLabelDx',-200,200,'Положение числа по X обновлено');updateSelectedDimension('labelDy','dimensionLabelDy',-200,200,'Положение числа по Y обновлено');
   $('editContentBtn').addEventListener('click',()=>{const o=getSelected().find(x=>['text','techReq','leader','roughness','tolerance','weld','dimension','section','table'].includes(x.type));if(!o){setMessage('Выберите текст, обозначение или таблицу для редактирования');return;}editDrawingAnnotationText(o);});
@@ -1841,9 +1895,9 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     if(state.tool!=='select'||e.target.closest?.('[data-template-text-id]'))return;
     e.preventDefault();e.stopPropagation();const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');
   });
-  svg.addEventListener('pointerdown',e=>{if(e.button!==1&&!state.space)onCanvasPointerDown(e);});svg.addEventListener('dblclick',e=>{e.preventDefault();finishPath();});svg.addEventListener('contextmenu',e=>{if(state.tool==='polyline'||state.tool==='spline'){e.preventDefault();finishPath();}else e.preventDefault();});window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);
+  svg.addEventListener('pointerdown',e=>{if(e.button!==1&&!state.space)onCanvasPointerDown(e);});svg.addEventListener('dblclick',e=>{e.preventDefault();if(state.tool==='polyline'||state.tool==='spline'){finishPath();return;}if(state.tool==='select'&&!e.target.closest?.('.drawing-object[data-id]')&&!e.target.closest?.('[data-template-text-id]')){const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');}});svg.addEventListener('contextmenu',e=>{if(state.tool==='polyline'||state.tool==='spline'){e.preventDefault();finishPath();}else e.preventDefault();});window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);
   drawingArea.addEventListener('wheel',e=>{e.preventDefault();if(e.shiftKey){state.viewPan.x-=e.deltaY||e.deltaX;updateZoom();persistAutosave();return;}if(e.altKey){state.viewPan.y-=e.deltaY;updateZoom();persistAutosave();return;}setZoomAt(state.zoom*(e.deltaY<0?1.1:.9),e.clientX,e.clientY);},{passive:false});
-  window.addEventListener('keydown',e=>{const tag=document.activeElement.tagName;if(e.code==='Space'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){state.space=true;e.preventDefault();}if(e.key==='Enter'&&(state.tool==='polyline'||state.tool==='spline'))finishPath();if(e.key==='F8'){state.ortho=!state.ortho;$('orthoToggle').checked=state.ortho;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if((e.key==='Delete'||e.key==='Backspace')&&!['INPUT','TEXTAREA','SELECT'].includes(tag))deleteSelected();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('openBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key==='0'){e.preventDefault();$('fitBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();newDocument();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();if(e.shiftKey)redo();else undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();pasteClipboard();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();applyAction('duplicate');}if((e.ctrlKey||e.metaKey)&&e.altKey&&e.key.toLowerCase()==='r'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();applyAction('arrayPolar');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();toggleReferenceLock();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&!['INPUT','TEXTAREA'].includes(tag)){e.preventDefault();state.selectedIds=state.objects.map(o=>o.id);renderAll();}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA','SELECT'].includes(tag)&&state.selectedIds.length&&!e.repeat){e.preventDefault();const step=e.shiftKey?10:1,dx=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,dy=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;const movable=getSelected().filter(o=>!o.locked);if(!movable.length){setMessage('Выбранные объекты заблокированы');return;}commit();movable.forEach(o=>translateObject(o,dx,dy));renderAll();}if(e.key==='Escape'){if(state.duplicatePlacement){state.duplicatePlacement=null;previewLayer.innerHTML='';setMessage('Дублирование отменено');}if(state.rotateDrag){const before=state.rotateDrag.historyBefore;state.rotateDrag=null;drawingArea.classList.remove('rotating');restore(before);setMessage('Поворот отменён');}if(state.resize){const before=state.resize.historyBefore;state.resize=null;drawingArea.classList.remove('resizing');restore(before);setMessage('Изменение размера отменено');}if(state.dimensionLabelDrag){const before=state.dimensionLabelDrag.historyBefore;state.dimensionLabelDrag=null;restore(before);setMessage('Перемещение размерного числа отменено');}if(state.erasing){state.erasing=null;renderAll();setMessage('Стирание завершено');}if(!$('filesModal').classList.contains('hidden'))$('filesModal').classList.add('hidden');if(!$('polarArrayModal').classList.contains('hidden'))$('polarArrayModal').classList.add('hidden');state.pendingPolarCenter=false;if(!$('mirrorModal').classList.contains('hidden'))closeMirrorDialog();if(state.referenceCalibration){state.referenceCalibration=null;setMessage('Калибровка референса отменена');}if(!$('textModal').classList.contains('hidden')){closeTextDialog();return;}state.freehandDraft=null;state.points=[];state.selectionRect=null;previewLayer.innerHTML='';selectTool('select');}});
+  window.addEventListener('keydown',e=>{const tag=document.activeElement.tagName;if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.toLowerCase()==='t'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){selectTool('text');e.preventDefault();}if(e.code==='Space'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){state.space=true;e.preventDefault();}if(e.key==='Enter'&&(state.tool==='polyline'||state.tool==='spline'))finishPath();if(e.key==='F8'){state.ortho=!state.ortho;$('orthoToggle').checked=state.ortho;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if((e.key==='Delete'||e.key==='Backspace')&&!['INPUT','TEXTAREA','SELECT'].includes(tag))deleteSelected();if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='o'){e.preventDefault();$('openBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key==='0'){e.preventDefault();$('fitBtn').click();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='n'){e.preventDefault();newDocument();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();if(e.shiftKey)redo();else undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='c'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();copySelected();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='v'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();pasteClipboard();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='d'){e.preventDefault();applyAction('duplicate');}if((e.ctrlKey||e.metaKey)&&e.altKey&&e.key.toLowerCase()==='r'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();applyAction('arrayPolar');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='l'&&!['INPUT','TEXTAREA','SELECT'].includes(tag)){e.preventDefault();toggleReferenceLock();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&!['INPUT','TEXTAREA'].includes(tag)){e.preventDefault();state.selectedIds=state.objects.map(o=>o.id);renderAll();}if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&!['INPUT','TEXTAREA','SELECT'].includes(tag)&&state.selectedIds.length&&!e.repeat){e.preventDefault();const step=e.shiftKey?10:1,dx=e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0,dy=e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;const movable=getSelected().filter(o=>!o.locked);if(!movable.length){setMessage('Выбранные объекты заблокированы');return;}commit();movable.forEach(o=>translateObject(o,dx,dy));renderAll();}if(e.key==='Escape'){if(state.duplicatePlacement){state.duplicatePlacement=null;previewLayer.innerHTML='';setMessage('Дублирование отменено');}if(state.rotateDrag){const before=state.rotateDrag.historyBefore;state.rotateDrag=null;drawingArea.classList.remove('rotating');restore(before);setMessage('Поворот отменён');}if(state.resize){const before=state.resize.historyBefore;state.resize=null;drawingArea.classList.remove('resizing');restore(before);setMessage('Изменение размера отменено');}if(state.dimensionLabelDrag){const before=state.dimensionLabelDrag.historyBefore;state.dimensionLabelDrag=null;restore(before);setMessage('Перемещение размерного числа отменено');}if(state.erasing){state.erasing=null;renderAll();setMessage('Стирание завершено');}if(!$('filesModal').classList.contains('hidden'))$('filesModal').classList.add('hidden');if(!$('polarArrayModal').classList.contains('hidden'))$('polarArrayModal').classList.add('hidden');state.pendingPolarCenter=false;if(!$('mirrorModal').classList.contains('hidden'))closeMirrorDialog();if(state.referenceCalibration){state.referenceCalibration=null;setMessage('Калибровка референса отменена');}if(!$('textModal').classList.contains('hidden')){closeTextDialog();return;}state.freehandDraft=null;state.points=[];state.selectionRect=null;previewLayer.innerHTML='';selectTool('select');}});
   window.addEventListener('keyup',e=>{if(e.code==='Space')state.space=false;});window.addEventListener('blur',()=>{state.space=false;if(state.duplicatePlacement?.dragging){state.duplicatePlacement=null;previewLayer.innerHTML='';renderAll();}if(state.rotateDrag){const before=state.rotateDrag.historyBefore;state.rotateDrag=null;drawingArea.classList.remove('rotating');restore(before);}if(state.resize){const before=state.resize.historyBefore;state.resize=null;drawingArea.classList.remove('resizing');restore(before);}if(state.dimensionLabelDrag){const r=state.dimensionLabelDrag;state.dimensionLabelDrag=null;const o=state.objects.find(x=>x.id===r.id);if(o&&(Math.abs((o.labelDx||0)-r.labelDx)>.001||Math.abs((o.labelDy||0)-r.labelDy)>.001))recordHistory(r.historyBefore);renderAll();}if(state.erasing){const r=state.erasing;state.erasing=null;if(r.seen.size)recordHistory(r.historyBefore);renderAll();}if(state.pan){state.pan=null;drawingArea.classList.remove('dragging');persistAutosave();}});
   document.querySelectorAll('.panel-tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.panel-tab').forEach(t=>t.classList.toggle('active',t===tab));$('toolsPanel').classList.toggle('hidden',tab.dataset.panel!=='tools');$('treePanel').classList.toggle('hidden',tab.dataset.panel!=='tree');}));
   $('helpBtn').addEventListener('click',()=>$('helpModal').classList.remove('hidden'));$('closeHelp').addEventListener('click',()=>$('helpModal').classList.add('hidden'));$('helpModal').addEventListener('click',e=>{if(e.target===$('helpModal'))$('helpModal').classList.add('hidden');});

@@ -17,7 +17,9 @@ assert.match(app,/return manuallyPositioned\?center:keepDimensionLabelClearOfLin
 assert.match(app,/o\.labelManualPositioned=true/, 'A label manually placed at the default offset must remain exactly where the user drops it');
 assert.match(app,/data-dimension-label-handle/, 'The label and its enlarged grip must both initiate dragging');
 assert.match(html,/data-tool="cutoutNoWalls"/, 'A dedicated no-walls cutout tool must be available');
-assert.match(app,/applyEdgeCutout\(p,clickedId,state\.tool==='cutout'\)/, 'The editor must route the two cutout modes separately');
+assert.match(app,/applyEdgeCutout\(p,clickedId,mode\)/, 'The editor must route all cutout modes separately');
 assert.match(cutouts,/export function cutClosedBoundaryGapAtPoint/, 'The no-walls operation must be implemented in the geometry core');
+assert.match(cutouts,/export function cutPolygonNotchWithoutBottomAtPoint/, 'The no-bottom-wall notch must be implemented in the geometry core');
+assert.match(app,/batch=targets\.length>1/, 'The cutout operation must support a multi-object batch');
 assert.match(app,/selected\.some\(o=>o\.id===clicked\.id\)&&selected\.length>1\?selected/, 'A shared cut click must process all selected geometries');
-console.log('Duplicate placement, 2D dimension-label drag and no-wall cutout UI tests passed (18 assertions).');
+console.log('Duplicate placement, 2D dimension-label drag and no-wall cutout UI tests passed (20 assertions).');

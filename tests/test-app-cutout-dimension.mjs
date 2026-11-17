@@ -31,4 +31,10 @@ assert.match(app, /function replaceWithClosedFragments/, 'Closed shape splits mu
 assert.match(app, /state\.splitPending/, 'Closed-contour split must preserve its first point until the second click');
 assert.match(html, /data-action="split">Разделить объект/, 'The action panel must expose the general object split tool');
 
-console.log('Main editor cutout, split and dimension UI contract tests passed (16 assertions).');
+console.log('Main editor cutout, split and dimension UI contract tests passed (21 assertions).');
+
+assert.match(html, /data-tool="cutoutNoBottom"/, 'The main editor must expose the no-bottom-wall cutout mode');
+assert.match(html, /Полный вырез[\s\S]*Без нижней стенки[\s\S]*Без стенок/, 'All three cutout modes must be available as separate controls');
+assert.match(app, /cutPolygonNotchWithoutBottomAtPoint/, 'The application must call the polygon no-bottom-wall cutout engine');
+assert.match(app, /cutCircleNotchWithoutBottomAtPoint/, 'The application must call the circular no-bottom-wall cutout engine');
+assert.match(app, /batch=targets\.length>1[\s\S]*tolerance=batch\?Infinity:hitTolerance/, 'A single batch click must project to the nearest boundary of every selected object');

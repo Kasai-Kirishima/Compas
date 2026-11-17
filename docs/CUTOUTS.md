@@ -9,6 +9,22 @@ The core supports four related 2D drafting workflows:
 
 These tools edit 2D linework. They do not perform 3D solid Boolean subtraction and do not infer material removal in a filled CAD solid.
 
+## Three edge-cutout modes in the main editor
+
+The main editor exposes three separate tools:
+
+- **Full cutout (`cutout`)** — keeps the two side walls and the straight bottom/base line, so the edited 2D profile remains closed.
+- **No bottom wall (`cutoutNoBottom`)** — keeps both side walls but removes the bottom/base connecting line. The resulting geometry is one editable open polyline whose endpoints are the two inner ends of the side walls. This is available for polygonal profiles and circles (circles are smoothly tessellated first).
+- **No walls (`cutoutNoWalls`)** — removes only the selected section of the outer boundary; it adds neither side walls nor a bottom line.
+
+For all three modes, open objects such as line segments, arcs and open paths receive a width-defined gap. The depth field applies only to closed profiles.
+
+### Batch editing multiple objects
+
+Shift-select two or more editable objects, choose one of the three modes, and click once. The clicked world-space point is projected onto the nearest boundary/path point of each selected object; the same width and depth are then applied to every compatible selection. For example, one click on the near side of a selected group of plates makes a corresponding notch in each plate at its nearest side. Objects that are locked, too small, or geometrically invalid are skipped; successful objects are committed as one undoable operation. The status line reports how many objects were changed and how many were skipped.
+
+The geometry API for open-bottom notches is `cutPolygonNotchWithoutBottomAtPoint()` and `cutCircleNotchWithoutBottomAtPoint()`. Both return `{ ok, operation: 'cutout-open-base', path, metadata }`; `path` is an open path, not a closed polygon.
+
 ## Edge notch
 
 ```js

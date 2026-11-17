@@ -130,7 +130,10 @@ export function cutPolygonNotch(polygon, edgeIndex, width, depth, {
     remove: [polygon.id],
     add: [replacement],
     removed: { polygonId: polygon.id, edgeIndex, width, depth, centerOffset },
-    metadata: { oldArea: Math.abs(area), newArea: Math.abs(newArea), removedArea: Math.abs(area) - Math.abs(newArea) },
+    metadata: {
+      oldArea: Math.abs(area), newArea: Math.abs(newArea), removedArea: Math.abs(area) - Math.abs(newArea),
+      notch: { mouthStart: p0, innerStart: q0, innerEnd: q1, mouthEnd: p1 },
+    },
   };
 }
 
@@ -223,7 +226,10 @@ export function cutCircleNotchAtPoint(circle, point, width, depth, {
     remove: [circle.id],
     add: [replacement],
     removed: { circleId: circle.id, width, depth, angle, halfAngle },
-    metadata: { oldArea, newArea, removedArea: oldArea - newArea, remainingArcLength },
+    metadata: {
+      oldArea, newArea, removedArea: oldArea - newArea, remainingArcLength,
+      notch: { mouthStart: p0, innerStart: q0, innerEnd: q1, mouthEnd: p1 },
+    },
   };
 }
 
@@ -256,6 +262,59 @@ export function cutPolygonNotchAtPoint(polygon, point, width, depth, {
   }
   const centerOffset = (nearest.t - 0.5) * nearest.edgeLength;
   return cutPolygonNotch(polygon, nearest.edgeIndex, width, depth, { ...options, centerOffset });
+}
+
+/**
+ * Convert a normal inward notch into an open contour by removing only its
+ * inner/base edge. Both side walls remain, while the bottom closing line is
+ * intentionally absent. The returned path is a single editable open polyline.
+ */
+function openNotchWithoutBase(transaction, eps = 1e-6) {
+  if (!transaction?.ok) return transaction;
+  const vertices = transaction.add?.[0]?.vertices;
+  const notch = transaction.metadata?.notch;
+  if (!Array.isArray(vertices) || vertices.length < 4 || !notch?.innerStart || !notch?.innerEnd) {
+    return { ok: false, reason: 'Не удалось определить нижнюю стенку выреза' };
+  }
+  const nearestIndex = target => {
+    let best = { index: -1, distance: Infinity };
+    vertices.forEach((vertex, index) => {
+      const d = distance(vertex, target);
+      if (d < best.distance) best = { index, distance: d };
+    });
+    return best;
+  };
+  const start = nearestIndex(notch.innerEnd); // q1: right end of the missing base
+  const end = nearestIndex(notch.innerStart); // q0: left end of the missing base
+  if (start.index < 0 || end.index < 0 || start.index === end.index || start.distance > eps || end.distance > eps) {
+    return { ok: false, reason: 'Не удалось корректно построить открытый вырез' };
+  }
+  const path = [];
+  let index = start.index;
+  path.push({ ...vertices[index] });
+  for (let guard = 0; guard < vertices.length && index !== end.index; guard++) {
+    index = (index + 1) % vertices.length;
+    path.push({ ...vertices[index] });
+  }
+  if (index !== end.index || path.length < 3) {
+    return { ok: false, reason: 'Не удалось удалить нижнюю стенку выреза' };
+  }
+  return {
+    ok: true,
+    operation: 'cutout-open-base',
+    path,
+    metadata: { ...transaction.metadata, bottomWallRemoved: true, retainedSideWalls: true },
+  };
+}
+
+/** Inward notch with side walls, but without the bottom/base closing line. */
+export function cutPolygonNotchWithoutBottomAtPoint(polygon, point, width, depth, options = {}) {
+  return openNotchWithoutBase(cutPolygonNotchAtPoint(polygon, point, width, depth, options));
+}
+
+/** Circular counterpart of cutPolygonNotchWithoutBottomAtPoint(). */
+export function cutCircleNotchWithoutBottomAtPoint(circle, point, width, depth, options = {}) {
+  return openNotchWithoutBase(cutCircleNotchAtPoint(circle, point, width, depth, options));
 }
 
 /**
@@ -357,7 +416,10 @@ export function cutPolygonNotchAlongBoundaryAtPoint(polygon, point, width, depth
     remove: [polygon.id],
     add: [replacement],
     removed: { edgeIndex: nearest.edgeIndex, width, depth, start, end, alongBoundary: true },
-    metadata: { oldArea: absArea, newArea, removedArea: absArea - newArea, perimeter, remainingBoundary: perimeter - width },
+    metadata: {
+      oldArea: absArea, newArea, removedArea: absArea - newArea, perimeter, remainingBoundary: perimeter - width,
+      notch: { mouthStart: p0, innerStart: q0, innerEnd: q1, mouthEnd: p1 },
+    },
   };
 }
 
