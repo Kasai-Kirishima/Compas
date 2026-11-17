@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.4
+# CAD Geometry Core 1.5.5
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -11,6 +11,9 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - linear and diameter dimensions with text orientation, readable placement, decimal-comma formatting, and line gaps beneath labels.
 
 ### Editing
+- Split open paths at any interior point, including the exact midpoint or very near an endpoint;
+- Split closed profiles into two independent closed contours by picking two boundary points;
+- Split support includes lines, construction/centre lines, arcs, open polylines, splines, freehand curves, rectangles, rounded rectangles, circles, ellipses, and closed polygonal contours;
 - Trim between neighbouring intersections;
 - partial freehand erasing for lines, centre lines, circles, arcs, polygon edges, and dimension linework;
 - safe single-target erasing (`eraseTargetAlongPath`) so a stroke does not affect unrelated nearby objects;
@@ -39,6 +42,12 @@ python -m http.server 8000
 
 Open <http://localhost:8000/> for the main CAD editor. The simplified demo remains available at <http://localhost:8000/examples/demo.html>.
 
+## Split geometry
+
+Use **Разделить объект** from the editing panel or the top ribbon. An open object (line, centre line, construction line, arc, open polyline, spline, or freehand path) is divided with one click anywhere along it. There is no 2% endpoint margin; any interior point is accepted. A closed object (rectangle, rounded rectangle, circle, ellipse, or closed polyline/spline) is divided with two clicks on its boundary. The straight chord between the points becomes a shared edge, and both resulting regions remain separate closed editable objects. Undo/Redo records the complete operation.
+
+A split cannot create a zero-length fragment. For concave profiles, the selected chord must remain inside the original contour; a chord crossing an exterior notch is rejected to avoid malformed geometry. Text, dimensions, leaders, and raster references are annotations/references rather than profile geometry and are not split by this tool.
+
 ## Cutouts: important distinction
 
 `cutPolygonNotch` modifies the boundary of one simple polygon by inserting a rectangular notch open to a selected edge. `createRectangularPocket`, `createCircularCutout`, and `createObroundCutout` create separate closed 2D contours for drafting holes or pockets.
@@ -55,7 +64,7 @@ The demo starts in Select mode. When Eraser is chosen, the first stroke is restr
 src/
   cad-geometry-trim.mjs  primitives, intersections, Trim, dimensions, transforms, OSNAP, JSON
   eraser.mjs             partial eraser and single-target safe wrapper
-  cutouts.mjs            closed-boundary notches, open-path gaps and inner cutout contours
+  cutouts.mjs            closed-boundary notches, open-path gaps, open-path splitting, closed-profile splitting and inner contours
   templates.mjs          parametric mechanical drawing templates
   history.mjs            Undo/Redo transaction history
   index.mjs              public exports

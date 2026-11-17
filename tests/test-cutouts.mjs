@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
-import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotch, cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 import { SceneHistory } from '../src/history.mjs';
 
 const near=(a,b,e=1e-7)=>assert.ok(Math.abs(a-b)<=e,`${a} != ${b}`);
@@ -107,6 +107,46 @@ for(let i=0;i<24;i++){
   many=txMany.add[0];
 }
 assert.ok(many.vertices.length>4,'The contour stores every repeated cut without a fixed count limit');
+
+
+// Open paths can be split at the exact midpoint and arbitrarily close to an
+// endpoint; there is no hard-coded 2% minimum-distance restriction.
+const halfSplit = splitOpenPathAtPoint([{x:0,y:0},{x:100,y:0}], {x:50,y:.1}, {hitTolerance:1});
+assert.equal(halfSplit.ok,true);
+assert.equal(halfSplit.fragments.length,2);
+near(halfSplit.metadata.firstLength,50);
+near(halfSplit.metadata.secondLength,50);
+const nearEndSplit = splitOpenPathAtPoint([{x:0,y:0},{x:100,y:0}], {x:1,y:0}, {hitTolerance:1});
+assert.equal(nearEndSplit.ok,true);
+near(nearEndSplit.metadata.firstLength,1);
+near(nearEndSplit.metadata.secondLength,99);
+const polylineSplit = splitOpenPathAtPoint([{x:0,y:0},{x:30,y:0},{x:30,y:40}], {x:30,y:15}, {hitTolerance:1});
+assert.equal(polylineSplit.ok,true);
+assert.equal(polylineSplit.fragments.length,2);
+near(polylineSplit.metadata.firstLength,45);
+near(polylineSplit.metadata.secondLength,25);
+
+// A closed contour is divided by a chord into two independent closed contours.
+const square = [{x:0,y:0},{x:100,y:0},{x:100,y:50},{x:0,y:50}];
+const squareSplit = splitClosedPolygonAtPoints(square,{x:0,y:25},{x:100,y:25},{hitTolerance:1});
+assert.equal(squareSplit.ok,true);
+assert.equal(squareSplit.fragments.length,2);
+near(squareSplit.metadata.firstArea,2500);
+near(squareSplit.metadata.secondArea,2500);
+const squareDiagonal = splitClosedPolygonAtPoints(square,{x:0,y:0},{x:100,y:50},{hitTolerance:1});
+assert.equal(squareDiagonal.ok,true);
+near(squareDiagonal.metadata.firstArea+squareDiagonal.metadata.secondArea,5000);
+const concave = [{x:0,y:0},{x:60,y:0},{x:60,y:20},{x:20,y:20},{x:20,y:60},{x:0,y:60}];
+const concaveInvalid = splitClosedPolygonAtPoints(concave,{x:60,y:10},{x:10,y:60},{hitTolerance:1});
+assert.equal(concaveInvalid.ok,false,'A chord through the exterior of a concave shape must be rejected');
+const circleProfile=Array.from({length:256},(_,i)=>({x:40*Math.cos(i*Math.PI/128),y:40*Math.sin(i*Math.PI/128)}));
+const circleHalf=splitClosedPolygonAtPoints(circleProfile,{x:-40,y:0},{x:40,y:0},{hitTolerance:.1});
+assert.equal(circleHalf.ok,true,'A circular profile can be split into two closed halves');
+near(circleHalf.metadata.firstArea,circleHalf.metadata.secondArea,1);
+const repeatOpen=splitOpenPathAtPoint(halfSplit.fragments[0],{x:25,y:0},{hitTolerance:1});
+assert.equal(repeatOpen.ok,true,'Either resulting open fragment can be split again');
+const repeatClosed=splitClosedPolygonAtPoints(squareSplit.fragments[0],{x:0,y:12.5},{x:100,y:12.5},{hitTolerance:1});
+assert.equal(repeatClosed.ok,true,'Either resulting closed part can be divided again');
 
 // Inner contour utilities stay separate from the outer boundary.
 const pocket=createRectangularPocket({x:20,y:25},30,12,Math.PI/6);

@@ -22,4 +22,13 @@ assert.match(app, /keepDimensionLabelClearOfLine/, 'Dimension labels must be kep
 assert.doesNotMatch(app, /data-dimension-text-mask|fill:\s*'#ffffff'[^\n]*dimension/, 'Dimension numbers must not have an opaque white background');
 assert.doesNotMatch(app, /shelfY|полка-ответвление|labelW=\s*Math\.max\(textSize/, 'Unwanted connector lines beside dimension numbers must not be rendered');
 
-console.log('Main editor cutout and dimension UI contract tests passed (9 assertions).');
+
+assert.match(app, /splitOpenPathAtPoint/, 'Split tool must split open geometry at any point');
+assert.match(app, /splitClosedPolygonAtPoints/, 'Split tool must split closed contours by two boundary points');
+assert.match(app, /function applySplitTool/, 'Main editor must route split interactions through the general geometry splitter');
+assert.match(app, /function appClosedContourPoints/, 'Main editor must convert supported closed shapes to split-ready contours');
+assert.match(app, /function replaceWithClosedFragments/, 'Closed shape splits must leave two editable closed objects');
+assert.match(app, /state\.splitPending/, 'Closed-contour split must preserve its first point until the second click');
+assert.match(html, /data-action="split">Разделить объект/, 'The action panel must expose the general object split tool');
+
+console.log('Main editor cutout, split and dimension UI contract tests passed (16 assertions).');

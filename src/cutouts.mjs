@@ -465,6 +465,202 @@ export function cutOpenPathGapAtPoint(points, point, width, {
   };
 }
 
+
+/**
+ * Split an open path into two independently editable paths at the point nearest
+ * to the cursor. The split is allowed at any interior position, including the
+ * exact midpoint; there is no percentage-of-length restriction.
+ */
+export function splitOpenPathAtPoint(points, point, {
+  hitTolerance = Infinity,
+  eps = 1e-8,
+} = {}) {
+  if (!Array.isArray(points) || points.length < 2) {
+    throw new TypeError('Для разделения нужен открытый путь минимум из двух точек');
+  }
+  points.forEach((p, i) => {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      throw new TypeError(`Точка пути ${i + 1} должна содержать конечные координаты x и y`);
+    }
+  });
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+    throw new TypeError('Точка разделения должна содержать координаты x и y');
+  }
+  if ((hitTolerance !== Infinity && (!Number.isFinite(hitTolerance) || hitTolerance < 0)) ||
+      !Number.isFinite(eps) || eps <= 0) {
+    throw new TypeError('Неправильный допуск разделения');
+  }
+
+  const lengths = [], cumulative = [0];
+  for (let i = 0; i < points.length - 1; i++) {
+    const len = distance(points[i], points[i + 1]);
+    lengths.push(len);
+    cumulative.push(cumulative[i] + len);
+  }
+  const totalLength = cumulative.at(-1);
+  if (totalLength <= eps) return { ok: false, reason: 'Длина пути равна нулю' };
+
+  let nearest = null;
+  for (let i = 0; i < lengths.length; i++) {
+    if (lengths[i] <= eps) continue;
+    const a = points[i], b = points[i + 1], ab = sub(b, a);
+    const t = clamp(dot(sub(point, a), ab) / dot(ab, ab), 0, 1);
+    const projected = add(a, mul(ab, t));
+    const d = distance(point, projected);
+    if (!nearest || d < nearest.distance) {
+      nearest = { segmentIndex: i, t, distance: d, along: cumulative[i] + lengths[i] * t, projected };
+    }
+  }
+  if (!nearest || nearest.distance > hitTolerance) {
+    return { ok: false, reason: 'Щёлкните по линии или ближе к ней' };
+  }
+
+  const splitAt = nearest.along;
+  // Only the mathematical endpoints are non-splittable. No arbitrary 2% or
+  // other relative margin is imposed on short or long segments.
+  if (splitAt <= eps || totalLength - splitAt <= eps) {
+    return { ok: false, reason: 'Точка находится на самом конце пути — выберите любую внутреннюю точку' };
+  }
+  const pointAt = target => {
+    if (target <= eps) return { ...points[0] };
+    if (target >= totalLength - eps) return { ...points.at(-1) };
+    for (let i = 0; i < lengths.length; i++) {
+      if (lengths[i] <= eps) continue;
+      if (target <= cumulative[i + 1] + eps) {
+        const t = clamp((target - cumulative[i]) / lengths[i], 0, 1);
+        return add(points[i], mul(sub(points[i + 1], points[i]), t));
+      }
+    }
+    return { ...points.at(-1) };
+  };
+  const slice = (from, to) => {
+    const out = [pointAt(from)];
+    for (let i = 1; i < points.length - 1; i++) {
+      if (cumulative[i] > from + eps && cumulative[i] < to - eps) out.push({ ...points[i] });
+    }
+    out.push(pointAt(to));
+    return out.filter((p, i) => i === 0 || distance(p, out[i - 1]) > eps);
+  };
+  const fragments = [slice(0, splitAt), slice(splitAt, totalLength)]
+    .filter(path => path.length >= 2 && path.some((p, i) => i > 0 && distance(p, path[i - 1]) > eps));
+  if (fragments.length !== 2) return { ok: false, reason: 'Не удалось создать две непустые части' };
+
+  return {
+    ok: true,
+    operation: 'split-open-path',
+    fragments,
+    splitPoint: nearest.projected,
+    removed: { segmentIndex: nearest.segmentIndex, parameter: nearest.t, distance: nearest.distance, along: splitAt },
+    metadata: { originalLength: totalLength, firstLength: splitAt, secondLength: totalLength - splitAt, fragmentCount: 2 },
+  };
+}
+
+/**
+ * Divide a simple closed contour with a straight chord whose endpoints are
+ * picked on the boundary. Each returned part is a closed polygon, sharing the
+ * newly-created cutting edge. Works for convex and concave contours whenever
+ * the chosen chord lies inside the original contour.
+ */
+export function splitClosedPolygonAtPoints(vertices, firstPoint, secondPoint, {
+  hitTolerance = Infinity,
+  eps = 1e-7,
+} = {}) {
+  if (!Array.isArray(vertices) || vertices.length < 3) {
+    throw new TypeError('Для разделения нужен замкнутый контур минимум из трёх точек');
+  }
+  vertices.forEach((p, i) => {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      throw new TypeError(`Вершина ${i + 1} должна содержать конечные координаты x и y`);
+    }
+  });
+  for (const [p, name] of [[firstPoint, 'Первая'], [secondPoint, 'Вторая']]) {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) throw new TypeError(`${name} точка разреза должна содержать координаты x и y`);
+  }
+  if ((hitTolerance !== Infinity && (!Number.isFinite(hitTolerance) || hitTolerance < 0)) || !Number.isFinite(eps) || eps <= 0) {
+    throw new TypeError('Неправильный допуск разделения');
+  }
+
+  const clean = vertices.map(p => ({ ...p }));
+  if (clean.length > 3 && distance(clean[0], clean.at(-1)) <= eps) clean.pop();
+  const lengths = [], cumulative = [0];
+  for (let i = 0; i < clean.length; i++) {
+    const len = distance(clean[i], clean[(i + 1) % clean.length]);
+    if (len <= eps) return { ok: false, reason: 'Контур содержит нулевое ребро' };
+    lengths.push(len); cumulative.push(cumulative.at(-1) + len);
+  }
+  const perimeter = cumulative.at(-1);
+  if (Math.abs(signedArea(clean)) <= eps) return { ok: false, reason: 'Площадь контура равна нулю' };
+
+  const project = p => {
+    let best = null;
+    for (let i = 0; i < clean.length; i++) {
+      const a = clean[i], b = clean[(i + 1) % clean.length], ab = sub(b, a), den = dot(ab, ab);
+      const t = clamp(dot(sub(p, a), ab) / den, 0, 1);
+      const q = add(a, mul(ab, t)), d = distance(p, q);
+      if (!best || d < best.distance) best = { edgeIndex: i, t, point: q, distance: d, along: cumulative[i] + lengths[i] * t };
+    }
+    return best;
+  };
+  const a = project(firstPoint), b = project(secondPoint);
+  if (a.distance > hitTolerance || b.distance > hitTolerance) {
+    return { ok: false, reason: 'Обе точки нужно поставить на границе одного контура' };
+  }
+  const forward = ((b.along - a.along) % perimeter + perimeter) % perimeter;
+  const backward = perimeter - forward;
+  if (Math.min(forward, backward) <= eps || distance(a.point, b.point) <= eps) {
+    return { ok: false, reason: 'Точки разделения совпадают — выберите две разные точки контура' };
+  }
+
+  const pointAt = target => {
+    const s = ((target % perimeter) + perimeter) % perimeter;
+    for (let i = 0; i < lengths.length; i++) {
+      if (s <= cumulative[i + 1] + eps) {
+        const t = clamp((s - cumulative[i]) / lengths[i], 0, 1);
+        return add(clean[i], mul(sub(clean[(i + 1) % clean.length], clean[i]), t));
+      }
+    }
+    return { ...clean[0] };
+  };
+  const boundaryChain = (from, distanceAlong) => {
+    const to = from + distanceAlong, out = [pointAt(from)];
+    for (let lap = 0; lap <= 1; lap++) {
+      for (let i = 0; i < clean.length; i++) {
+        const s = cumulative[i] + lap * perimeter;
+        if (s > from + eps && s < to - eps) out.push({ ...clean[i] });
+      }
+    }
+    out.push(pointAt(to));
+    return out.filter((p, i) => i === 0 || distance(p, out[i - 1]) > eps);
+  };
+  const first = boundaryChain(a.along, forward);
+  const second = boundaryChain(b.along, backward);
+  if (first.length < 2 || second.length < 2) return { ok: false, reason: 'Не удалось построить части контура' };
+
+  // The chord must be inside the original region. Sampling the whole chord
+  // avoids silently producing invalid pieces across a concave indentation.
+  for (let i = 1; i < 20; i++) {
+    const t = i / 20, sample = add(a.point, mul(sub(b.point, a.point), t));
+    if (!pointInPolygon(sample, clean, eps)) {
+      return { ok: false, reason: 'Линия разреза выходит за пределы вогнутого контура. Выберите другие точки' };
+    }
+  }
+  if (!isSimplePolygon(first, eps) || !isSimplePolygon(second, eps)) {
+    return { ok: false, reason: 'Такое разделение создаёт самопересечение. Выберите другие точки' };
+  }
+  const oldArea = Math.abs(signedArea(clean));
+  const area1 = Math.abs(signedArea(first)), area2 = Math.abs(signedArea(second));
+  if (area1 <= eps || area2 <= eps || Math.abs(area1 + area2 - oldArea) > Math.max(eps * 20, oldArea * 1e-5)) {
+    return { ok: false, reason: 'Не удалось разделить контур на две корректные части' };
+  }
+  return {
+    ok: true,
+    operation: 'split-closed-polygon',
+    fragments: [first, second],
+    splitPoints: [a.point, b.point],
+    metadata: { originalArea: oldArea, firstArea: area1, secondArea: area2, firstPerimeter: forward + distance(a.point, b.point), secondPerimeter: backward + distance(a.point, b.point) },
+  };
+}
+
 /** Closed inner rectangular contour. Use it as a 2D pocket/hole boundary. */
 export function createRectangularPocket(center, width, height, angle = 0, { style = { stroke: '#111111', lineWidth: 0.25, lineDash: [] }, ownerId = null } = {}) {
   positive(width, 'Ширина кишені'); positive(height, 'Висота кишені');

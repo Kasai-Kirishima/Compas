@@ -97,6 +97,10 @@ For a standards-oriented drawing, keep inner hole contours as separate closed en
 
 The main editor keeps the selected object ID, style and layer when a closed boundary is cut. Open-path cuts preserve the original ID on one remaining fragment and create a second editable object when the gap splits the path in two.
 
+## Object splitting is a separate operation
+
+For dividing an object without removing a gap, use **Разделить объект** rather than **Вырез / разрез**. See [SPLITTING.md](./SPLITTING.md): one click divides open geometry anywhere along the path; two boundary points divide a closed profile into two separate closed parts.
+
 ## Demo workflow
 
 1. Choose **Вырез / разрез**.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.5
+- Added a separate general-purpose **Разделить объект** tool to the main editor and top ribbon.
+- Open paths can be split with one click at any interior point, including the exact midpoint and points near endpoints; removed the previous arbitrary 2% minimum position limit.
+- Closed contours can be split with two boundary picks; a chord creates two separate closed editable profiles.
+- Added split support for lines, construction/centre lines, arcs, open polylines, splines, freehand curves, rectangles, rounded rectangles, circles, ellipses and closed contours.
+- Preserved object style/layer and history, with guide preview between the two clicks for closed contours.
+- Added regression tests for 50/50 splits, near-end splits, polyline splits, equal-area profile splits and concave-profile safety.
+
 ## 1.5.4
 - Extended edge notches to ellipses, rounded rectangles and curved/tessellated boundaries; notch widths can span multiple consecutive boundary edges.
 - Enabled repeated and nested cuts on an already-notched contour, including its walls and base; invalid self-intersecting results remain safely rejected.

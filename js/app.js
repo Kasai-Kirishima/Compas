@@ -1,5 +1,5 @@
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
-import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 
 (() => {
   'use strict';
@@ -13,7 +13,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
   const state = {
     referenceCalibration:null,
     format:'A4P', tool:'select', objects:[], selectedIds:[], points:[], zoom:1.8, grid:false, snap:false,
-    objectSnap:true, ortho:false, template:true, space:false, pan:null, viewPan:{x:0,y:0}, drag:null, selectionRect:null,
+    objectSnap:true, ortho:false, template:true, space:false, pan:null, viewPan:{x:0,y:0}, drag:null, selectionRect:null, splitPending:null,
     history:[], redo:[], clipboard:[], ruler:null, rulerMode:'off', rulerVisible:true, freehandDraft:null, resize:null, rotateDrag:null, dimensionLabelDrag:null, erasing:null,
     gost:{profile:'dstu-gost-ua',mainLine:.5,thinLine:.25,textHeight:5,dimensionTextHeight:7,dimensionTextDefaultsVersion:3,textDefaultsVersion:2,arrowLength:3.5,dimensionArrowVersion:2,precision:1,lettering:'B-S',fontFamily:'GOST type B,Arial,sans-serif'},
     title:{title:'Лабораторна робота 5',code:'КТ-24.ЛР5.001',material:'',scale:'1:1',sheet:'',sheets:'1',company:'Шосткинський фаховий коледж імені Івана Кожедуба СумДУ',liter:'',mass:'',developer:'Кушвид О.А.',checker:'Базиль Б.',technical:'',normative:'',approved:''},
@@ -544,6 +544,16 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
   function isCuttableBoundary(o){
     return !!o&&!o.hidden&&!o.locked&&(o.type==='circle'||!!appContourToPolygon(o));
   }
+  function appClosedContourPoints(o){
+    if(!o||o.locked||o.hidden)return null;
+    if(o.type==='circle'){
+      const radius=Math.hypot(o.x2-o.x,o.y2-o.y);
+      if(!(radius>0))return null;
+      return Array.from({length:256},(_,i)=>({x:o.x+Math.cos(i*Math.PI/128)*radius,y:o.y+Math.sin(i*Math.PI/128)*radius}));
+    }
+    if(o.type==='hatch'&&Array.isArray(o.points)&&o.points.length>=3)return deep(o.points);
+    return appContourToPolygon(o)?.vertices||null;
+  }
   function appOpenPathPoints(o){
     if(!o||o.locked||o.hidden)return null;
     if(['line','construction','centerline'].includes(o.type))return ['wave','zigzag'].includes(o.linePattern)?linePatternPoints(o):[{x:o.x,y:o.y},{x:o.x2,y:o.y2}];
@@ -590,6 +600,60 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     state.objects.splice(idx,1,...replacements);
     state.selectedIds=replacements.map(o=>o.id);
     return true;
+  }
+  function replaceWithClosedFragments(source,fragments){
+    const idx=state.objects.findIndex(o=>o.id===source.id);
+    if(idx<0)return false;
+    const replacements=fragments.map((points,i)=>{
+      const obj={...deep(source),id:i===0?source.id:newId(),type:'polyline',points:points.map(p=>({x:mm(p.x),y:mm(p.y)})),closed:true};
+      delete obj.x;delete obj.y;delete obj.x2;delete obj.y2;delete obj.r;delete obj.start;delete obj.end;delete obj.rx;delete obj.x3;delete obj.y3;
+      obj.name=`${source.name||'Контур'} — часть ${i+1}`;
+      return obj;
+    });
+    state.objects.splice(idx,1,...replacements);
+    state.selectedIds=replacements.map(o=>o.id);
+    return true;
+  }
+  function applySplitTool(point,clickedId=null){
+    const clicked=clickedId?state.objects.find(o=>o.id===clickedId):null;
+    const selected=getSelected().find(o=>appOpenPathPoints(o)||appClosedContourPoints(o));
+    const source=clickedId?(clicked&&(appOpenPathPoints(clicked)||appClosedContourPoints(clicked))?clicked:null):selected;
+    if(!source){setMessage('Щёлкните по геометрическому объекту или заранее выделите его. Поддерживаются линии, дуги, ломаные, окружности, эллипсы и замкнутые контуры.');return false;}
+    if(source.locked){setMessage('Объект заблокирован — снимите блокировку перед разделением.');return false;}
+
+    const hitTolerance=clamp(8/Math.max(.25,state.zoom),1.5,10);
+    const openPath=appOpenPathPoints(source);
+    if(openPath){
+      const tx=splitOpenPathAtPoint(openPath,point,{hitTolerance});
+      if(!tx.ok){setMessage(tx.reason||'Не удалось разделить объект');return false;}
+      const before=snapshot();
+      if(!replaceWithOpenFragments(source,tx.fragments)){setMessage('Не удалось обновить объект');return false;}
+      commit(before);renderAll();
+      setMessage(`Объект разделён на две части в точке X ${mm(tx.splitPoint.x)} · Y ${mm(tx.splitPoint.y)} мм. Обе части сохранены отдельно.`);
+      return true;
+    }
+
+    const closed=appClosedContourPoints(source);
+    if(closed){
+      if(!state.splitPending||state.splitPending.id!==source.id){
+        state.splitPending={id:source.id,point:{x:point.x,y:point.y}};
+        state.selectedIds=[source.id];
+        previewLayer.innerHTML='';
+        add(previewLayer,'circle',{cx:point.x,cy:point.y,r:1.4,fill:'#078db2',stroke:'#ffffff','stroke-width':.35});
+        setMessage('Первая точка отмечена. Щёлкните по второй точке границы — контур разделится по прямой между точками на две отдельные части.');
+        return true;
+      }
+      const pending=state.splitPending;
+      const tx=splitClosedPolygonAtPoints(closed,pending.point,point,{hitTolerance});
+      if(!tx.ok){setMessage(tx.reason||'Не удалось разделить замкнутый контур. Первая точка сохранена — выберите другую вторую точку.');return false;}
+      const before=snapshot();
+      if(!replaceWithClosedFragments(source,tx.fragments)){setMessage('Не удалось обновить замкнутый контур');return false;}
+      state.splitPending=null;commit(before);renderAll();
+      setMessage(`Контур разделён на две замкнутые части. Площади: ${mm(tx.metadata.firstArea)} и ${mm(tx.metadata.secondArea)} мм².`);
+      return true;
+    }
+    setMessage('Этот объект нельзя разделить как геометрию. Выберите линию или контур.');
+    return false;
   }
   function applyEdgeCutout(point,clickedId=null){
     const clicked=clickedId?state.objects.find(o=>o.id===clickedId):null;
@@ -674,11 +738,11 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     addObject({type:'hatch',name:'Штриховка',points,closed:true,pattern:$('hatchPattern').value,angle:Number($('hatchAngle').value)||45,spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a',layer:'annotation',boundaryOf:src.id});
     setMessage('Штриховка создана внутри выделенного контура. Контур сохранён отдельно.');
   }
-  function selectTool(tool){state.tool=tool;if(tool!=='select')state.referenceCalibration=null;state.points=[];state.freehandDraft=null;previewLayer.innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор: щелчок — объект, Shift — добавить, рамка — выделить область. Размерное число перетаскивайте за голубую ручку.',cutout:'Вырез/разрез: щёлкните по границе замкнутой детали или по отрезку, дуге либо открытой линии. На замкнутом контуре паз уходит внутрь; на открытой линии удаляется участок заданной ширины. Можно повторять на уже вырезанных контурах и оставшихся фрагментах.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная прямая: две точки',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',polygon:'Многоугольник: центр и радиус',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Текст: щёлкните на листе',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Прямоугольная штриховка: укажите два противоположных угла. Для замкнутого контура выделите его и нажмите «Заштриховать выделенный контур»',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
+  function selectTool(tool){state.tool=tool;if(tool!=='select')state.referenceCalibration=null;state.points=[];state.freehandDraft=null;state.splitPending=null;previewLayer.innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор: щелчок — объект, Shift — добавить, рамка — выделить область. Размерное число перетаскивайте за голубую ручку.',split:'Разделить объект: по открытой линии щёлкните один раз в любом месте, в том числе точно посередине. По замкнутому контуру щёлкните две точки границы — объект разделится на две самостоятельные замкнутые части.',cutout:'Вырез/разрез: щёлкните по границе замкнутой детали или по отрезку, дуге либо открытой линии. На замкнутом контуре паз уходит внутрь; на открытой линии удаляется участок заданной ширины. Можно повторять на уже вырезанных контурах и оставшихся фрагментах.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная прямая: две точки',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',polygon:'Многоугольник: центр и радиус',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Текст: щёлкните на листе',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Прямоугольная штриховка: укажите два противоположных угла. Для замкнутого контура выделите его и нажмите «Заштриховать выделенный контур»',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
   function snapToObjects(p){if(!state.objectSnap)return p;const candidates=[];for(const o of state.objects){if(o.points){o.points.forEach(q=>candidates.push(q));}else if(o.type==='circle'){candidates.push({x:o.x,y:o.y});candidates.push({x:(o.x+o.x2)/2,y:(o.y+o.y2)/2});}else if(o.type==='rect'||o.type==='line'||o.type==='construction'||o.type==='centerline'){const a={x:o.x,y:o.y},b={x:o.x2,y:o.y2};candidates.push(a,b,{x:(a.x+b.x)/2,y:(a.y+b.y)/2});}else if(o.type==='ellipse'){candidates.push({x:(o.x+o.x2)/2,y:(o.y+o.y2)/2});}}
     let best=null,dist=2.1;candidates.forEach(q=>{const d=Math.hypot(q.x-p.x,q.y-p.y);if(d<dist){dist=d;best=q;}});return best?{x:mm(best.x),y:mm(best.y)}:p;}
   function pointFromEvent(e,raw=false){const r=svg.getBoundingClientRect(),d=dimensions();let x=(e.clientX-r.left)/r.width*d.w,y=(e.clientY-r.top)/r.height*d.h;const step=gridStep();if(raw)return{x:mm(x),y:mm(y)};if(state.snap){x=Math.round(x/step)*step;y=Math.round(y/step)*step;}const a=state.points[state.points.length-1];const lineTools=['line','polyline','spline','construction','centerline','breakline','section','dimension','dimAuto','dimH','dimV'];if(a&&e.shiftKey&&lineTools.includes(state.tool)){const angleStep=clamp(Number($('angleStep').value)||15,1,90)*Math.PI/180,dx=x-a.x,dy=y-a.y,len=Math.hypot(dx,dy),angle=Math.atan2(dy,dx),snapped=Math.round(angle/angleStep)*angleStep;x=a.x+Math.cos(snapped)*len;y=a.y+Math.sin(snapped)*len;}if(a&&state.ortho&&lineTools.includes(state.tool)){if(Math.abs(x-a.x)>=Math.abs(y-a.y))y=a.y;else x=a.x;}if(a&&state.ruler&&state.rulerMode!=='off'&&lineTools.includes(state.tool)){let ux=state.ruler.b.x-state.ruler.a.x,uy=state.ruler.b.y-state.ruler.a.y,len=Math.hypot(ux,uy)||1;ux/=len;uy/=len;if(state.rulerMode==='perpendicular'){const t=ux;ux=-uy;uy=t;}const dx=x-a.x,dy=y-a.y,t=dx*ux+dy*uy;x=a.x+ux*t;y=a.y+uy*t;}const p={x:mm(x),y:mm(y)};return snapToObjects(p);}
-  function drawPreview(p){previewLayer.innerHTML='';const pts=state.points;if(state.tool==='select'&&state.selectionRect){const r=state.selectionRect;add(previewLayer,'rect',{x:Math.min(r.start.x,p.x),y:Math.min(r.start.y,p.y),width:Math.abs(p.x-r.start.x),height:Math.abs(p.y-r.start.y),fill:'#0b91b4','fill-opacity':.08,stroke:'#078db2','stroke-width':.25,'stroke-dasharray':'1 1'});return;}if(state.tool==='ruler'&&pts.length){drawRulerGraphics(previewLayer,pts[0],p,.8);return;}if(!pts.length)return;const a=pts[0];let el;
+  function drawPreview(p){previewLayer.innerHTML='';const pts=state.points;if(state.tool==='split'&&state.splitPending){add(previewLayer,'line',{x1:state.splitPending.point.x,y1:state.splitPending.point.y,x2:p.x,y2:p.y,stroke:'#078db2','stroke-width':.45,'stroke-dasharray':'1.5 1'});add(previewLayer,'circle',{cx:state.splitPending.point.x,cy:state.splitPending.point.y,r:1.2,fill:'#078db2',stroke:'#ffffff','stroke-width':.3});return;}if(state.tool==='select'&&state.selectionRect){const r=state.selectionRect;add(previewLayer,'rect',{x:Math.min(r.start.x,p.x),y:Math.min(r.start.y,p.y),width:Math.abs(p.x-r.start.x),height:Math.abs(p.y-r.start.y),fill:'#0b91b4','fill-opacity':.08,stroke:'#078db2','stroke-width':.25,'stroke-dasharray':'1 1'});return;}if(state.tool==='ruler'&&pts.length){drawRulerGraphics(previewLayer,pts[0],p,.8);return;}if(!pts.length)return;const a=pts[0];let el;
     if(['line','construction','centerline','rect','roundRect','circle','ellipse','dimension','dimAuto','dimH','dimV','dimRad','dimDia','breakline','hatch'].includes(state.tool)){if(state.tool==='rect'||state.tool==='roundRect'||state.tool==='hatch')el=add(previewLayer,'rect',{x:Math.min(a.x,p.x),y:Math.min(a.y,p.y),width:Math.abs(p.x-a.x),height:Math.abs(p.y-a.y),rx:state.tool==='roundRect'?Number($('roundingRadius').value)||0:0});else if(state.tool==='circle')el=add(previewLayer,'circle',{cx:a.x,cy:a.y,r:Math.hypot(p.x-a.x,p.y-a.y)});else if(state.tool==='ellipse')el=add(previewLayer,'ellipse',{cx:(a.x+p.x)/2,cy:(a.y+p.y)/2,rx:Math.abs(p.x-a.x)/2,ry:Math.abs(p.y-a.y)/2});else el=add(previewLayer,'line',{x1:a.x,y1:a.y,x2:p.x,y2:p.y});}
     else if(state.tool==='polyline'||state.tool==='spline'||state.tool==='leader'){const all=[...pts,p],d=all.map((q,i)=>(i?'L':'M')+` ${q.x} ${q.y}`).join(' ');el=add(previewLayer,'path',{d});}
     else if(state.tool==='polygon'){el=add(previewLayer,'circle',{cx:a.x,cy:a.y,r:Math.hypot(p.x-a.x,p.y-a.y)});}
@@ -690,7 +754,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
   function newId(){return`obj_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;}
   function deleteSelected(){if(!state.selectedIds.length){setMessage('Сначала выберите объект');return;}const ids=state.selectedIds.filter(id=>{const o=state.objects.find(x=>x.id===id);return o&&!o.locked;});if(!ids.length){setMessage('Все выбранные объекты заблокированы');return;}commit();state.objects=state.objects.filter(o=>!ids.includes(o.id));state.selectedIds=state.selectedIds.filter(id=>!ids.includes(id));renderAll();setMessage(`Удалено объектов: ${ids.length}`);}
   function selectByPoint(p){
-    if(state.tool==='split'||state.tool==='trim'){const o=state.objects.find(x=>state.selectedIds.includes(x.id));if(!o||o.type!=='line'){setMessage('Выберите один отрезок для операции');return;}if(state.tool==='split')splitLineAt(o,p);else trimLineAt(o,p);return;}
+    if(state.tool==='split'){applySplitTool(p);return;}if(state.tool==='trim'){const o=state.objects.find(x=>state.selectedIds.includes(x.id));if(!o||o.type!=='line'){setMessage('Выберите один отрезок для операции');return;}trimLineAt(o,p);return;}
     const target=state.lastTarget; if(!target)return;
   }
   const GOST_TEXT_HEIGHTS=[1.8,2.5,3.5,5,7,10,14,20,28,40];
@@ -1043,6 +1107,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
       commit();o.w=clamp(oldW*factor,1,2000);const actualFactor=o.w/oldW;o.h=o.w/(o.aspect||1);const newCx=a.x+(oldCx-a.x)*actualFactor,newCy=a.y+(oldCy-a.y)*actualFactor;o.x=newCx-o.w/2;o.y=newCy-o.h/2;renderAll();selectTool('select');setMessage(`Референс откалиброван: ширина ${o.w.toFixed(2)} мм`);return;
     }
     const target=e.target.closest('[data-id]');
+    if(state.tool==='split'){const raw=pointFromEvent(e,true),clickedId=target?.getAttribute('data-id')||null;applySplitTool(raw,clickedId);return;}
     if(state.tool==='cutout'){
       const p=pointFromEvent(e),clickedId=target?.getAttribute('data-id')||null;
       applyEdgeCutout(p,clickedId);return;
@@ -1087,8 +1152,8 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     if(state.tool==='polygon'){
       state.points.push(p);if(state.points.length<2){setMessage('Укажите радиус многоугольника');return;}const [c,rp]=state.points,r=Math.hypot(rp.x-c.x,rp.y-c.y),n=clamp(Number($('polygonSides').value)||6,3,24),a0=Math.atan2(rp.y-c.y,rp.x-c.x),pts=Array.from({length:n},(_,i)=>({x:mm(c.x+Math.cos(a0+i*2*Math.PI/n)*r),y:mm(c.y+Math.sin(a0+i*2*Math.PI/n)*r)}));addObject({type:'polyline',points:pts,closed:true,layer:'geometry'});state.points=[];return;
     }
-    if(state.tool==='split'||state.tool==='trim'){
-      const o=state.objects.find(x=>state.selectedIds.includes(x.id));if(!o||o.type!=='line'){setMessage('Сначала выберите отрезок');return;}if(state.tool==='split')splitLineAt(o,p);else trimLineAt(o,p);return;
+    if(state.tool==='trim'){
+      const o=state.objects.find(x=>state.selectedIds.includes(x.id));if(!o||o.type!=='line'){setMessage('Сначала выберите отрезок для усечения');return;}trimLineAt(o,p);return;
     }
     if(!state.points.length){state.points=[p];setMessage('Укажите вторую точку');return;}
     const a=state.points[0];state.points=[];previewLayer.innerHTML='';const len=Math.hypot(p.x-a.x,p.y-a.y);if(len<.05)return;
@@ -1122,11 +1187,10 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     if(state.drag){const dx=p.x-state.drag.start.x,dy=p.y-state.drag.start.y;if(Math.abs(dx)+Math.abs(dy)>.03){state.drag.moved=true;state.drag.ids.forEach((id,i)=>{const o=state.objects.find(x=>x.id===id);if(o){Object.assign(o,deep(state.drag.originals[i]));translateObject(o,dx,dy);}});renderAll();}return;}
     if(state.selectionRect){state.selectionRect.current=raw;drawPreview(raw);return;}
     if(state.freehandDraft){const last=state.freehandDraft[state.freehandDraft.length-1];if(Math.hypot(raw.x-last.x,raw.y-last.y)>=.25)state.freehandDraft.push(raw);previewLayer.innerHTML='';const path=add(previewLayer,'path',{d:smoothPath(state.freehandDraft,Number($('freehandSmooth').value)||0),fill:'none',stroke:'#078db2','stroke-width':clamp(Number($('freehandWidth').value)||state.gost.thinLine,.05,3),'stroke-linecap':'round','stroke-linejoin':'round','stroke-dasharray':'1 0'});return;}
-    if(state.points.length)drawPreview(p);
+    if(state.points.length||state.splitPending)drawPreview(p);
   }
   function onPointerUp(){if(state.erasing){const r=state.erasing;state.erasing=null;if(r.seen.size)recordHistory(r.historyBefore);setMessage(r.seen.size?`Стерто объектов: ${r.seen.size}`:'Объектов под ластиком нет');renderAll();return;}if(state.dimensionLabelDrag){const r=state.dimensionLabelDrag;state.dimensionLabelDrag=null;const o=state.objects.find(x=>x.id===r.id);if(o&&(Math.abs(o.labelDx-r.labelDx)>.001||Math.abs(o.labelDy-r.labelDy)>.001))recordHistory(r.historyBefore);renderAll();setMessage('Положение размерного числа изменено');return;}if(state.freehandDraft){const pts=state.freehandDraft;state.freehandDraft=null;previewLayer.innerHTML='';if(pts.length>1){const smooth=Number($('freehandSmooth').value)||0;addObject({type:'freehand',points:deep(pts),smooth,layer:'geometry',width:clamp(Number($('freehandWidth').value)||state.gost.thinLine,.05,3)});}else setMessage('Свободная линия слишком короткая');return;}if(state.rotateDrag){const r=state.rotateDrag;state.rotateDrag=null;drawingArea.classList.remove('rotating');if(Math.abs(r.delta)>.0001){recordHistory(r.historyBefore);setMessage(`Поворот завершён: ${(r.delta*180/Math.PI).toFixed(1)}°`);}else setMessage('Поворот отменён');renderAll();return;}if(state.resize){const r=state.resize;state.resize=null;drawingArea.classList.remove('resizing');const changed=JSON.stringify(r.originals)!==JSON.stringify(r.ids.map(id=>state.objects.find(o=>o.id===id)).filter(Boolean));if(changed)recordHistory(r.historyBefore);renderAll();setMessage(changed?'Размер выбранных объектов изменён':'Размер не изменён');return;}if(state.pan){state.pan=null;drawingArea.classList.remove('dragging');state.dirty=true;$('saveState').textContent='Изменён вид чертежа';persistAutosave();}if(state.drag){if(state.drag.moved){recordHistory(state.drag.historyBefore);setMessage('Объекты перемещены');}state.drag=null;}if(state.selectionRect){const r=state.selectionRect,a=r.start,b=r.current||r.start,minX=Math.min(a.x,b.x),maxX=Math.max(a.x,b.x),minY=Math.min(a.y,b.y),maxY=Math.max(a.y,b.y);const ids=state.objects.filter(o=>{const bb=objectBounds(o);return bb&&bb.x>=minX&&bb.y>=minY&&bb.x+bb.w<=maxX&&bb.y+bb.h<=maxY;}).map(o=>o.id);state.selectedIds=r.initial.concat(ids).filter((id,i,a)=>a.indexOf(id)===i);state.selectionRect=null;previewLayer.innerHTML='';renderAll();setMessage(`Выделено объектов: ${state.selectedIds.length}`);}}
   function intersectLines(a,b,c,d){const den=(a.x-b.x)*(c.y-d.y)-(a.y-b.y)*(c.x-d.x);if(Math.abs(den)<1e-8)return null;const t=((a.x-c.x)*(c.y-d.y)-(a.y-c.y)*(c.x-d.x))/den,u=-((a.x-b.x)*(a.y-c.y)-(a.y-b.y)*(a.x-c.x))/den;if(t<0||t>1||u<0||u>1)return null;return{x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y),t};}
-  function splitLineAt(o,p){const a={x:o.x,y:o.y},b={x:o.x2,y:o.y2},dx=b.x-a.x,dy=b.y-a.y,len2=dx*dx+dy*dy,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(len2||1),0,1),q={x:mm(a.x+t*dx),y:mm(a.y+t*dy)};if(t<.02||t>.98){setMessage('Точка разбиения слишком близко к концу отрезка');return;}commit();const idx=state.objects.findIndex(x=>x.id===o.id);state.objects.splice(idx,1,{...deep(o),id:newId(),x:a.x,y:a.y,x2:q.x,y2:q.y},{...deep(o),id:newId(),x:q.x,y:q.y,x2:b.x,y2:b.y});state.selectedIds=[];renderAll();setMessage('Отрезок разбит на два');}
   function trimLineAt(o,p){const a={x:o.x,y:o.y},b={x:o.x2,y:o.y2},hits=[];state.objects.filter(x=>x.id!==o.id).forEach(x=>{if(x.type==='line'||x.type==='construction'||x.type==='centerline'){const h=intersectLines(a,b,{x:x.x,y:x.y},{x:x.x2,y:x.y2});if(h)hits.push(h);}else if(x.type==='rect'){const l=x.x,t=x.y,r=x.x2,bt=x.y2;[[{x:l,y:t},{x:r,y:t}],[{x:r,y:t},{x:r,y:bt}],[{x:r,y:bt},{x:l,y:bt}],[{x:l,y:bt},{x:l,y:t}]].forEach(pair=>{const h=intersectLines(a,b,pair[0],pair[1]);if(h)hits.push(h);});}});if(!hits.length){setMessage('Не найдено пересечений с другими линиями');return;}const dx=b.x-a.x,dy=b.y-a.y,tClick=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1),hit=hits.sort((u,v)=>Math.abs(u.t-tClick)-Math.abs(v.t-tClick))[0];commit();if(tClick<hit.t){o.x2=mm(hit.x);o.y2=mm(hit.y);}else{o.x=mm(hit.x);o.y=mm(hit.y);}renderAll();setMessage('Отрезок усечён до ближайшего пересечения');}
   function selectionCenter(objs){const boxes=objs.map(objectBounds).filter(Boolean);if(!boxes.length)return{x:0,y:0};const x=Math.min(...boxes.map(b=>b.x)),y=Math.min(...boxes.map(b=>b.y)),r=Math.max(...boxes.map(b=>b.x+b.w)),bt=Math.max(...boxes.map(b=>b.y+b.h));return{x:(x+r)/2,y:(y+bt)/2};}
   function transformPoint(p,c,angle,scale=1,flip=null){let x=p.x-c.x,y=p.y-c.y;if(flip==='vertical')x=-x;if(flip==='horizontal')y=-y;const cs=Math.cos(angle),sn=Math.sin(angle);return{x:mm(c.x+(x*cs-y*sn)*scale),y:mm(c.y+(x*sn+y*cs)*scale)};}
@@ -1251,7 +1315,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutOpenPathGapAtPoint, c
     if(action==='fillet'||action==='chamfer'){const value=Number(prompt(action==='fillet'?'Радиус скругления, мм:':'Размер фаски, мм:','2'));if(!Number.isFinite(value)||value<=0)return;let changed=0;commit();objs.forEach(o=>{if(o.type==='rect'){const x1=Math.min(o.x,o.x2),x2=Math.max(o.x,o.x2),y1=Math.min(o.y,o.y2),y2=Math.max(o.y,o.y2);if(action==='fillet'){o.rx=Math.min(value,(x2-x1)/2,(y2-y1)/2);}else{o.type='polyline';o.closed=true;o.points=[{x:x1+value,y:y1},{x:x2-value,y:y1},{x:x2,y:y1+value},{x:x2,y:y2-value},{x:x2-value,y:y2},{x:x1+value,y:y2},{x:x1,y:y2-value},{x:x1,y:y1+value}];delete o.x;delete o.y;delete o.x2;delete o.y2;}changed++;}});renderAll();setMessage(`${action==='fillet'?'Скругление':'Фаска'}: обработано ${changed} прямоугольников`);return;}
     if(action==='arrayRect'){const cols=clamp(Number(prompt('Количество столбцов:','3'))||3,1,30),rows=clamp(Number(prompt('Количество строк:','2'))||2,1,30),dx=Number(prompt('Шаг по X, мм:','15')),dy=Number(prompt('Шаг по Y, мм:','15'));if(!Number.isFinite(dx)||!Number.isFinite(dy))return;commit();const clones=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){if(r===0&&c===0)continue;objs.forEach(o=>{const n={...deep(o),id:newId()};translateObject(n,c*dx,r*dy);clones.push(n);});}state.objects.push(...clones);state.selectedIds=clones.map(o=>o.id);renderAll();setMessage(`Создан прямоугольный массив: ${cols} × ${rows}`);return;}
     if(action==='arrayPolar'){openPolarArrayDialog(objs);return;}if(action==='repeatPolarArray'){repeatPolarArray();return;}
-    if(action==='split'||action==='trim'){selectTool(action);setMessage(`Укажите на выбранном отрезке место операции «${action==='split'?'Разбить':'Усечь'}»`);}
+    if(action==='split'||action==='trim'){selectTool(action);setMessage(action==='split'?'Щёлкните по открытой линии один раз или по двум точкам границы замкнутого контура. Выбор объекта не обязателен.':'Выберите отрезок и укажите сторону, которую нужно усечь.');}
   }
   function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1200);}
   // Local project library: IndexedDB is used for larger drawings and embedded image references.
