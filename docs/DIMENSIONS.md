@@ -2,7 +2,7 @@
 
 Linear and diameter dimensions keep the measured geometry, text orientation, and text placement as separate properties.
 
-For vertical dimensions, the text is placed to the left of the dimension line by default. Its oriented glyph box is projected onto the dimension-line direction to calculate a clear break in the line. The clearance includes a margin based on text height and stroke width; there is no white knockout rectangle behind the text.
+Dimension labels are rendered without an opaque white background. In the main editor, the oriented text box is estimated on every render and shifted away from its own dimension line when the two would overlap; the clearance includes a margin based on text height and stroke width. Extension lines remain connected to the measured endpoints so it is clear which geometry the dimension refers to. Redundant connector shelves beside diameter, radius and linear labels are not drawn.
 
 Supported text orientation values:
 

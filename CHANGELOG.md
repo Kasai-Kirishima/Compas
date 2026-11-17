@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.2
+- Connected edge-notch and inner-contour tools to the main CAD editor UI.
+- Added editable edge-notch width, depth and minimum-web settings, plus rectangular, circular and obround inner-contour placement.
+- Removed opaque white dimension-label masks and redundant connector shelves next to dimension values.
+- Added automatic dimension-label clearance from its own dimension line while retaining extension lines that identify the measured endpoints.
+- Added main-editor regression checks for cutout wiring and dimension rendering.
+
 ## 1.5.1
 - Fixed eraser target selection: the object directly under the starting pointer is used instead of a stale selected object.
 - Captured the all-objects eraser setting at pointer-down so changing the checkbox mid-stroke cannot change the transaction scope.

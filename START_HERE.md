@@ -22,7 +22,7 @@ Run a local static server from the project root:
 python -m http.server 8000
 ```
 
-Open <http://localhost:8000/examples/demo.html>. Use **Загрузить пример детали с вырезом** for the generic sample or **Загрузить крышку — вариант №6** for the supplied circular-cover sketch. Internal contours are placed by clicking the desired centre on the canvas.
+Open <http://localhost:8000/> for the main CAD editor. The simplified demo is at <http://localhost:8000/examples/demo.html>. In the main editor, use **Вырез по краю** and click an edge of a closed rectangle or polygonal polyline; adjust width, depth and minimum web first. To add an internal hole or slot contour, choose its shape and click **Разместить внутренний контур**, then click the required centre on the drawing.
 
 ## Suggested workflow for a 2D mechanical drawing
 

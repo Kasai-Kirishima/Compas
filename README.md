@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.1
+# CAD Geometry Core 1.5.2
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -15,8 +15,9 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - partial freehand erasing for lines, centre lines, circles, arcs, polygon edges, and dimension linework;
 - safe single-target erasing (`eraseTargetAlongPath`) so a stroke does not affect unrelated nearby objects;
 - complete-object erasing is deliberately disabled by the UI eraser; use Delete for whole-object removal;
-- edge notch / cutout on closed polygon profiles;
-- inner rectangular, circular, and obround cutout contours;
+- edge notch / cutout on closed rectangular and polygonal profiles (available in the main editor as **Вырез по краю**);
+- inner rectangular, circular, and obround cutout contours (available in the main editor as **Разместить внутренний контур**);
+- automatic dimension-label clearance without opaque white text masks or extra connector shelves;
 - rotate, translate, scale, mirror, polar array, and scene transactions;
 - OSNAP endpoint, midpoint, centre, and intersection points;
 - bounded Undo/Redo history;
@@ -34,7 +35,7 @@ npm test
 python -m http.server 8000
 ```
 
-Open <http://localhost:8000/examples/demo.html>.
+Open <http://localhost:8000/> for the main CAD editor. The simplified demo remains available at <http://localhost:8000/examples/demo.html>.
 
 ## Cutouts: important distinction
 

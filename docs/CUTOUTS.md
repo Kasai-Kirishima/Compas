@@ -47,6 +47,15 @@ const slot = createObroundCutout({ x: 40, y: 30 }, 48, 12, Math.PI / 4);
 
 For a standards-oriented drawing, keep inner hole contours as separate closed entities and add centre marks / dimensions as separate annotation objects. The drawing renderer does not fill the contour white; the hole is represented by its visible boundary.
 
+## Main editor workflow
+
+1. Open the **Редактирование → Вырез и отверстия** section.
+2. For an edge notch, set width/depth/minimum web, choose **Вырез по краю**, then click the edge of a closed rectangle or polygonal polyline.
+3. For an internal contour, choose rectangle/circle/slot, press **Разместить внутренний контур**, then click its centre.
+4. Use Undo if the result is not suitable.
+
+The main editor keeps the selected object ID when an edge notch replaces its boundary, so selection and object styling are retained.
+
 ## Demo workflow
 
 1. Choose **Вырез по краю**.
