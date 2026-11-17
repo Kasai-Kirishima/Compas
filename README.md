@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.10
+# CAD Geometry Core 1.5.11
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
