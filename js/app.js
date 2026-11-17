@@ -1196,14 +1196,13 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   }
   function onCanvasPointerDown(e){
     if(state.pendingPolarCenter&&e.button===0){const p=pointFromEvent(e,true);state.pendingPolarCenter=false;setPolarCenter(p);$('polarArrayModal').classList.remove('hidden');setMessage(`Центр массива выбран: X ${p.x.toFixed(2)} мм · Y ${p.y.toFixed(2)} мм`);e.preventDefault();return;}
-    if(e.button===1||state.space){
-      // Middle-button (wheel-click) and Space+left drag pan the sheet. Start
-      // this on the viewport itself and capture the pointer there so SVG child
-      // handlers cannot turn the gesture into selection or drawing.
+    if(e.button===1||e.button===2||state.space){
+      // Middle-button, right-button and Space+left drag pan the sheet. Capture
+      // at the viewport before SVG tools can select, draw or edit an object.
       e.preventDefault();e.stopPropagation();
-      state.pan={x:e.clientX,y:e.clientY,originX:state.viewPan.x,originY:state.viewPan.y,pointerId:e.pointerId};
+      state.pan={x:e.clientX,y:e.clientY,originX:state.viewPan.x,originY:state.viewPan.y,pointerId:e.pointerId,button:e.button,moved:false};
       drawingArea.classList.add('dragging');
-      try{drawingArea.setPointerCapture(e.pointerId);}catch(_){}
+      try{drawingArea.setPointerCapture(e.pointerId);}catch(_){try{svg.setPointerCapture(e.pointerId);}catch(__){}}
       return;
     }
     if(state.duplicatePlacement&&e.button===0){const p=pointFromEvent(e,true);state.duplicatePlacement.cursor=p;state.duplicatePlacement.dragging=true;renderDuplicatePreview(p);e.preventDefault();e.stopPropagation();try{svg.setPointerCapture(e.pointerId);}catch(_){}return;}if(state.tool==='eraser'){state.erasing={seen:new Set(),historyBefore:snapshot()};eraseObjectAtEvent(e);e.preventDefault();return;}
@@ -1293,7 +1292,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   }
   function finishPath(){if((state.tool==='polyline'||state.tool==='spline')&&state.points.length>=2){addObject({type:state.tool==='spline'?'spline':'polyline',points:deep(state.points),closed:false});state.points=[];previewLayer.innerHTML='';}else if(state.tool==='polyline'||state.tool==='spline'){state.points=[];previewLayer.innerHTML='';setMessage('Нужно минимум две точки');}}
   function onPointerMove(e){const raw=pointFromEvent(e,true),p=pointFromEvent(e);$('coordinates').textContent=`X: ${p.x.toFixed(2)} · Y: ${p.y.toFixed(2)} мм`;
-    if(state.pan){if(state.pan.pointerId!==undefined&&e.pointerId!==state.pan.pointerId)return;state.viewPan.x=state.pan.originX+(e.clientX-state.pan.x);state.viewPan.y=state.pan.originY+(e.clientY-state.pan.y);svg.style.transform=`translate(${state.viewPan.x}px, ${state.viewPan.y}px)`;return;}
+    if(state.pan){if(state.pan.pointerId!==undefined&&e.pointerId!==state.pan.pointerId)return;const dx=e.clientX-state.pan.x,dy=e.clientY-state.pan.y;if(Math.hypot(dx,dy)>2)state.pan.moved=true;state.viewPan.x=state.pan.originX+dx;state.viewPan.y=state.pan.originY+dy;svg.style.transform=`translate(${state.viewPan.x}px, ${state.viewPan.y}px)`;return;}
     if(state.duplicatePlacement){state.duplicatePlacement.cursor=raw;renderDuplicatePreview(raw);return;}
     if(state.erasing){eraseObjectAtEvent(e);return;}
     if(state.dimensionLabelDrag){const d=state.dimensionLabelDrag,o=state.objects.find(x=>x.id===d.id);if(o){o.labelDx=mm(d.labelDx+raw.x-d.start.x);o.labelDy=mm(d.labelDy+raw.y-d.start.y);o.labelManualPositioned=true;renderAll();}return;}
@@ -1305,7 +1304,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     if(state.points.length||state.splitPending)drawPreview(p);
   }
   function finishPan(pointerId=null){if(!state.pan||(pointerId!==null&&state.pan.pointerId!==pointerId))return false;state.pan=null;drawingArea.classList.remove('dragging');state.dirty=true;$('saveState').textContent='Изменён вид чертежа';persistAutosave();return true;}
-  function onPointerUp(e){if(state.pan){if(e&&state.pan.pointerId!==e.pointerId)return;finishPan(e?.pointerId??null);return;}if(state.duplicatePlacement?.dragging){const cursor=state.duplicatePlacement.cursor||state.duplicatePlacement.anchor;finishDuplicatePlacement(cursor);return;}if(state.erasing){const r=state.erasing;state.erasing=null;if(r.seen.size)recordHistory(r.historyBefore);setMessage(r.seen.size?`Стерто объектов: ${r.seen.size}`:'Объектов под ластиком нет');renderAll();return;}if(state.dimensionLabelDrag){const r=state.dimensionLabelDrag;state.dimensionLabelDrag=null;const o=state.objects.find(x=>x.id===r.id);if(o&&(Math.abs(o.labelDx-r.labelDx)>.001||Math.abs(o.labelDy-r.labelDy)>.001))recordHistory(r.historyBefore);renderAll();setMessage('Положение размерного числа изменено');return;}if(state.freehandDraft){const pts=state.freehandDraft;state.freehandDraft=null;previewLayer.innerHTML='';if(pts.length>1){const smooth=Number($('freehandSmooth').value)||0;addObject({type:'freehand',points:deep(pts),smooth,layer:'geometry',width:clamp(Number($('freehandWidth').value)||state.gost.thinLine,.05,3)});}else setMessage('Свободная линия слишком короткая');return;}if(state.rotateDrag){const r=state.rotateDrag;state.rotateDrag=null;drawingArea.classList.remove('rotating');if(Math.abs(r.delta)>.0001){recordHistory(r.historyBefore);setMessage(`Поворот завершён: ${(r.delta*180/Math.PI).toFixed(1)}°`);}else setMessage('Поворот отменён');renderAll();return;}if(state.resize){const r=state.resize;state.resize=null;drawingArea.classList.remove('resizing');const changed=JSON.stringify(r.originals)!==JSON.stringify(r.ids.map(id=>state.objects.find(o=>o.id===id)).filter(Boolean));if(changed)recordHistory(r.historyBefore);renderAll();setMessage(changed?'Размер выбранных объектов изменён':'Размер не изменён');return;}if(state.drag){if(state.drag.moved){recordHistory(state.drag.historyBefore);setMessage('Объекты перемещены');}state.drag=null;}if(state.selectionRect){const r=state.selectionRect,a=r.start,b=r.current||r.start,minX=Math.min(a.x,b.x),maxX=Math.max(a.x,b.x),minY=Math.min(a.y,b.y),maxY=Math.max(a.y,b.y);const ids=state.objects.filter(o=>{const bb=objectBounds(o);return bb&&bb.x>=minX&&bb.y>=minY&&bb.x+bb.w<=maxX&&bb.y+bb.h<=maxY;}).map(o=>o.id);state.selectedIds=r.initial.concat(ids).filter((id,i,a)=>a.indexOf(id)===i);state.selectionRect=null;previewLayer.innerHTML='';renderAll();setMessage(`Выделено объектов: ${state.selectedIds.length}`);}}
+  function onPointerUp(e){if(state.pan){if(e&&state.pan.pointerId!==e.pointerId)return;const pan=state.pan;finishPan(e?.pointerId??null);if(pan.button===2&&!pan.moved&&(state.tool==='polyline'||state.tool==='spline'))finishPath();return;}if(state.duplicatePlacement?.dragging){const cursor=state.duplicatePlacement.cursor||state.duplicatePlacement.anchor;finishDuplicatePlacement(cursor);return;}if(state.erasing){const r=state.erasing;state.erasing=null;if(r.seen.size)recordHistory(r.historyBefore);setMessage(r.seen.size?`Стерто объектов: ${r.seen.size}`:'Объектов под ластиком нет');renderAll();return;}if(state.dimensionLabelDrag){const r=state.dimensionLabelDrag;state.dimensionLabelDrag=null;const o=state.objects.find(x=>x.id===r.id);if(o&&(Math.abs(o.labelDx-r.labelDx)>.001||Math.abs(o.labelDy-r.labelDy)>.001))recordHistory(r.historyBefore);renderAll();setMessage('Положение размерного числа изменено');return;}if(state.freehandDraft){const pts=state.freehandDraft;state.freehandDraft=null;previewLayer.innerHTML='';if(pts.length>1){const smooth=Number($('freehandSmooth').value)||0;addObject({type:'freehand',points:deep(pts),smooth,layer:'geometry',width:clamp(Number($('freehandWidth').value)||state.gost.thinLine,.05,3)});}else setMessage('Свободная линия слишком короткая');return;}if(state.rotateDrag){const r=state.rotateDrag;state.rotateDrag=null;drawingArea.classList.remove('rotating');if(Math.abs(r.delta)>.0001){recordHistory(r.historyBefore);setMessage(`Поворот завершён: ${(r.delta*180/Math.PI).toFixed(1)}°`);}else setMessage('Поворот отменён');renderAll();return;}if(state.resize){const r=state.resize;state.resize=null;drawingArea.classList.remove('resizing');const changed=JSON.stringify(r.originals)!==JSON.stringify(r.ids.map(id=>state.objects.find(o=>o.id===id)).filter(Boolean));if(changed)recordHistory(r.historyBefore);renderAll();setMessage(changed?'Размер выбранных объектов изменён':'Размер не изменён');return;}if(state.drag){if(state.drag.moved){recordHistory(state.drag.historyBefore);setMessage('Объекты перемещены');}state.drag=null;}if(state.selectionRect){const r=state.selectionRect,a=r.start,b=r.current||r.start,minX=Math.min(a.x,b.x),maxX=Math.max(a.x,b.x),minY=Math.min(a.y,b.y),maxY=Math.max(a.y,b.y);const ids=state.objects.filter(o=>{const bb=objectBounds(o);return bb&&bb.x>=minX&&bb.y>=minY&&bb.x+bb.w<=maxX&&bb.y+bb.h<=maxY;}).map(o=>o.id);state.selectedIds=r.initial.concat(ids).filter((id,i,a)=>a.indexOf(id)===i);state.selectionRect=null;previewLayer.innerHTML='';renderAll();setMessage(`Выделено объектов: ${state.selectedIds.length}`);}}
   function intersectLines(a,b,c,d){const den=(a.x-b.x)*(c.y-d.y)-(a.y-b.y)*(c.x-d.x);if(Math.abs(den)<1e-8)return null;const t=((a.x-c.x)*(c.y-d.y)-(a.y-c.y)*(c.x-d.x))/den,u=-((a.x-b.x)*(a.y-c.y)-(a.y-b.y)*(a.x-c.x))/den;if(t<0||t>1||u<0||u>1)return null;return{x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y),t};}
   function trimLineAt(o,p){const a={x:o.x,y:o.y},b={x:o.x2,y:o.y2},hits=[];state.objects.filter(x=>x.id!==o.id).forEach(x=>{if(x.type==='line'||x.type==='construction'||x.type==='centerline'){const h=intersectLines(a,b,{x:x.x,y:x.y},{x:x.x2,y:x.y2});if(h)hits.push(h);}else if(x.type==='rect'){const l=x.x,t=x.y,r=x.x2,bt=x.y2;[[{x:l,y:t},{x:r,y:t}],[{x:r,y:t},{x:r,y:bt}],[{x:r,y:bt},{x:l,y:bt}],[{x:l,y:bt},{x:l,y:t}]].forEach(pair=>{const h=intersectLines(a,b,pair[0],pair[1]);if(h)hits.push(h);});}});if(!hits.length){setMessage('Не найдено пересечений с другими линиями');return;}const dx=b.x-a.x,dy=b.y-a.y,tClick=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1),hit=hits.sort((u,v)=>Math.abs(u.t-tClick)-Math.abs(v.t-tClick))[0];commit();if(tClick<hit.t){o.x2=mm(hit.x);o.y2=mm(hit.y);}else{o.x=mm(hit.x);o.y=mm(hit.y);}renderAll();setMessage('Отрезок усечён до ближайшего пересечения');}
   function selectionCenter(objs){const boxes=objs.map(objectBounds).filter(Boolean);if(!boxes.length)return{x:0,y:0};const x=Math.min(...boxes.map(b=>b.x)),y=Math.min(...boxes.map(b=>b.y)),r=Math.max(...boxes.map(b=>b.x+b.w)),bt=Math.max(...boxes.map(b=>b.y+b.h));return{x:(x+r)/2,y:(y+bt)/2};}
@@ -1866,10 +1865,11 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   $('addReferenceRibbonBtn').addEventListener('click',()=>$('referenceInput').click());
   $('gostRibbonBtn').addEventListener('click',checkGost);
   $('referenceInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importReference(f);e.target.value='';});
-  // Capture pan gestures at the viewport before SVG descendants can consume
-  // the event. Middle mouse (pressed wheel) pans; Space+left drag is a fallback.
-  drawingArea.addEventListener('pointerdown',e=>{if(e.button===1||state.space)onCanvasPointerDown(e);},{capture:true});
-  drawingArea.addEventListener('auxclick',e=>{if(e.button===1){e.preventDefault();e.stopPropagation();}},{capture:true});
+  // Capture navigation gestures before SVG drawing tools. Right-drag is the
+  // primary pan gesture; middle-drag and Space+left remain available.
+  drawingArea.addEventListener('pointerdown',e=>{if(e.button===1||e.button===2||(state.space&&e.button===0))onCanvasPointerDown(e);},{capture:true});
+  drawingArea.addEventListener('auxclick',e=>{if(e.button===1||e.button===2){e.preventDefault();e.stopPropagation();}},{capture:true});
+  drawingArea.addEventListener('contextmenu',e=>{e.preventDefault();},{capture:true});
   drawingArea.addEventListener('lostpointercapture',e=>{if(state.pan&&state.pan.pointerId===e.pointerId)finishPan(e.pointerId);});
   drawingArea.addEventListener('dragover',e=>{if([...e.dataTransfer.items].some(i=>i.kind==='file'&&i.type.startsWith('image/'))){e.preventDefault();drawingArea.classList.add('drag-over');}});drawingArea.addEventListener('dragleave',e=>{if(!drawingArea.contains(e.relatedTarget))drawingArea.classList.remove('drag-over');});drawingArea.addEventListener('drop',e=>{e.preventDefault();drawingArea.classList.remove('drag-over');const f=[...e.dataTransfer.files].find(x=>x.type.startsWith('image/'));if(f)importReference(f,{clientX:e.clientX,clientY:e.clientY});});
   $('referenceVisibleToggle').addEventListener('change',e=>{visible.reference=e.target.checked;$('referenceVisibleToggleSecondary').checked=e.target.checked;renderAll();});
@@ -1921,18 +1921,20 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     if(state.tool!=='select'||e.target.closest?.('[data-template-text-id]'))return;
     e.preventDefault();e.stopPropagation();const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');
   });
-  svg.addEventListener('pointerdown',e=>{if(e.button!==1&&!state.space)onCanvasPointerDown(e);});svg.addEventListener('dblclick',e=>{e.preventDefault();if(state.tool==='polyline'||state.tool==='spline'){finishPath();return;}if(state.tool==='select'&&!e.target.closest?.('.drawing-object[data-id]')&&!e.target.closest?.('[data-template-text-id]')){const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');}});svg.addEventListener('contextmenu',e=>{if(state.tool==='polyline'||state.tool==='spline'){e.preventDefault();finishPath();}else e.preventDefault();});window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);window.addEventListener('pointercancel',onPointerUp);
-  // Handle the wheel on the viewport itself, in capture phase. This catches
-  // events before SVG descendants can stop propagation and avoids target/contains
-  // mismatches seen with document-level delegation.
-  drawingArea.addEventListener('wheel',e=>{
-    if(e.target?.closest?.('input,textarea,select,[contenteditable="true"]'))return;
+  svg.addEventListener('pointerdown',e=>{if(e.button!==1&&e.button!==2&&!state.space)onCanvasPointerDown(e);});svg.addEventListener('dblclick',e=>{e.preventDefault();if(state.tool==='polyline'||state.tool==='spline'){finishPath();return;}if(state.tool==='select'&&!e.target.closest?.('.drawing-object[data-id]')&&!e.target.closest?.('[data-template-text-id]')){const p=pointFromEvent(e,true);openTextDialog({x:p.x,y:p.y},null);setMessage('Новая надпись: введите текст и нажмите «Применить текст»');}});svg.addEventListener('contextmenu',e=>e.preventDefault());window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);window.addEventListener('pointercancel',onPointerUp);
+  // Use a window capture listener and viewport hit-testing. This executes
+  // before SVG descendants and does not depend on which nested layer receives
+  // the wheel event. Vertical wheel = cursor-centred zoom; horizontal trackpad
+  // = pan. The browser's own page/viewport scrolling is cancelled only inside
+  // the drawing workspace.
+  window.addEventListener('wheel',e=>{
+    const r=drawingArea.getBoundingClientRect();
+    if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
     const {deltaX,deltaY}=normalizeWheelDeltas(e,{width:drawingArea.clientWidth,height:drawingArea.clientHeight});
     if(deltaX===0&&deltaY===0)return;
-    e.preventDefault();
+    e.preventDefault();e.stopPropagation();
     if(e.shiftKey){state.viewPan.x-=deltaY||deltaX;updateZoom();persistAutosave();return;}
     if(e.altKey){state.viewPan.y-=deltaY||deltaX;updateZoom();persistAutosave();return;}
-    // Horizontal trackpad movement pans. Vertical wheel movement zooms in/out.
     if(deltaY===0&&deltaX!==0){state.viewPan.x-=deltaX;updateZoom();persistAutosave();return;}
     setZoomAt(state.zoom*wheelZoomFactor(deltaY),e.clientX,e.clientY);
     persistAutosave();

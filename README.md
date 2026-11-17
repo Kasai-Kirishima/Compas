@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.13
+# CAD Geometry Core 1.5.14
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -131,8 +131,9 @@ See `START_HERE.md` for a short guided workflow and the `docs/` folder for detai
 
 Wheel events are handled by the drawing viewport itself in capture phase, before SVG descendants. This avoids missed events from document-level target delegation. Wheel up zooms in and wheel down zooms out at the cursor. Manual zoom range is 10%–3200%; Shift+wheel and Alt+wheel retain horizontal and vertical panning.
 
-### View navigation — 1.5.13
+### View navigation — 1.5.14
 
-- Scroll the mouse wheel over the drawing area to zoom in/out at the cursor.
-- Press and hold the middle mouse button (the wheel) and move the mouse to pan the workspace. The gesture is captured by the viewport and does not select or edit drawing objects.
-- Space + left-button drag remains available as an alternative pan gesture. The view position is saved when the gesture ends.
+- Scroll the mouse wheel over the drawing area to zoom in/out at the cursor. Wheel handling runs in window capture phase and checks the pointer's position against the drawing viewport before preventing the browser's default scroll.
+- Hold the **right mouse button** and drag to pan the workspace. The gesture is captured before SVG drawing tools, suppresses the browser context menu and never selects or edits drawing objects.
+- Middle-button drag and Space + left-button drag remain available as alternative pan gestures. The view position is saved when the gesture ends.
+- A stationary right-click still finishes an active polyline/spline; the wheel step is tuned to about 15% zoom per standard notch.

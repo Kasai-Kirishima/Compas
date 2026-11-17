@@ -67,5 +67,5 @@
 - Чтобы обработать несколько объектов одним действием, выделите их через Shift и щёлкните один раз. Точка будет спроецирована на ближайшую границу каждого выделенного объекта; ширина и глубина применятся одинаково.
 
 1.5.12: wheel handler moved to drawing-area capture phase; wheel-up zooms in, wheel-down zooms out, cursor-centred zoom range increased to 10%-3200%.
-1.5.13: scroll the wheel over the drawing to zoom at the cursor; press and hold the middle mouse button (wheel) and drag to pan the workspace. Space + left drag is also supported.
-1.5.13: wheel scroll zooms at the cursor; hold the middle mouse button and drag to pan the workspace; Space + left drag remains as an alternative.
+1.5.14: scroll the mouse wheel over the drawing to zoom at the cursor; hold the right mouse button and drag to pan the workspace. The right-button gesture does not select or edit drawing objects and suppresses the browser context menu over the workspace.
+1.5.14: middle-button drag and Space + left drag remain as alternatives; wheel events are captured before nested SVG layers and only intercepted inside the drawing viewport.
