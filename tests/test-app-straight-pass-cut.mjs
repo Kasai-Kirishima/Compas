@@ -19,6 +19,7 @@ assert.match(app, /const path=appOpenPathPoints\(source\)[\s\S]*?cutOpenPathBySt
 assert.match(app, /replaceWithOpenFragments\(source,tx\.fragments\)/, 'Repeated passes must keep their new open fragments editable for further cuts');
 assert.match(app, /straightPassCut=true/, 'Pass-cut results must be tagged so legacy and new open fragments can rebuild walls');
 assert.match(app, /mode,reconstructContour:isPreviousPass/, 'Repeated pass-cut on an existing cut contour must rebuild walls using the selected mode');
+assert.match(geometry, /preserveOpenEdges:\s*\[previousOpenGap\]/, 'The virtual close edge from an earlier open pass must be omitted after Boolean reconstruction so its missing wall stays missing');
 assert.match(app, /source\.straightPassCut===true\|\|source\.feature==='straight-pass-cut-fragment'\|\|\/— открытый участок \\d\+\$\//, 'Existing version 1.5.19 open cut fragments must be recognized for wall rebuilding');
 assert.match(app, /replaceWithContourResults\(source,tx\.fragments\|\|\[\],tx\.openFragments\|\|\[\],\{straightPassCut:true,mode\}\)/, 'Repeated cuts of pass-cut contours must save the rebuilt walls as editable contour geometry');
 assert.match(app, /replaceWithContourResults\(source,tx\.fragments,tx\.openFragments\|\|\[\],\{straightPassCut:true,mode\}\)/, 'Through-cuts and open-wall modes must preserve tagged editable contour fragments');

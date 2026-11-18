@@ -157,3 +157,10 @@ An open contour created by a previous straight pass is treated as a cut profile,
 - `noWalls`: only the original boundary spans are removed; no new side walls are added.
 
 The temporary closing edge is not drawn or saved. Ordinary open lines, arcs and user-drawn polylines continue to receive a simple width-defined gap without artificial side walls. Results from version 1.5.19 are also recognized by their generated `— открытый участок N` names when no explicit pass-cut marker exists.
+
+
+## Preserve earlier open ends — version 1.5.21
+
+A repeated pass on an open contour needs a temporary closing segment to recover a polygon for Boolean subtraction. In earlier builds, that helper segment could be written back into the edited geometry, visibly restoring the bottom/end wall from a previous no-bottom pass. Version 1.5.21 records that virtual segment and removes every resulting edge lying on it after the new Boolean operation, including pieces split by an intersecting cutter.
+
+This preservation is independent of the mode selected for the next operation. For example, an older `noBottom` gap stays open even when the next pass uses `walls`; the new mode controls only walls created by the new pass. Second, third, and subsequent cuts therefore do not silently close earlier openings. The geometry tests cover a second pass at a different position and a third pass that leaves two separate open ends.

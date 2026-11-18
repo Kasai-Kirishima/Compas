@@ -111,13 +111,14 @@ const repeatedThroughWithWalls = cutOpenPathByStraightPass(blindNoBottom.openFra
   { mode: 'noBottom', reconstructContour: true });
 assert.equal(repeatedThroughWithWalls.ok, true, repeatedThroughWithWalls.reason);
 assert.equal(repeatedThroughWithWalls.operation, 'repeatable-straight-pass-cut-open-contour');
-assert.equal(repeatedThroughWithWalls.fragments.length, 2, 'Repeated through-cut returns two editable closed parts');
+assert.equal(repeatedThroughWithWalls.fragments.length, 1, 'Repeated through-cut keeps the old opening as an open fragment and creates the remaining closed part');
+assert.equal(repeatedThroughWithWalls.openFragments.length, 1, 'The previous missing end cap must remain an open editable boundary');
 assert.equal(repeatedThroughWithWalls.metadata.wallsRebuilt, true);
 for (const [sideIndex, expectedX] of [68.5, 71.5].entries()) {
-  const sideExists = repeatedThroughWithWalls.fragments.some(fragment => fragment.some((a, i) => {
-    const b = fragment[(i + 1) % fragment.length];
-    return Math.abs(a.x - expectedX) < 1e-6 && Math.abs(b.x - expectedX) < 1e-6 && Math.abs(a.y - b.y) > 1e-5;
-  }));
+  const sideExists = [...repeatedThroughWithWalls.fragments, ...repeatedThroughWithWalls.openFragments].some(fragment => {
+    const edgeList = fragment === repeatedThroughWithWalls.openFragments.find(item => item === fragment) ? openEdges(fragment) : edges(fragment);
+    return edgeList.some(({a,b}) => Math.abs(a.x - expectedX) < 1e-6 && Math.abs(b.x - expectedX) < 1e-6 && Math.abs(a.y - b.y) > 1e-5);
+  });
   assert.equal(sideExists, true, `Repeated no-bottom pass creates side wall ${sideIndex + 1}`);
 }
 
@@ -126,29 +127,77 @@ const repeatedBlindWithWalls = cutOpenPathByStraightPass(blindNoBottom.openFragm
   { x: 40, y: 0 }, { x: 70, y: 0 }, 3,
   { mode: 'noBottom', reconstructContour: true });
 assert.equal(repeatedBlindWithWalls.ok, true, repeatedBlindWithWalls.reason);
-assert.equal(repeatedBlindWithWalls.openFragments.length, 1);
+assert.ok(repeatedBlindWithWalls.openFragments.length >= 2,
+  'Both the previous opening and the new opening remain open after a repeated blind pass');
 assert.equal(repeatedBlindWithWalls.metadata.wallsRebuilt, true);
 assert.equal(repeatedBlindWithWalls.metadata.bottomWallRemoved, true);
-const repeatedBlindEdges = openEdges(repeatedBlindWithWalls.openFragments[0]);
+const repeatedBlindEdges = repeatedBlindWithWalls.openFragments.flatMap(openEdges);
 for (const y of [1.5, -1.5]) {
   assert.ok(repeatedBlindEdges.some(e => Math.abs(e.a.y - y) < 1e-6 && Math.abs(e.b.y - y) < 1e-6 && Math.abs(e.a.x - e.b.x) > 1),
     `Repeated blind no-bottom pass creates a straight wall at y=${y}`);
 }
 assert.equal(repeatedBlindEdges.some(e => Math.abs(e.a.x - 70) < 1e-6 && Math.abs(e.b.x - 70) < 1e-6), false,
-  'Repeated no-bottom pass omits the lower/end connecting wall');
+  'Repeated no-bottom pass omits the new lower/end connecting wall');
+assert.equal(repeatedBlindEdges.some(e => Math.abs(e.a.x - 60) < 1e-6 && Math.abs(e.b.x - 60) < 1e-6 &&
+  Math.min(e.a.y,e.b.y) <= 0 && Math.max(e.a.y,e.b.y) >= 0), false,
+  'Repeated no-bottom pass does not restore the earlier lower/end connecting wall');
+
+// Regression: rebuilding a previous open contour must not turn its old
+// missing end-cap into a visible bottom wall. The second pass is deliberately
+// away from the first opening, so the old virtual closing seam is not removed
+// by the new cutter itself. It must be omitted explicitly after reconstruction.
+const testRect = [
+  { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }, { x: 0, y: 60 },
+];
+const firstRectOpen = cutClosedContourByStraightPass(testRect,
+  { x: -20, y: 30 }, { x: 40, y: 30 }, 8, { mode: 'noBottom' });
+assert.equal(firstRectOpen.ok, true, firstRectOpen.reason);
+assert.equal(firstRectOpen.openFragments.length, 1);
+const firstGapA = firstRectOpen.openFragments[0].at(-1);
+const firstGapB = firstRectOpen.openFragments[0][0];
+near(firstGapA.x, 40); near(firstGapB.x, 40);
+const secondRectPass = cutOpenPathByStraightPass(firstRectOpen.openFragments[0],
+  { x: 80, y: -20 }, { x: 80, y: 80 }, 4,
+  { mode: 'noBottom', reconstructContour: true });
+assert.equal(secondRectPass.ok, true, secondRectPass.reason);
+assert.equal(secondRectPass.openFragments.length, 1, 'The first open end remains an open editable path after a different second pass');
+const secondEdges = [
+  ...openEdges(secondRectPass.openFragments[0]),
+  ...secondRectPass.fragments.flatMap(fragment => openEdges([...fragment, fragment[0]])),
+];
+assert.equal(secondEdges.some(e => Math.abs(e.a.x - 40) < 1e-6 && Math.abs(e.b.x - 40) < 1e-6 &&
+  Math.min(e.a.y, e.b.y) <= 30 && Math.max(e.a.y, e.b.y) >= 30), false,
+  'A later no-bottom pass must not restore the earlier missing bottom wall');
+assert.equal(secondRectPass.metadata.previousOpenGapPreserved, true);
+
+// A third blind cut adds its own open end while preserving the first opening.
+const thirdRectPass = cutOpenPathByStraightPass(secondRectPass.openFragments[0],
+  { x: 60, y: -20 }, { x: 60, y: 30 }, 2,
+  { mode: 'noBottom', reconstructContour: true });
+assert.equal(thirdRectPass.ok, true, thirdRectPass.reason);
+assert.equal(thirdRectPass.openFragments.length, 2, 'Two independent open ends remain after a third pass');
+const thirdOpenEnds = thirdRectPass.openFragments.map(fragment => [fragment[0], fragment.at(-1)]);
+assert.ok(thirdOpenEnds.flat().some(p => Math.abs(p.x - 40) < 1e-6 && Math.abs(p.y - 26) < 1e-6),
+  'The first pass opening remains at the original upper endpoint');
+assert.ok(thirdOpenEnds.flat().some(p => Math.abs(p.x - 40) < 1e-6 && Math.abs(p.y - 34) < 1e-6),
+  'The first pass opening remains at the original lower endpoint');
+assert.ok(thirdOpenEnds.flat().some(p => Math.abs(p.y - 30) < 1e-6 && (Math.abs(p.x - 59) < 1e-6 || Math.abs(p.x - 61) < 1e-6)),
+  'The newest pass also has an open end with no bottom wall');
 
 // A third pass on the second pass result also rebuilds a fresh pair of walls.
 const repeatedThirdWithWalls = cutOpenPathByStraightPass(repeatedBlindWithWalls.openFragments[0],
   { x: 80, y: -30 }, { x: 80, y: 30 }, 2,
   { mode: 'noBottom', reconstructContour: true });
 assert.equal(repeatedThirdWithWalls.ok, true, repeatedThirdWithWalls.reason);
-assert.equal(repeatedThirdWithWalls.fragments.length, 2);
+assert.equal(repeatedThirdWithWalls.fragments.length, 1);
+assert.equal(repeatedThirdWithWalls.openFragments.length, 1, 'The older open end remains open after a third operation too');
 assert.equal(repeatedThirdWithWalls.metadata.wallsRebuilt, true);
 for (const x of [79, 81]) {
-  assert.ok(repeatedThirdWithWalls.fragments.some(fragment => fragment.some((a, i) => {
-    const b = fragment[(i + 1) % fragment.length];
-    return Math.abs(a.x - x) < 1e-6 && Math.abs(b.x - x) < 1e-6 && Math.abs(a.y - b.y) > 1e-5;
-  })), `Third pass creates a new straight wall at x=${x}`);
+  const allParts = [...repeatedThirdWithWalls.fragments, ...repeatedThirdWithWalls.openFragments];
+  assert.ok(allParts.some((fragment, index) => {
+    const edgeList = index < repeatedThirdWithWalls.fragments.length ? edges(fragment) : openEdges(fragment);
+    return edgeList.some(({a,b}) => Math.abs(a.x - x) < 1e-6 && Math.abs(b.x - x) < 1e-6 && Math.abs(a.y - b.y) > 1e-5);
+  }), `Third pass creates a new straight wall at x=${x}`);
 }
 
 // Repeating in no-walls mode still deliberately removes all newly generated
@@ -158,10 +207,10 @@ const repeatedWithoutWalls = cutOpenPathByStraightPass(blindNoBottom.openFragmen
   { mode: 'noWalls', reconstructContour: true });
 assert.equal(repeatedWithoutWalls.ok, true, repeatedWithoutWalls.reason);
 assert.equal(repeatedWithoutWalls.metadata.wallsRebuilt, false);
-assert.equal(repeatedWithoutWalls.openFragments.length, 2);
-assert.equal(repeatedWithoutWalls.openFragments.some(fragment => fragment.slice(1).some((b, i) => {
-  const a = fragment[i]; return Math.abs(a.x - b.x) < 1e-6 && [68.5,71.5].some(x => Math.abs(a.x-x)<1e-6);
-})), false, 'Repeated no-walls pass does not add side lines');
+assert.ok(repeatedWithoutWalls.openFragments.length >= 2, 'The previous no-bottom opening is preserved in no-walls mode too');
+assert.equal(repeatedWithoutWalls.openFragments.some(fragment => openEdges(fragment).some(({a,b}) =>
+  Math.abs(a.x - b.x) < 1e-6 && [68.5,71.5].some(x => Math.abs(a.x-x)<1e-6))), false,
+  'Repeated no-walls pass does not add side lines');
 
 // A fully traversed profile stays split into closed pieces in no-bottom mode:
 // there is no blind end cap to remove, and the straight side walls remain.
