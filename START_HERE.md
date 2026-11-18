@@ -27,12 +27,31 @@ Use **Экспорт проекта** to download a `.kcad` file. It preserves t
 
 # Start here
 
+## 1.5.31 — unlimited dimension extension legs
+
+- The first and second witness-leg overrun lengths can be set to any non-negative finite value; the former 50 mm cap has been removed from manual input, on-canvas dragging and saved geometry.
+- Front gaps also have no arbitrary 50 mm cap, but stop at the actual dimension-line position so the leg does not cross that line.
+- The dimension-line offset no longer has a 200 mm cap.
+- Sliders expand their available range when released at the current end; numeric fields and on-canvas handles can set larger values directly.
+
+## 1.5.31 — no fixed maximum for dimension witness legs
+
+- The two overrun legs beyond the dimension line can now be set to any non-negative finite length; the former 50 mm cap is removed from drag, numeric input and saved object values.
+- Front/object-side gaps no longer have an arbitrary 50 mm cap either, but cannot cross the dimension line; their maximum is the actual available geometric distance.
+- The main dimension-line offset no longer has a 200 mm ceiling.
+- Range sliders expand their range when the thumb reaches the end; number fields and on-canvas handles accept larger values directly.
+
+
 ## 1.5.28 area hatching and six-pointed star
 
 - Choose **Штриховка области**, then click inside the closed area. The editor scans all visible, unlocked boundary geometry even if another object was previously selected, detects the smallest region under the click, and clips hatch lines to that region. Inner holes remain empty. To fill the area completely rather than use line hatching, choose **Сплошная** in the hatch pattern setting. Repeat clicks to hatch additional areas.
 - For boundaries made from separate/intersecting lines, keep all boundary pieces visible and make sure the intended region is fully closed. The command **Найти замкнутые области из линий и заштриховать** remains available to fill all detected regions at once.
 - Choose **Звезда 6-кон.**, click its centre, then click a point on the outer radius. The tool creates two equilateral triangles rotated by 60 degrees in one group. Move or duplicate the group as one object; the two triangles remain individually editable if ungrouped.
 - Dimension witness-leg handles are available at both the part-side and outer ends; each endpoint can be dragged independently. Diameter dimensions can place arrows outside the circle (pointing inward), with the diameter sign lowered separately.
+
+## Dimension witness-leg length (1.5.31)
+
+The first and second legs can extend beyond 50 mm without a fixed maximum. Enter any non-negative finite length, drag the blue handle farther, or keep dragging the adaptive slider after it expands at the end. The front/object-side gap can also exceed 50 mm, but it cannot cross the dimension line; its limit is the actual available distance. The dimension-line offset itself has no 200 mm ceiling.
 
 ## Precise dimension editing (1.5.24)
 

@@ -15,8 +15,11 @@ assert.match(app, /beginDimensionExtensionDrag\(e,objGroup\.getAttribute\('data-
 assert.match(app, /pointerStart:pointFromEvent\(e,true\)/);
 assert.match(app, /data-dimension-extension-gap-handle/);
 assert.match(app, /beginDimensionExtensionGapDrag\(e,objGroup\.getAttribute\('data-id'\),extensionGapHandle\.getAttribute\('data-dimension-extension-gap-handle'\)\)/);
-assert.match(app, /const value=d\.part==='front'\?dimensionExtensionGapFromDrag\(d\.spec,raw,d\.pointerStart,d\.originalValue,0,d\.max\):dimensionExtensionFromDrag\(d\.spec,raw,d\.pointerStart,d\.originalValue,\.1,50\)/);
+assert.match(app, /const value=d\.part==='front'\?dimensionExtensionGapFromDrag\(d\.spec,raw,d\.pointerStart,d\.originalValue,0,d\.max\):dimensionExtensionFromDrag\(d\.spec,raw,d\.pointerStart,d\.originalValue,0,Infinity\)/);
 assert.match(app, /o\[d\.field\]=mm\(value\)/);
+assert.match(app, /dimensionExtensionFromDrag\(d\.spec,raw,d\.pointerStart,d\.originalValue,0,Infinity\)/, 'Canvas drag must not stop at 50 mm');
+assert.match(app, /function syncDimensionLengthSliders\(dims\)/, 'Dimension sliders must expand beyond their initial range');
+assert.match(app, /adaptiveMax\?Infinity:max/, 'Adaptive dimension sliders must have no fixed upper limit');
 assert.match(app, /drawDimensionExtensionHandle\(g,dimensionExtensionSpec\(o,'start'\),selected,o\.locked\)/);
 assert.match(app, /drawDimensionExtensionHandle\(g,dimensionExtensionSpec\(o,'end'\),selected,o\.locked\)/);
 assert.match(app, /bindDimensionLiveSlider\('dimensionExtensionStartSlider','dimensionExtensionStart','extensionBeyondStart'/);

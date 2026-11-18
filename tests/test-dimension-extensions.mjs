@@ -52,9 +52,21 @@ const gEnd = dimensionExtensionSpec(angular, 'end');
 near(gStart.tip.x, 13); near(gStart.tip.y, 0);
 near(gEnd.tip.x, 0); near(gEnd.tip.y, 16);
 
-// Clamp very small / very large pointer projections to safe editing limits.
-near(dimensionExtensionLengthFromPoint(hStart, { x: hStart.base.x, y: hStart.base.y }), 0.1);
-near(dimensionExtensionLengthFromPoint(hStart, { x: hStart.base.x, y: hStart.base.y + 200 }), 50);
+// Legs may collapse to zero, but never turn into negative-length vectors.
+near(dimensionExtensionLengthFromPoint(hStart, { x: hStart.base.x, y: hStart.base.y }), 0);
+near(dimensionExtensionLengthFromPoint(hStart, { x: hStart.base.x, y: hStart.base.y + 200 }), 200);
+
+// Leg lengths have no artificial 50 mm cap. Large saved values, drag lengths
+// and pointer projections are retained, while negative values cannot invert a leg.
+assert.equal(dimensionExtensionValue({ type: 'dimension', extensionBeyondStart: 750 }, 'start'), 750);
+near(dimensionExtensionLengthFromPoint(hStart, { x: hStart.base.x, y: hStart.base.y + 640 }), 640);
+near(dimensionExtensionFromDrag(hStart,
+  { x: hStart.base.x, y: hStart.base.y + 140 },
+  { x: hStart.base.x, y: hStart.base.y }, 40), 180);
+near(dimensionExtensionFromDrag(hStart,
+  { x: hStart.base.x, y: hStart.base.y - 25 },
+  { x: hStart.base.x, y: hStart.base.y }, 10), 0);
+assert.equal(dimensionExtensionValue({ type: 'dimension', extensionBeyondEnd: -8 }, 'end'), 0);
 
 
 // Pointer-relative drag is stable when the handle is grabbed off-center and
@@ -85,5 +97,16 @@ near(dimensionExtensionGapFromDrag(frontSpec,
   { x: frontGrab.x + frontSpec.axis.x * 1.25, y: frontGrab.y + frontSpec.axis.y * 1.25 },
   frontGrab, 40, 0, frontSpec.max), 41.25);
 assert.equal(frontLeg.extensionGapEnd, 5, 'Dragging the first front end must not alter the second front end');
+
+// Front gap no longer has an arbitrary 50 mm ceiling; it is limited only by
+// the real distance to the dimension line so it cannot cross that line.
+const longFrontLeg = { ...horizontal, offset: 150, extensionGapStart: 120, extensionGapEnd: 7 };
+const longFrontSpec = dimensionExtensionGapSpec(longFrontLeg, 'start');
+near(longFrontSpec.value, 120);
+assert.ok(longFrontSpec.max > 100);
+near(dimensionExtensionGapFromDrag(longFrontSpec,
+  { x: longFrontSpec.tip.x + longFrontSpec.axis.x * 12, y: longFrontSpec.tip.y + longFrontSpec.axis.y * 12 },
+  longFrontSpec.tip, 120, 0, longFrontSpec.max), 132);
+assert.equal(longFrontLeg.extensionGapEnd, 7, 'The opposite front endpoint must remain independent');
 
 console.log('Dimension extension geometry tests passed: independent front/far endpoints, relative drag, all dimension orientations and legacy compatibility.');

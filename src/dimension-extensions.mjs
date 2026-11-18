@@ -9,7 +9,11 @@ export function dimensionExtensionField(end) {
  * `extensionBeyond` value; it remains the fallback until a side is edited.
  */
 export function dimensionExtensionValue(object, end) {
-  return clamp(Number(object?.[dimensionExtensionField(end)] ?? object?.extensionBeyond ?? 2), 0.1, 50);
+  const raw = Number(object?.[dimensionExtensionField(end)] ?? object?.extensionBeyond ?? 2);
+  // A witness leg may be longer than any fixed drafting preset. Keep only a
+  // non-negative finite value; the editor's viewport, not an arbitrary 50 mm
+  // ceiling, determines how far it can be extended.
+  return Number.isFinite(raw) ? Math.max(0, raw) : 2;
 }
 
 /**
@@ -87,7 +91,7 @@ export function dimensionExtensionSpec(object, end) {
 }
 
 /** Projects a pointer onto one leg's outward axis; the other leg is untouched. */
-export function dimensionExtensionLengthFromPoint(spec, point, min = 0.1, max = 50) {
+export function dimensionExtensionLengthFromPoint(spec, point, min = 0, max = Infinity) {
   if (!spec || !point) return null;
   const projected = (Number(point.x) - spec.base.x) * spec.axis.x + (Number(point.y) - spec.base.y) * spec.axis.y;
   if (!Number.isFinite(projected)) return null;
@@ -100,7 +104,7 @@ export function dimensionExtensionLengthFromPoint(spec, point, min = 0.1, max = 
  * grabs anywhere inside the visible handle, and allows both shortening and
  * lengthening without moving the opposite leg.
  */
-export function dimensionExtensionFromDrag(spec, point, pointerStart, originalValue, min = 0.1, max = 50) {
+export function dimensionExtensionFromDrag(spec, point, pointerStart, originalValue, min = 0, max = Infinity) {
   if (!spec || !point || !pointerStart) return null;
   const dx = Number(point.x) - Number(pointerStart.x);
   const dy = Number(point.y) - Number(pointerStart.y);
@@ -114,7 +118,8 @@ export function dimensionExtensionGapField(end) {
 
 /** Reads the object-side start gap for one witness leg. */
 export function dimensionExtensionGapValue(object, end) {
-  return clamp(Number(object?.[dimensionExtensionGapField(end)] ?? object?.extensionGap ?? 1), 0, 50);
+  const raw = Number(object?.[dimensionExtensionGapField(end)] ?? object?.extensionGap ?? 1);
+  return Number.isFinite(raw) ? Math.max(0, raw) : 1;
 }
 
 /**
@@ -140,7 +145,7 @@ export function dimensionExtensionGapSpec(object, end) {
 }
 
 /** Projects the pointer onto the object-side gap axis for one witness leg. */
-export function dimensionExtensionGapFromPoint(spec, point, min = 0, max = spec?.max ?? 50) {
+export function dimensionExtensionGapFromPoint(spec, point, min = 0, max = spec?.max ?? Infinity) {
   if (!spec || !point) return null;
   const projected = (Number(point.x) - spec.origin.x) * spec.axis.x + (Number(point.y) - spec.origin.y) * spec.axis.y;
   if (!Number.isFinite(projected)) return null;
@@ -148,7 +153,7 @@ export function dimensionExtensionGapFromPoint(spec, point, min = 0, max = spec?
 }
 
 /** Relative pointer drag for the object-side (front) end of one witness leg. */
-export function dimensionExtensionGapFromDrag(spec, point, pointerStart, originalValue, min = 0, max = spec?.max ?? 50) {
+export function dimensionExtensionGapFromDrag(spec, point, pointerStart, originalValue, min = 0, max = spec?.max ?? Infinity) {
   return dimensionExtensionFromDrag(spec, point, pointerStart, originalValue, min, max);
 }
 

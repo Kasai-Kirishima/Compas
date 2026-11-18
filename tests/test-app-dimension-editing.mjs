@@ -24,12 +24,13 @@ assert.match(html, /data-dimension-extension-side="start" data-dimension-extensi
 assert.match(html, /data-dimension-extension-side="end" data-dimension-extension-step="0.1"/);
 assert.match(html, /data-dimension-offset-step="-0.1"/);
 assert.match(html, /data-dimension-offset-step="0.1"/);
-assert.match(html, /id="dimensionSelectedOffset" type="number" min="-200" max="200" step="0.1"/);
+assert.match(html, /id="dimensionSelectedOffset" type="number" step="0.1"/);
+assert.doesNotMatch(html.match(/<input id="dimensionSelectedOffset"[^>]+/)[0], /max=/);
 assert.match(html, /id="dimensionSelectedOffsetSlider" type="range" min="10" max="200" step="0.1"/);
-assert.match(html, /id="dimensionExtensionStart" type="number" min="0.1" max="50" step="0.1"/);
-assert.match(html, /id="dimensionExtensionEnd" type="number" min="0.1" max="50" step="0.1"/);
-assert.match(html, /id="dimensionExtensionStartSlider" type="range" min="0.1" max="50" step="0.1"/);
-assert.match(html, /id="dimensionExtensionEndSlider" type="range" min="0.1" max="50" step="0.1"/);
+assert.match(html, /id="dimensionExtensionStart" type="number" min="0" step="0.1"/);
+assert.match(html, /id="dimensionExtensionEnd" type="number" min="0" step="0.1"/);
+assert.match(html, /id="dimensionExtensionStartSlider" type="range" min="0" max="50" step="0.1"/);
+assert.match(html, /id="dimensionExtensionEndSlider" type="range" min="0" max="50" step="0.1"/);
 
 assert.match(app, /function dimensionArrow\([\s\S]*?style='filled'/, 'Dimension arrow renderer must accept an editable arrow style');
 assert.match(app, /style==='open'/, 'Open V arrowheads must be rendered');
@@ -47,9 +48,9 @@ assert.match(app, /dimensionLabel\(g,labelX,labelY,label,textSize,color,labelRot
 assert.match(app, /finalLabelRotation=\(horizontal\?0:labelRotation\)\+labelRotationExtra/, 'Linear label rotation must be additive and independent');
 assert.match(app, /updateSelectedDimension\('labelRotationDeg','dimensionLabelRotation'/);
 assert.match(app, /bindDimensionLiveSlider\('dimensionLabelRotationSlider','dimensionLabelRotation','labelRotationDeg',-360,360/);
-assert.match(app, /bindDimensionLiveSlider\('dimensionSelectedOffsetSlider','dimensionSelectedOffset','offset',10,200/);
-assert.match(app, /bindDimensionLiveSlider\('dimensionExtensionStartSlider','dimensionExtensionStart','extensionBeyondStart',\.1,50/);
-assert.match(app, /bindDimensionLiveSlider\('dimensionExtensionEndSlider','dimensionExtensionEnd','extensionBeyondEnd',\.1,50/);
+assert.match(app, /bindDimensionLiveSlider\('dimensionSelectedOffsetSlider','dimensionSelectedOffset','offset',10,Infinity/);
+assert.match(app, /bindDimensionLiveSlider\('dimensionExtensionStartSlider','dimensionExtensionStart','extensionBeyondStart',0,Infinity/);
+assert.match(app, /bindDimensionLiveSlider\('dimensionExtensionEndSlider','dimensionExtensionEnd','extensionBeyondEnd',0,Infinity/);
 assert.match(app, /data-dimension-rotation-step/);
 assert.match(app, /data-dimension-extension-step/);
 assert.match(app, /data-dimension-offset-step/);

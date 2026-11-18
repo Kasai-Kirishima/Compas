@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.30",
+  "version": "1.5.31",
   "private": true,
   "type": "module",
-  "description": "2D mechanical CAD editor with full-fidelity native project import/export (.kcad), preserving geometry, dimensions, text, title frames, references and drafting settings",
+  "description": "2D mechanical CAD editor with unbounded dimension witness-leg editing and full-fidelity native project import/export",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/cad-geometry-trim.mjs",

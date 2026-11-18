@@ -246,7 +246,7 @@ R17
         <label class="field-label">Привязка к линейке<select id="rulerMode"><option value="off">Выключена</option><option value="parallel">Параллельно кромке</option><option value="perpendicular">Перпендикулярно кромке</option></select></label>
         <label class="field-label">Шаг фиксации угла при Shift, °<input id="angleStep" type="number" min="1" max="90" step="1" value="15"></label>
         <button class="secondary-btn" id="clearRulerBtn">Убрать линейку</button>
-        <div class="two-fields"><label class="field-label">Отступ от контура, мм (по умолчанию 10)<input id="dimensionOffset" type="number" min="-200" max="200" step="0.5" value="10"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label></div>
+        <div class="two-fields"><label class="field-label">Отступ от контура, мм (по умолчанию 10)<input id="dimensionOffset" type="number" step="0.5" value="10"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label></div>
         <label class="field-label">Высота цифр новых размеров — ГОСТ 2.304, тип Б<select id="defaultDimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5">2,5 мм</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7" selected>7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select></label>
         <div class="muted-hint">Высота цифр размерных чисел выбирается из стандартного ряда шрифта типа Б. Для обычных размеров чаще используют 3,5 или 5 мм; 7 мм и больше применяйте, если это оправдано масштабом и компоновкой чертежа.</div>
         <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.25"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
@@ -348,7 +348,7 @@ R17
             </div>
             <div class="dimension-adjust-card">
               <div class="dimension-adjust-head">
-                <label class="field-label" for="dimensionSelectedOffset">Отступ размерной линии (длина ножек), мм<input id="dimensionSelectedOffset" type="number" min="-200" max="200" step="0.1" value="10"></label>
+                <label class="field-label" for="dimensionSelectedOffset">Отступ размерной линии (длина ножек), мм<input id="dimensionSelectedOffset" type="number" step="0.1" value="10"></label>
                 <span class="dimension-value-hint">шаг 0,1 мм</span>
               </div>
               <input class="dimension-fine-slider" id="dimensionSelectedOffsetSlider" type="range" min="10" max="200" step="0.1" value="10" aria-label="Плавное изменение длины выносных ножек">
@@ -358,21 +358,21 @@ R17
                 <button type="button" data-dimension-offset-step="0.1">+0,1</button>
                 <button type="button" data-dimension-offset-step="0.5">+0,5</button>
               </div>
-              <div class="muted-hint">Ползунок меняет отступ плавно. Знак в числовом поле задаёт сторону размещения размера.</div>
+              <div class="muted-hint">Ползунок автоматически расширяет диапазон по мере увеличения. Максимальной длины нет; знак задаёт сторону размещения размера.</div>
             </div>
             <div class="two-fields"><label class="field-label">Зазор ножек, мм<input id="dimensionExtensionGap" type="number" min="0" max="5" step="0.1" value="1"></label></div>
             <div class="muted-hint">Зелёные ручки двигают начало ножек у детали: к детали — зазор уменьшается, к размерной линии — увеличивается.</div>
             <div class="dimension-extension-pair">
-              <div class="dimension-adjust-card"><label class="field-label" for="dimensionExtensionGapStart">Начало первой ножки от детали, мм<input id="dimensionExtensionGapStart" type="number" min="0" max="50" step="0.1" value="1"></label><input class="dimension-fine-slider" id="dimensionExtensionGapStartSlider" type="range" min="0" max="50" step="0.1" value="1" aria-label="Зазор в начале первой ножки"></div>
-              <div class="dimension-adjust-card"><label class="field-label" for="dimensionExtensionGapEnd">Начало второй ножки от детали, мм<input id="dimensionExtensionGapEnd" type="number" min="0" max="50" step="0.1" value="1"></label><input class="dimension-fine-slider" id="dimensionExtensionGapEndSlider" type="range" min="0" max="50" step="0.1" value="1" aria-label="Зазор в начале второй ножки"></div>
+              <div class="dimension-adjust-card"><label class="field-label" for="dimensionExtensionGapStart">Начало первой ножки от детали, мм<input id="dimensionExtensionGapStart" type="number" min="0" step="0.1" value="1"></label><input class="dimension-fine-slider" id="dimensionExtensionGapStartSlider" type="range" min="0" max="50" step="0.1" value="1" aria-label="Зазор в начале первой ножки"></div>
+              <div class="dimension-adjust-card"><label class="field-label" for="dimensionExtensionGapEnd">Начало второй ножки от детали, мм<input id="dimensionExtensionGapEnd" type="number" min="0" step="0.1" value="1"></label><input class="dimension-fine-slider" id="dimensionExtensionGapEndSlider" type="range" min="0" max="50" step="0.1" value="1" aria-label="Зазор в начале второй ножки"></div>
             </div>
             <div class="dimension-extension-pair">
               <div class="dimension-adjust-card">
                 <div class="dimension-adjust-head">
-                  <label class="field-label" for="dimensionExtensionStart">Первая ножка, мм<input id="dimensionExtensionStart" type="number" min="0.1" max="50" step="0.1" value="2"></label>
+                  <label class="field-label" for="dimensionExtensionStart">Первая ножка, мм<input id="dimensionExtensionStart" type="number" min="0" step="0.1" value="2"></label>
                   <span class="dimension-value-hint">только первая</span>
                 </div>
-                <input class="dimension-fine-slider" id="dimensionExtensionStartSlider" type="range" min="0.1" max="50" step="0.1" value="2" aria-label="Длина первой выносной ножки">
+                <input class="dimension-fine-slider" id="dimensionExtensionStartSlider" type="range" min="0" max="50" step="0.1" value="2" aria-label="Длина первой выносной ножки">
                 <div class="dimension-step-row dimension-step-row-short" aria-label="Регулировка первой ножки">
                   <button type="button" data-dimension-extension-side="start" data-dimension-extension-step="-0.5">−0,5</button>
                   <button type="button" data-dimension-extension-side="start" data-dimension-extension-step="-0.1">−0,1</button>
@@ -382,10 +382,10 @@ R17
               </div>
               <div class="dimension-adjust-card">
                 <div class="dimension-adjust-head">
-                  <label class="field-label" for="dimensionExtensionEnd">Вторая ножка, мм<input id="dimensionExtensionEnd" type="number" min="0.1" max="50" step="0.1" value="2"></label>
+                  <label class="field-label" for="dimensionExtensionEnd">Вторая ножка, мм<input id="dimensionExtensionEnd" type="number" min="0" step="0.1" value="2"></label>
                   <span class="dimension-value-hint">только вторая</span>
                 </div>
-                <input class="dimension-fine-slider" id="dimensionExtensionEndSlider" type="range" min="0.1" max="50" step="0.1" value="2" aria-label="Длина второй выносной ножки">
+                <input class="dimension-fine-slider" id="dimensionExtensionEndSlider" type="range" min="0" max="50" step="0.1" value="2" aria-label="Длина второй выносной ножки">
                 <div class="dimension-step-row dimension-step-row-short" aria-label="Регулировка второй ножки">
                   <button type="button" data-dimension-extension-side="end" data-dimension-extension-step="-0.5">−0,5</button>
                   <button type="button" data-dimension-extension-side="end" data-dimension-extension-step="-0.1">−0,1</button>
@@ -394,7 +394,7 @@ R17
                 </div>
               </div>
             </div>
-            <div class="muted-hint">Можно также перетащить голубую ручку на конце нужной ножки прямо на чертеже. Меняется только выбранная сторона, противоположная остаётся на месте.</div>
+            <div class="muted-hint">Ограничения по максимальной длине нет: можно вводить большие значения или перетаскивать голубую ручку дальше за пределы листа. Меняется только выбранная сторона, противоположная остаётся на месте.</div>
             <div class="two-fields"><label class="field-label">Смещение числа X, мм<input id="dimensionLabelDx" type="number" step="0.5" value="0"></label><label class="field-label">Смещение Y числа, мм<input id="dimensionLabelDy" type="number" step="0.5" value="0"></label></div>
             <div class="muted-hint">Размерное число можно перетаскивать прямо за цифры или за голубую ручку: свободно вдоль размерной линии и перпендикулярно ей — ближе к линии или дальше. В горизонтальном режиме наклонный размер получает полку-ответвление; длина продолжения обеих выносных линий задаётся одинаково.</div>
           </div>
