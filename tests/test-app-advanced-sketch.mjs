@@ -23,6 +23,10 @@ assert.match(app, /pointInRegion\(point,region\)/, 'Hatching must be restricted 
 assert.match(app, /sixPointStarOutline\(center,radius,\{angle\}\)/, 'Star tool must create one closed outline without internal triangle edges');
 assert.doesNotMatch(app, /sixPointStarTriangles\(center,radius/, 'Star editor must not draw overlapping triangles');
 assert.match(html, /id="findClosedLoopsHatchBtn"/, 'Automatic region hatch command must be available');
+assert.match(html, /data-hatch-angle="165"/, 'Hatch controls must expose the full quick-angle range in 15-degree increments');
+assert.match(html, /id="hatchAngleSlider"/, 'A slider must make fine hatch-angle adjustment easier');
+assert.match(html, /value="triple"/, 'The hatch pattern selector must include a triple 60-degree grid');
+assert.match(app, /\['single','cross','triple','solid'\]/, 'Hatch validation must accept all supported patterns');
 assert.match(html, /data-tool="selectRegion"/, 'A separate region selection tool must be available');
 assert.match(html, /id="hatchSelectedRegionBtn"/, 'Selected region can be hatched with a separate command');
 assert.match(app, /function selectRegionAtPoint\(/, 'Region selection must be wired as a separate interaction');
@@ -36,4 +40,4 @@ assert.match(app, /o\.hatchSegments\.forEach/, 'Generated clipped hatch segments
 assert.match(advanced, /export function findClosedLoops\(/, 'Planar face detection helper must be exported');
 assert.match(advanced, /export function createHatch\(/, 'Hatching helper must be exported');
 assert.match(advanced, /export function trimLegacyCurve\(/, 'Legacy editor trim adapter must be exported');
-console.log('Advanced sketch editor integration tests passed (26 assertions).');
+console.log('Advanced sketch editor integration tests passed (30 assertions).');

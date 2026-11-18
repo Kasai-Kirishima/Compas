@@ -78,6 +78,39 @@ assert.ok(hatch.segments.every(segment=>segment.angle===0),'A zero-degree hatch 
 for(const segment of hatch.segments)near(segment.a.y,segment.b.y,1e-7);
 const solidHatch=createHatch(ringRegions[0],{pattern:'solid'});
 assert.equal(solidHatch.segments.length,0,'Solid mode should fill the whole detected region rather than generate sparse hatch strokes');
+
+// Scan-line clipping stays inside concave regions and does not bridge their notches.
+const concaveRegion={outer:[
+  {x:0,y:0},{x:30,y:0},{x:30,y:10},{x:10,y:10},{x:10,y:30},{x:0,y:30}
+],holes:[]};
+const concaveHatch=createHatch(concaveRegion,{angle:0,step:5,pattern:'single'});
+const upperLeg=concaveHatch.segments.filter(s=>Math.abs(s.a.y-15)<1e-6);
+assert.equal(upperLeg.length,1,'A horizontal hatch through the upper leg should produce one clipped segment');
+near(Math.min(upperLeg[0].a.x,upperLeg[0].b.x),0);
+near(Math.max(upperLeg[0].a.x,upperLeg[0].b.x),10);
+assert.ok(concaveHatch.segments.every(s=>Math.abs(s.a.y-s.b.y)<1e-7),'Zero-degree hatch lines should remain horizontal');
+
+// A scan line through hole edges must not paint across the hole.
+const squareRing={outer:[
+  {x:0,y:0},{x:40,y:0},{x:40,y:40},{x:0,y:40}
+],holes:[[
+  {x:10,y:10},{x:30,y:10},{x:30,y:30},{x:10,y:30}
+]]};
+const squareRingHatch=createHatch(squareRing,{angle:0,step:5});
+const throughHole=squareRingHatch.segments.filter(s=>Math.abs(s.a.y-15)<1e-6);
+assert.equal(throughHole.length,2,'A line through a hole must be split into two visible spans');
+assert.ok(throughHole.every(s=>Math.max(s.a.x,s.b.x)<=10+1e-6||Math.min(s.a.x,s.b.x)>=30-1e-6),'No hatch segment may cross the interior hole');
+
+// All 12 quick angles are accepted, and multi-direction patterns retain the requested angles.
+for(const angle of [0,15,30,45,60,75,90,105,120,135,150,165]){
+  const angled=createHatch({outer:[{x:0,y:0},{x:30,y:0},{x:30,y:20},{x:0,y:20}],holes:[]},{angle,step:4});
+  assert.ok(angled.segments.length>0,`Angle ${angle}° should generate visible hatch segments`);
+  assert.ok(angled.segments.every(segment=>Number.isFinite(segment.a.x)&&Number.isFinite(segment.a.y)&&Number.isFinite(segment.b.x)&&Number.isFinite(segment.b.y)));
+}
+const tripleHatch=createHatch(concaveRegion,{angle:30,step:5,pattern:'triple'});
+assert.deepEqual([...new Set(tripleHatch.segments.map(segment=>Math.round(segment.angle)))].sort((a,b)=>a-b),[30,90,150]);
+const crossHatch=createHatch(concaveRegion,{angle:15,step:5,pattern:'cross'});
+assert.deepEqual([...new Set(crossHatch.segments.map(segment=>Math.round(segment.angle)))].sort((a,b)=>a-b),[15,105]);
 assert.equal(solidHatch.holes.length,1,'Solid fill must preserve internal holes');
 for(const segment of hatch.segments){
   const mid={x:(segment.a.x+segment.b.x)/2,y:(segment.a.y+segment.b.y)/2};

@@ -364,36 +364,124 @@ export function findClosedLoops(curves, { tolerance = 0.02, curveSegments = 256,
   return regions.sort((a, b) => b.area - a.area);
 }
 
-/** Generate actual hatch line segments clipped to an outer loop and its holes. */
+/** Generate actual hatch line segments clipped to an outer loop and its holes.
+ *
+ * The clipping uses a half-open scan-line rule. This counts a polygon vertex
+ * exactly once when a hatch line crosses it, twice when it only touches it,
+ * and ignores edges coincident with the hatch line. Keeping those duplicate
+ * tangent hits (rather than deduplicating them) preserves even/odd parity for
+ * concave boundaries and nested holes.
+ */
 export function createHatch(region, { angle = 45, step = 2, pattern = 'single', maxLines = 20000 } = {}) {
-  if (!region || !Array.isArray(region.outer) || region.outer.length < 3) throw new TypeError('Для штриховки нужен замкнутый внешний контур');
-  if (!(Number(step) > 0) || !Number.isFinite(Number(step))) throw new RangeError('Шаг штриховки должен быть больше нуля');
-  const outer = cleanPoints(region.outer), holes = (region.holes || []).map(h => cleanPoints(h)).filter(h => h.length >= 3);
-  const rings = [outer, ...holes], all = rings.flat(), minX = Math.min(...all.map(p => p.x)), maxX = Math.max(...all.map(p => p.x)), minY = Math.min(...all.map(p => p.y)), maxY = Math.max(...all.map(p => p.y));
-  const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }, extent = Math.hypot(maxX - minX, maxY - minY) + Number(step) * 2;
-  const families = pattern === 'cross' ? [Number(angle), Number(angle) + 90] : [Number(angle)];
+  if (!region || !Array.isArray(region.outer) || region.outer.length < 3) {
+    throw new TypeError('Для штриховки нужен замкнутый внешний контур');
+  }
+  const spacing = Number(step), baseAngle = Number(angle);
+  if (!(spacing > 0) || !Number.isFinite(spacing)) {
+    throw new RangeError('Шаг штриховки должен быть больше нуля');
+  }
+  if (!Number.isFinite(baseAngle)) throw new RangeError('Угол штриховки задан неверно');
+  const allowedPatterns = new Set(['single', 'cross', 'triple', 'solid']);
+  const hatchPattern = allowedPatterns.has(pattern) ? pattern : 'single';
+  const outer = cleanPoints(region.outer), holes = (region.holes || [])
+    .map(ring => cleanPoints(ring))
+    .filter(ring => ring.length >= 3);
+  if (outer.length < 3) throw new TypeError('Внешний контур штриховки повреждён');
+
+  const rings = [outer, ...holes], all = rings.flat();
+  if (!all.every(finitePoint)) throw new TypeError('Контур штриховки содержит неверные координаты');
+  const minX = Math.min(...all.map(p => p.x)), maxX = Math.max(...all.map(p => p.x));
+  const minY = Math.min(...all.map(p => p.y)), maxY = Math.max(...all.map(p => p.y));
+  const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  const extent = Math.hypot(maxX - minX, maxY - minY);
+  const normalizedAngle = ((baseAngle % 180) + 180) % 180;
+  const families = hatchPattern === 'cross'
+    ? [normalizedAngle, normalizedAngle + 90]
+    : hatchPattern === 'triple'
+      ? [normalizedAngle, normalizedAngle + 60, normalizedAngle + 120]
+      : [normalizedAngle];
   const segments = [];
-  if (pattern !== 'solid') for (const degrees of families) {
-    const a = degrees * Math.PI / 180, dir = { x: Math.cos(a), y: Math.sin(a) }, normal = { x: -Math.sin(a), y: Math.cos(a) };
-    const projections = all.map(p => dot(sub(p, center), normal)), lo = Math.floor(Math.min(...projections) / step), hi = Math.ceil(Math.max(...projections) / step);
-    if (hi - lo > maxLines) throw new RangeError(`Слишком плотная штриховка: требуется более ${maxLines} линий`);
-    for (let k = lo; k <= hi; k++) {
-      const origin = add(center, mul(normal, k * step)), hits = [];
-      for (const ring of rings) for (let i = 0; i < ring.length; i++) {
-        const p = ring[i], q = ring[(i + 1) % ring.length], edge = sub(q, p), den = cross(dir, edge);
-        if (Math.abs(den) <= 1e-12) continue;
-        const delta = sub(p, origin), t = cross(delta, edge) / den, u = cross(delta, dir) / den;
-        if (u >= -1e-9 && u <= 1 + 1e-9) hits.push({ t, point: add(origin, mul(dir, t)) });
+  let totalLines = 0;
+
+  if (hatchPattern !== 'solid') for (const degrees of families) {
+    const radians = degrees * Math.PI / 180;
+    const dir = { x: Math.cos(radians), y: Math.sin(radians) };
+    const normal = { x: -Math.sin(radians), y: Math.cos(radians) };
+    const projections = all.map(point => dot(sub(point, center), normal));
+    const lo = Math.floor(Math.min(...projections) / spacing);
+    const hi = Math.ceil(Math.max(...projections) / spacing);
+    const lineCount = hi - lo + 1;
+    totalLines += lineCount;
+    if (!Number.isFinite(lineCount) || lineCount < 0 || totalLines > maxLines) {
+      throw new RangeError(`Слишком плотная штриховка: требуется более ${maxLines} линий`);
+    }
+
+    // Scale-aware tolerances avoid unstable classification of nearly
+    // coincident edges, while remaining far below drawing precision.
+    const sideEpsilon = Math.max(1, extent) * 1e-11;
+    const hitEpsilon = Math.max(1, extent) * 1e-10;
+    const edges = [], coincidentLines = new Set();
+    for (const ring of rings) {
+      for (let i = 0; i < ring.length; i++) {
+        const p = ring[i], q = ring[(i + 1) % ring.length];
+        const sideP = dot(sub(p, center), normal), sideQ = dot(sub(q, center), normal);
+        if (Math.abs(sideP - sideQ) <= sideEpsilon) {
+          // Keep a set of scan lines coincident with polygon edges so those
+          // lines are not drawn on top of the boundary itself.
+          const k = Math.round(sideP / spacing);
+          if (Math.abs(sideP - k * spacing) <= sideEpsilon) coincidentLines.add(k);
+          continue;
+        }
+        edges.push({ p, q, sideP, sideQ, low: Math.min(sideP, sideQ), high: Math.max(sideP, sideQ) });
       }
-      hits.sort((a, b) => a.t - b.t);
-      const unique = hits.filter((h, i) => !i || Math.abs(h.t - hits[i - 1].t) > 1e-7);
-      for (let i = 0; i + 1 < unique.length; i += 2) {
-        const p = unique[i].point, q = unique[i + 1].point;
-        if (hypot(p, q) > 1e-6) segments.push({ a: p, b: q, angle: degrees });
+    }
+    edges.sort((a, b) => a.low - b.low || a.high - b.high);
+    let nextEdge = 0, activeEdges = [];
+
+    // Sweep through scan lines in increasing normal projection. Only edges
+    // intersecting the current line are examined, avoiding a full contour
+    // walk for every hatch stripe on large/freeform boundaries.
+    for (let k = lo; k <= hi; k++) {
+      const offset = k * spacing;
+      while (nextEdge < edges.length && edges[nextEdge].low <= offset + sideEpsilon) {
+        activeEdges.push(edges[nextEdge++]);
+      }
+      activeEdges = activeEdges.filter(edge => edge.high > offset + sideEpsilon);
+      if (coincidentLines.has(k) || activeEdges.length < 2) continue;
+
+      const hits = [];
+      for (const edge of activeEdges) {
+        // Half-open crossing rule: a crossing vertex is counted once; a
+        // tangent vertex produces two equal hits and therefore a zero
+        // interval. Do not deduplicate those hits before even/odd pairing.
+        const ratio = Math.max(0, Math.min(1, (offset - edge.sideP) / (edge.sideQ - edge.sideP)));
+        const point = {
+          x: edge.p.x + (edge.q.x - edge.p.x) * ratio,
+          y: edge.p.y + (edge.q.y - edge.p.y) * ratio
+        };
+        const t = dot(sub(point, center), dir);
+        if (Number.isFinite(t)) hits.push(t);
+      }
+      if (hits.length < 2) continue;
+
+      hits.sort((a, b) => a - b);
+      for (let i = 0; i + 1 < hits.length; i += 2) {
+        const t0 = hits[i], t1 = hits[i + 1];
+        if (t1 - t0 <= hitEpsilon) continue;
+        const origin = add(center, mul(normal, offset));
+        const a = add(origin, mul(dir, t0));
+        const b = add(origin, mul(dir, t1));
+        if (finitePoint(a) && finitePoint(b)) segments.push({ a, b, angle: degrees });
       }
     }
   }
-  return { outer, holes, angle: Number(angle), spacing: Number(step), pattern, segments };
+  return {
+    outer, holes,
+    angle: normalizedAngle,
+    spacing,
+    pattern: hatchPattern,
+    segments
+  };
 }
 
 /** Radius measured to vertices, to the tangent/in-circle, or across opposite flats. */

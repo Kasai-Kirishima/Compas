@@ -1,4 +1,13 @@
-# CAD Geometry Core 1.5.31
+# CAD Geometry Core 1.5.32
+
+## 1.5.32 — более надёжная штриховка и расширенный выбор угла
+
+- Переработано отсечение штрихов по границам: обработка вершин использует правило полуоткрытого пересечения, касания не создают ложных длинных линий, а отверстия остаются свободными.
+- Убран эффект прорисовки штриха поверх совпадающей стороны контура.
+- Добавлены рисунки «Перекрёстная 90°» и «Тройная сетка 60°» наряду с параллельными линиями и сплошной заливкой.
+- Добавлены 12 быстрых углов от 0° до 165° с шагом 15°, числовой ввод и ползунок точной настройки.
+- Штриховка по выделенному контуру теперь использует тот же геометрический алгоритм отсечения, что и штриховка выбранной области.
+- Добавлены проверки для вогнутых областей, отверстий, всех быстрых углов и многонаправленных узоров.
 
 ## 1.5.31 — сняты фиксированные ограничения длины ножек размеров
 
@@ -223,7 +232,7 @@ Wheel events are handled by the drawing viewport itself in capture phase, before
 
 ## Area hatch by clicking inside a boundary
 
-Choose **Штриховка области** and click inside a closed area. The editor builds planar regions from the selected geometry, or from all visible unlocked sketch geometry when nothing is selected. It hatches only the smallest region under the cursor; segments are clipped to the outer boundary and excluded from holes. You can click several different regions consecutively. Use the pattern selector for single, cross or solid fill. The separate **Найти замкнутые области из линий и заштриховать** command still hatches every detected bounded face.
+Choose **Штриховка области** and click inside a closed area. The editor builds planar regions from the selected geometry, or from all visible unlocked sketch geometry when nothing is selected. It hatches only the smallest region under the cursor; segments are clipped to the outer boundary and excluded from holes. You can click several different regions consecutively. Use the pattern selector for parallel lines, a perpendicular cross, a triple 60-degree grid or solid fill. The separate **Найти замкнутые области из линий и заштриховать** command still hatches every detected bounded face.
 
 ## Six-pointed star
 

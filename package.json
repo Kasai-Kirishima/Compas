@@ -1,6 +1,6 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.31",
+  "version": "1.5.32",
   "private": true,
   "type": "module",
   "description": "2D mechanical CAD editor with unbounded dimension witness-leg editing and full-fidelity native project import/export",
