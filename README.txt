@@ -70,6 +70,6 @@
 1.5.14: scroll the mouse wheel over the drawing to zoom at the cursor; hold the right mouse button and drag to pan the workspace. The right-button gesture does not select or edit drawing objects and suppresses the browser context menu over the workspace.
 1.5.14: middle-button drag and Space + left drag remain as alternatives; wheel events are captured before nested SVG layers and only intercepted inside the drawing viewport.
 
-ПРЯМОЙ ПРОХОДНОЙ ВЫРЕЗ (1.5.18)
+ПРЯМОЙ ПРОХОДНОЙ ВЫРЕЗ (1.5.19)
 - В панели «Вырез и отверстия» выберите «Без нижней стенки» (две ровные параллельные боковые стенки, открытый внутренний конец) или «Без стенок» (удаляется только часть границы, новые боковые линии не создаются).
 - Задайте ширину, нажмите левую кнопку мыши с любой стороны и под любым углом, протяните линию и отпустите в нужной глубине. Если начало жеста внутри конкретного профиля, а конец снаружи, алгоритм сам разворачивает направление только для этого профиля. Если начало жеста оказалось внутри конкретного профиля, а конец снаружи, направление для этого профиля автоматически разворачивается. Один проход обрабатывает все пересечённые видимые незаблокированные замкнутые профили.

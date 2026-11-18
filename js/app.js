@@ -1,6 +1,6 @@
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
 import { normalizeWheelDeltas, wheelZoomFactor } from '../src/wheel-navigation.mjs';
-import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBottomAtPoint, cutCircleNotchWithoutBottomAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, cutClosedContourByStraightPass, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBottomAtPoint, cutCircleNotchWithoutBottomAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, cutClosedContourByStraightPass, cutOpenPathByStraightPass, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 
 (() => {
   'use strict';
@@ -765,11 +765,25 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   function applyStraightPassCut(start,end,width,mode='noBottom'){
     const len=Math.hypot(end.x-start.x,end.y-start.y);
     if(len<Math.max(width*.75,.5)){setMessage('Проход слишком короткий. Протяни линию снаружи детали до нужной точки внутри или за ней.');return false;}
-    const targets=state.objects.filter(o=>!o.hidden&&!o.locked&&o.type!=='reference'&&!annotationTypes.has(o.type)&&!constructionTypes.has(o.type)&&layerFor(o)!=='annotation'&&layerFor(o)!=='construction'&&!!appClosedContourPoints(o));
-    if(!targets.length){setMessage('На чертеже нет доступных замкнутых контуров для проходного выреза.');return false;}
+    // Include open paths created by previous blind/no-bottom or no-walls cuts.
+    // This is what allows the same resulting geometry to be cut again and
+    // again instead of becoming a one-operation-only object.
+    const targets=state.objects.filter(o=>!o.hidden&&!o.locked&&o.type!=='reference'&&!annotationTypes.has(o.type)&&!constructionTypes.has(o.type)&&layerFor(o)!=='annotation'&&layerFor(o)!=='construction'&&(!!appClosedContourPoints(o)||!!appOpenPathPoints(o)));
+    if(!targets.length){setMessage('На чертеже нет доступной геометрии для проходного выреза.');return false;}
     const before=snapshot(),successes=[],failures=[];
     for(const source of targets){
-      const contour=appClosedContourPoints(source);if(!contour||contour.length<3)continue;
+      const contour=appClosedContourPoints(source);
+      if(!contour){
+        const path=appOpenPathPoints(source);if(!path||path.length<2)continue;
+        const tx=cutOpenPathByStraightPass(path,start,end,width,{eps:1e-7});
+        if(!tx.ok){if(!/не пересекает оставшиеся участки контура/.test(tx.reason||''))failures.push(`${source.name||source.type}: ${tx.reason||'пропущен'}`);continue;}
+        const idsBefore=new Set(state.objects.map(o=>o.id));
+        if(!replaceWithOpenFragments(source,tx.fragments)){failures.push(`${source.name||source.type}: не удалось сохранить повторный вырез`);continue;}
+        const replacementIds=state.objects.filter(o=>o.id===source.id||!idsBefore.has(o.id)).map(o=>o.id);
+        successes.push({sourceId:source.id,ids:replacementIds,count:tx.fragments.length,closed:0,open:tx.fragments.length,removedArea:0,removedLength:tx.metadata.removedLength,wasOpen:true});
+        continue;
+      }
+      if(contour.length<3)continue;
       const tx=cutClosedContourByStraightPass(contour,start,end,width,{eps:1e-7,rejectStartInside:true,autoReverseIfStartInside:true,mode});
       if(!tx.ok){
         if(!/не пересекает выбранный контур|не удалил материал контура/.test(tx.reason||''))failures.push(`${source.name||source.type}: ${tx.reason||'пропущен'}`);
@@ -781,12 +795,13 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       successes.push({sourceId:source.id,ids:replacementIds,count:tx.fragments.length+(tx.openFragments||[]).length,closed:tx.fragments.length,open:(tx.openFragments||[]).length,removedArea:tx.metadata.removedArea,directionReversed:!!tx.metadata.directionReversed});
     }
     previewLayer.innerHTML='';
-    if(!successes.length){setMessage(failures[0]||'Полоса не пересекла ни один замкнутый контур. Начни снаружи детали и протяни через нужные окружности.');return false;}
+    if(!successes.length){setMessage(failures[0]||'Полоса не пересекла доступные контуры или открытые участки. Попробуй другую траекторию или ширину.');return false;}
     state.selectedIds=[...new Set(successes.flatMap(s=>s.ids))];
     commit(before);renderAll();
     const pieces=successes.reduce((sum,s)=>sum+s.count,0),split=successes.filter(s=>s.count>1).length,reversed=successes.filter(s=>s.directionReversed).length;
     const modeLabel=mode==='noWalls'?'без стенок':mode==='noBottom'?'без нижней стенки':'со всеми стенками';
-    setMessage(`Прямой проход (${modeLabel}) выполнен: затронуто контуров ${successes.length}, создано фрагментов ${pieces}${split?` · контуров разделено на несколько частей ${split}`:''}${failures.length?` · пропущено ${failures.length}`:''}${reversed?` · направление автоматически адаптировано для ${reversed} контуров`:''}. ${mode==='noBottom'?'Боковые стенки прямые и параллельные, внутренний конец открыт.':mode==='noWalls'?'Новые боковые линии и торец не добавляются.':'Боковые стенки прямые и параллельные.'} Ширина ${mm(width)} мм.`);
+    const recut=successes.filter(s=>s.wasOpen).length;
+    setMessage(`Прямой проход (${modeLabel}) выполнен: затронуто объектов ${successes.length}, создано фрагментов ${pieces}${split?` · разделено на несколько частей ${split}`:''}${recut?` · повторно обработано открытых контуров ${recut}`:''}${failures.length?` · пропущено ${failures.length}`:''}${reversed?` · направление автоматически адаптировано для ${reversed} контуров`:''}. ${mode==='noBottom'?'Боковые стенки прямые и параллельные, внутренний конец открыт.':mode==='noWalls'?'Новые боковые линии и торец не добавляются.':'Боковые стенки прямые и параллельные.'} Повторные вырезы на полученных фрагментах разрешены. Ширина ${mm(width)} мм.`);
     return true;
   }
   function applyEdgeCutout(point,clickedId=null,mode='walls'){

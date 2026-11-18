@@ -7,13 +7,16 @@ assert.match(html, /data-tool="straightCut"/, 'The editor must expose the straig
 assert.match(html, /зажать и протянуть мышью/, 'The UI must explain the drag gesture');
 assert.match(html, /id=\"straightCutMode\"[\s\S]*value=\"noBottom\"[\s\S]*value=\"noWalls\"/, 'The editor must expose no-bottom-wall and no-walls variants, defaulting to no-bottom-wall');
 assert.match(app, /cutClosedContourByStraightPass/, 'The main editor must call the straight-pass geometry operation');
+assert.match(app, /cutOpenPathByStraightPass/, 'The main editor must allow further pass-cuts on open fragments created by earlier cuts');
 assert.match(app, /autoReverseIfStartInside:true/, 'The main editor must accept a pass dragged in either direction for each intersected profile');
 assert.match(app, /state\.straightCutDraft=\{start:p,current:p,pointerId:e\.pointerId,width,mode:\$\('straightCutMode'\)\?\.value\|\|'noBottom'\}/, 'Pointer down must capture the selected pass-cut mode');
 assert.match(app, /Math\.atan2\(dy,dx\).*360/, 'The preview must show the live direction angle for any drag vector');
 assert.match(app, /angleLabel\.textContent=/, 'The preview must render the live angle label');
 assert.match(app, /if\(state\.straightCutDraft\).*renderStraightPassPreview/s, 'Pointer move must update a straight strip preview');
 assert.match(app, /applyStraightPassCut\(draft\.start,pointFromEvent\(e,true\),draft\.width,draft\.mode\)/, 'Pointer up must apply the swept straight pass with its chosen mode');
-assert.match(app, /state\.objects\.filter\(o=>!o\.hidden&&!o\.locked&&o\.type!=='reference'&&!annotationTypes\.has\(o\.type\).*appClosedContourPoints\(o\)\)/, 'The pass must automatically process all unlocked visible closed geometry on working layers');
+assert.match(app, /state\.objects\.filter\(o=>!o\.hidden&&!o\.locked&&o\.type!=='reference'&&!annotationTypes\.has\(o\.type\).*appClosedContourPoints\(o\)\|\|!!appOpenPathPoints\(o\)\)/, 'The pass must process both closed contours and previously cut open paths on working layers');
+assert.match(app, /const path=appOpenPathPoints\(source\)[\s\S]*?cutOpenPathByStraightPass\(path,start,end,width/, 'Open results from an earlier pass must be cut again by a later pass');
+assert.match(app, /replaceWithOpenFragments\(source,tx\.fragments\)/, 'Repeated passes must keep their new open fragments editable for further cuts');
 assert.match(app, /replaceWithContourResults\(source,tx\.fragments,tx\.openFragments\|\|\[\]\)/, 'Through-cuts and open-wall modes must preserve editable contour fragments');
 assert.match(geometry, /sideWalls:/, 'The cut result must report the two straight pass walls');
 assert.match(geometry, /blindEnd[,}]/, 'The cut result must report blind-entry status');

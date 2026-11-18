@@ -1079,3 +1079,139 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
     },
   };
 }
+
+/**
+ * Remove the part of an already-open editable path that lies inside a
+ * finite-width straight pass. This is the complementary operation to
+ * `cutClosedContourByStraightPass`: after a blind/no-bottom or no-walls cut,
+ * the result is an open polyline, and later passes must be able to cut that
+ * same geometry again. There is intentionally no per-object operation count.
+ *
+ * The pass is a rectangle swept from start to end. Each source segment is
+ * clipped against that rectangle, the portions inside it are discarded, and
+ * all retained portions are stitched into independent open fragments.
+ */
+export function cutOpenPathByStraightPass(points, start, end, width, {
+  eps = 1e-7,
+} = {}) {
+  if (!Array.isArray(points) || points.length < 2) {
+    throw new TypeError('Для повторного проходного выреза нужен открытый путь минимум из двух точек');
+  }
+  points.forEach((p, i) => {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      throw new TypeError(`Точка открытого пути ${i + 1} должна содержать конечные координаты x и y`);
+    }
+  });
+  for (const [name, p] of [['Начальная точка', start], ['Конечная точка', end]]) {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) {
+      throw new TypeError(`${name} повторного прохода должна содержать конечные координаты x и y`);
+    }
+  }
+  positive(width, 'Ширина повторного проходного выреза');
+  if (!Number.isFinite(eps) || eps <= 0) throw new TypeError('Допуск геометрии должен быть положительным числом');
+
+  const dx = end.x - start.x, dy = end.y - start.y;
+  const passLength = Math.hypot(dx, dy);
+  if (passLength <= eps) return { ok: false, reason: 'Длина повторного прохода слишком мала' };
+  const ux = dx / passLength, uy = dy / passLength;
+  const nx = -uy, ny = ux, half = width / 2;
+  const local = p => {
+    const rx = p.x - start.x, ry = p.y - start.y;
+    return { along: rx * ux + ry * uy, across: rx * nx + ry * ny };
+  };
+  const pointAt = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  const scale = Math.max(1, passLength, width,
+    ...points.map(p => Math.max(Math.abs(p.x), Math.abs(p.y))),
+    Math.abs(start.x), Math.abs(start.y), Math.abs(end.x), Math.abs(end.y));
+  const tol = Math.max(eps, scale * 1e-10);
+  const paramTol = Math.max(1e-10, tol / Math.max(passLength, width, 1));
+
+  // Liang–Barsky/slab clipping in the pass-local coordinate system.
+  const clipSegment = (a, b) => {
+    const A = local(a), B = local(b);
+    const dAlong = B.along - A.along, dAcross = B.across - A.across;
+    let enter = 0, leave = 1;
+    const clipAxis = (origin, delta, min, max) => {
+      if (Math.abs(delta) <= paramTol) return origin >= min - tol && origin <= max + tol;
+      let t0 = (min - origin) / delta, t1 = (max - origin) / delta;
+      if (t0 > t1) [t0, t1] = [t1, t0];
+      enter = Math.max(enter, t0);
+      leave = Math.min(leave, t1);
+      return enter <= leave + paramTol;
+    };
+    if (!clipAxis(A.along, dAlong, 0, passLength) ||
+        !clipAxis(A.across, dAcross, -half, half) ||
+        leave < -paramTol || enter > 1 + paramTol) return null;
+    enter = clamp(enter, 0, 1);
+    leave = clamp(leave, 0, 1);
+    if (leave - enter <= paramTol) return null; // tangency does not create a cut
+    return { enter, leave };
+  };
+
+  const fragments = [];
+  let current = [];
+  let removedLength = 0;
+  let cutSegments = 0;
+  const flush = () => {
+    const compact = current.filter((p, i) => i === 0 || distance(p, current[i - 1]) > tol);
+    if (compact.length >= 2 && compact.some((p, i) => i > 0 && distance(p, compact[i - 1]) > tol)) {
+      fragments.push(compact);
+    }
+    current = [];
+  };
+  const appendInterval = (a, b) => {
+    if (distance(a, b) <= tol) return;
+    if (!current.length) current.push({ ...a });
+    else if (distance(current.at(-1), a) > tol) {
+      flush();
+      current.push({ ...a });
+    }
+    if (distance(current.at(-1), b) > tol) current.push({ ...b });
+  };
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i], b = points[i + 1], segmentLength = distance(a, b);
+    if (segmentLength <= tol) continue;
+    const hit = clipSegment(a, b);
+    if (!hit) {
+      appendInterval(a, b);
+      continue;
+    }
+    const { enter, leave } = hit;
+    const removed = (leave - enter) * segmentLength;
+    if (removed <= tol) {
+      appendInterval(a, b);
+      continue;
+    }
+    removedLength += removed;
+    cutSegments++;
+    if (enter > paramTol) appendInterval(a, pointAt(a, b, enter));
+    else flush();
+    // The strip separates the retained portion before it from the portion
+    // after it, even when the removed region spans several source segments.
+    flush();
+    if (leave < 1 - paramTol) appendInterval(pointAt(a, b, leave), b);
+    else flush();
+  }
+  flush();
+
+  if (removedLength <= tol || !cutSegments) {
+    return { ok: false, reason: 'Прямая полоса не пересекает оставшиеся участки контура' };
+  }
+  if (!fragments.length) {
+    return { ok: false, reason: 'Проход удалил весь открытый контур; оставшейся геометрии нет' };
+  }
+  return {
+    ok: true,
+    operation: 'repeatable-straight-pass-cut-open-path',
+    fragments,
+    metadata: {
+      passLength, width, removedLength, cutSegments, fragmentCount: fragments.length,
+      start: { ...start }, end: { ...end },
+      sideWalls: [
+        { start: { x: start.x + nx * half, y: start.y + ny * half }, end: { x: end.x + nx * half, y: end.y + ny * half } },
+        { start: { x: start.x - nx * half, y: start.y - ny * half }, end: { x: end.x - nx * half, y: end.y - ny * half } },
+      ],
+    },
+  };
+}

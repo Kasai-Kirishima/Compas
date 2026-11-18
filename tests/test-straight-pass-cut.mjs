@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { cutClosedContourByStraightPass } from '../src/cutouts.mjs';
+import { cutClosedContourByStraightPass, cutOpenPathByStraightPass } from '../src/cutouts.mjs';
 
 const circle = (cx, cy, r, count = 720) => Array.from({ length: count }, (_, i) => ({
   x: cx + r * Math.cos(i * Math.PI * 2 / count),
@@ -86,6 +86,24 @@ for (const wallEdge of noBottomEdges.filter(e => Math.abs(e.a.y - e.b.y) < 1e-7 
   near(wallEdge.a.y, wallEdge.b.y, 1e-9);
 }
 
+// Repeatability regression: a blind no-bottom pass converts the small circle
+// into an open editable contour. A second and third pass must still be able to
+// cut that very same result; there is no one-cut-per-object guard.
+const repeatSecond = cutOpenPathByStraightPass(blindNoBottom.openFragments[0],
+  { x: 70, y: -30 }, { x: 70, y: 30 }, 3);
+assert.equal(repeatSecond.ok, true, repeatSecond.reason);
+assert.ok(repeatSecond.fragments.length >= 2, 'A second pass splits the existing open contour into new editable fragments');
+assert.ok(repeatSecond.metadata.removedLength > 0, 'The second pass removes a measurable path length');
+const secondPiece = repeatSecond.fragments[Math.floor(repeatSecond.fragments.length / 2)];
+const bounds = secondPiece.reduce((b, p) => ({ minX: Math.min(b.minX, p.x), minY: Math.min(b.minY, p.y), maxX: Math.max(b.maxX, p.x), maxY: Math.max(b.maxY, p.y) }),
+  { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+const thirdCenter = { x: (bounds.minX + bounds.maxX) / 2, y: (bounds.minY + bounds.maxY) / 2 };
+const repeatThird = cutOpenPathByStraightPass(secondPiece,
+  { x: thirdCenter.x - 30, y: thirdCenter.y - 30 },
+  { x: thirdCenter.x + 30, y: thirdCenter.y + 30 }, 2);
+assert.equal(repeatThird.ok, true, repeatThird.reason);
+assert.ok(repeatThird.fragments.length >= 1, 'A third pass can be applied to a fragment created by the second pass');
+
 // A fully traversed profile stays split into closed pieces in no-bottom mode:
 // there is no blind end cap to remove, and the straight side walls remain.
 const throughNoBottom = cutClosedContourByStraightPass(circle(0, 0, 40), start, end, width, { mode: 'noBottom' });
@@ -103,6 +121,10 @@ assert.equal(blindNoWalls.metadata.sideWallsRemoved, true);
 const noWallEdges = openEdges(blindNoWalls.openFragments[0]);
 assert.equal(noWallEdges.some(e => Math.abs(e.a.y - e.b.y) < 1e-7 && Math.abs(Math.abs(e.a.y) - width / 2) < 1e-7), false,
   'No-walls mode must not add either straight side wall');
+// The open result from no-walls mode is repeatable as well.
+const repeatNoWalls = cutOpenPathByStraightPass(blindNoWalls.openFragments[0],
+  { x: 70, y: -30 }, { x: 70, y: 30 }, 3);
+assert.equal(repeatNoWalls.ok, true, repeatNoWalls.reason);
 const throughNoWalls = cutClosedContourByStraightPass(circle(0, 0, 40), start, end, width, { mode: 'noWalls' });
 assert.equal(throughNoWalls.ok, true, throughNoWalls.reason);
 assert.equal(throughNoWalls.fragments.length, 0);
@@ -163,4 +185,4 @@ assert.equal(circleReverse.ok, true, circleReverse.reason);
 assert.equal(circleReverse.metadata.directionReversed, true);
 assert.equal(circleReverse.metadata.blindEnd, true);
 
-console.log('Straight pass-cut tests passed: full walls, open-bottom walls, no-walls gaps, blind and through cuts, two-circle path, arbitrary-angle passes in 17 directions, reverse drag direction, exact parallel walls and invalid paths.');
+console.log('Straight pass-cut tests passed: full walls, open-bottom walls, no-walls gaps, blind and through cuts, repeated second/third passes on the same open result, two-circle path, arbitrary-angle passes in 17 directions, reverse drag direction, exact parallel walls and invalid paths.');

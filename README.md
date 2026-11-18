@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.18
+# CAD Geometry Core 1.5.19
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -11,7 +11,8 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 - linear and diameter dimensions with text orientation, readable placement, decimal-comma formatting, line gaps beneath labels, and the dedicated `⌀` diameter symbol (legacy `Ø` / Cyrillic `Ш` prefixes are normalized).
 
 ### Editing
-- Straight pass-cut by left-button drag: sweep a fixed-width straight corridor through visible unlocked closed profiles; choose **Без нижней стенки** to retain exact parallel side walls while leaving a blind end open, or **Без стенок** to remove only boundary portions without adding side lines; through-cuts remain editable fragments;
+- Straight pass-cut by left-button drag: sweep a fixed-width straight corridor through visible unlocked closed profiles and open paths; choose **Без нижней стенки** to retain exact parallel side walls while leaving a blind end open, or **Без стенок** to remove only boundary portions without adding side lines; through-cuts remain editable fragments;
+- Unlimited repeated straight passes on the same geometry: open contours left by earlier blind/no-walls cuts are also eligible for later passes, and each pass leaves new editable fragments for further cuts;
 - Split open paths at any interior point, including the exact midpoint or very near an endpoint;
 - Split closed profiles into two independent closed contours by picking two boundary points;
 - Split support includes lines, construction/centre lines, arcs, open polylines, splines, freehand curves, rectangles, rounded rectangles, circles, ellipses, and closed polygonal contours;
