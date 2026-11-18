@@ -1038,11 +1038,24 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     // A line hatch repeats every 180 degrees; preserve zero as a valid horizontal angle.
     return ((parsed%180)+180)%180;
   }
+  function sharedHatchOrigin(regions){
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    for(const region of regions||[])for(const ring of [region.outer||[],...(region.holes||[])])for(const p of ring){
+      if(!Number.isFinite(p.x)||!Number.isFinite(p.y))continue;
+      minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);
+    }
+    if(!Number.isFinite(minX))return {x:0,y:0};
+    return {x:mm((minX+maxX)/2),y:mm((minY+maxY)/2)};
+  }
   function findRegionAtPoint(point){
     const source=hatchableDrawingObjects({respectSelection:false});
     if(!source.length)throw new Error('Нет видимых контуров для выбора области');
     const regions=findClosedLoops(source,{tolerance:.01,curveSegments:512,maxSegments:20000});
-    return regions.filter(region=>pointInRegion(point,region)).sort((a,b)=>a.area-b.area)[0]||null;
+    const region=regions.filter(region=>pointInRegion(point,region)).sort((a,b)=>a.area-b.area)[0]||null;
+    // Compute the grid anchor from the complete drawing, not from the clicked
+    // face. Repeated clicks in other material islands will keep one shared phase.
+    if(region)region.hatchOrigin=sharedHatchOrigin(regions);
+    return region;
   }
   function selectRegionAtPoint(point){
     try{
@@ -1057,7 +1070,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     if(!region?.outer?.length){setMessage('Сначала выберите замкнутую область');return false;}
     const pattern=$('hatchPattern').value,angle=hatchAngleValue(),spacing=clamp(Number($('hatchSpacing').value)||3,.5,100),width=clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color=$('hatchColor').value||'#20252a';
     try{
-      const generated=createHatch(region,{angle,step:spacing,pattern,maxLines:20000});
+      const generated=createHatch(region,{angle,step:spacing,pattern,maxLines:20000,origin:region.hatchOrigin||null});
       const before=snapshot(),object={id:newId(),type:'hatch',name:'Штриховка области',points:generated.outer,holes:generated.holes,hatchSegments:generated.segments,closed:true,pattern,angle,spacing,width,color,layer:'annotation',boundaryAuto:true,sourceIds:region.sourceIds};
       state.objects.push(object);state.selectedIds=[object.id];state.selectedRegion=null;commit(before);renderAll();
       setMessage(`Область заштрихована под фиксированным углом ${angle}° · площадь ${region.area.toFixed(2)} мм² · отверстий ${region.holes.length}`);
@@ -1107,7 +1120,8 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     if(!regions.length){setMessage('Замкнутые области не найдены. Проверьте соединение концов линий.');return;}
     const pattern=$('hatchPattern').value,angle=hatchAngleValue(),spacing=clamp(Number($('hatchSpacing').value)||3,.5,100),width=clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color=$('hatchColor').value||'#20252a';
     try{
-      const before=snapshot(),created=regions.map((region,index)=>{const hatch=createHatch(region,{angle,step:spacing,pattern});return{id:newId(),type:'hatch',name:`Автоштриховка ${index+1}`,points:hatch.outer,holes:hatch.holes,hatchSegments:hatch.segments,closed:true,pattern,angle,spacing,width,color,layer:'annotation',boundaryAuto:true,sourceIds:region.sourceIds};});
+      const hatchOrigin=sharedHatchOrigin(regions);
+      const before=snapshot(),created=regions.map((region,index)=>{const hatch=createHatch(region,{angle,step:spacing,pattern,origin:hatchOrigin});return{id:newId(),type:'hatch',name:`Автоштриховка ${index+1}`,points:hatch.outer,holes:hatch.holes,hatchSegments:hatch.segments,closed:true,pattern,angle,spacing,width,color,layer:'annotation',boundaryAuto:true,sourceIds:region.sourceIds};});
       state.objects.push(...created);state.selectedIds=created.map(o=>o.id);state.selectedRegion=null;recordHistory(before);renderAll();
       const holeCount=regions.reduce((sum,r)=>sum+r.holes.length,0);
       setMessage(`Найдено областей: ${regions.length}; внутренних отверстий: ${holeCount}; угол ${angle}°; штриховок создано: ${created.length}`);

@@ -112,6 +112,36 @@ assert.deepEqual([...new Set(tripleHatch.segments.map(segment=>Math.round(segmen
 const crossHatch=createHatch(concaveRegion,{angle:15,step:5,pattern:'cross'});
 assert.deepEqual([...new Set(crossHatch.segments.map(segment=>Math.round(segment.angle)))].sort((a,b)=>a-b),[15,105]);
 assert.equal(solidHatch.holes.length,1,'Solid fill must preserve internal holes');
+
+// Multiple internal openings are retained as holes and excluded from the hatch.
+const multiHoleRegions=findClosedLoops([
+  {id:'multi-outer',type:'rect',x:0,y:0,x2:100,y2:70},
+  {id:'multi-hole-a',type:'circle',x:25,y:35,x2:32,y2:35},
+  {id:'multi-hole-b',type:'circle',x:70,y:35,x2:78,y2:35}
+],{tolerance:.01,curveSegments:256});
+assert.equal(multiHoleRegions.length,1);
+assert.equal(multiHoleRegions[0].holes.length,2,'Both inner contours must be treated as voids');
+const multiHoleHatch=createHatch(multiHoleRegions[0],{angle:45,step:3,origin:{x:50,y:35}});
+assert.ok(multiHoleHatch.segments.length>0);
+for(const segment of multiHoleHatch.segments)for(const t of [.2,.5,.8]){
+  const point={x:segment.a.x+(segment.b.x-segment.a.x)*t,y:segment.a.y+(segment.b.y-segment.a.y)*t};
+  assert.equal(pointInRegion(point,multiHoleRegions[0]),true,'Hatch samples must stay in material and outside both holes');
+}
+
+// Separate material islands use one shared hatch origin, so their stripe phase
+// remains aligned to the same global 45-degree grid.
+const islandA={outer:[{x:0,y:0},{x:10,y:0},{x:10,y:10},{x:0,y:10}],holes:[]};
+const islandB={outer:[{x:23,y:0},{x:33,y:0},{x:33,y:10},{x:23,y:10}],holes:[]};
+const commonAnchor={x:16.5,y:5},commonStep=5,commonAngle=45;
+const islandHatches=[islandA,islandB].map(region=>createHatch(region,{angle:commonAngle,step:commonStep,origin:commonAnchor}));
+const commonNormal={x:-Math.sin(commonAngle*Math.PI/180),y:Math.cos(commonAngle*Math.PI/180)};
+for(const islandHatch of islandHatches)for(const segment of islandHatch.segments){
+  const projectionA=(segment.a.x-commonAnchor.x)*commonNormal.x+(segment.a.y-commonAnchor.y)*commonNormal.y;
+  const projectionB=(segment.b.x-commonAnchor.x)*commonNormal.x+(segment.b.y-commonAnchor.y)*commonNormal.y;
+  near(projectionA,projectionB,1e-6);
+  near(projectionA/commonStep,Math.round(projectionA/commonStep),1e-6,'Every disconnected area must use the same hatch grid phase');
+}
+assert.deepEqual(islandHatches.map(h=>h.anchor),[commonAnchor,commonAnchor],'The exact same hatch anchor must be retained for all regions');
 for(const segment of hatch.segments){
   const mid={x:(segment.a.x+segment.b.x)/2,y:(segment.a.y+segment.b.y)/2};
   assert.ok(Math.hypot(mid.x,mid.y)>=20-1e-4,'Hatch segment must not pass through inner hole');

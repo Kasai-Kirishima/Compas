@@ -16,6 +16,9 @@ assert.match(app, /findObjectSnap\(p,state\.objects/, 'OSNAP must snap input poi
 assert.match(html, /id="objectSnapToggle"/, 'Object snap toggle must be available');
 assert.match(app, /trimLegacyCurve\(subject,pointFromEvent\(e,true\)/, 'Trim must be connected to the canvas click');
 assert.match(app, /function findAndHatchClosedRegions\(/, 'Automatic loop detection/hatching must be wired in the app');
+assert.match(app, /function sharedHatchOrigin\(/, 'All disconnected hatched areas must share one global hatch-grid origin');
+assert.match(app, /createHatch\(region,\{angle,step:spacing,pattern,origin:hatchOrigin\}\)/, 'Batch hatching must pass the same origin to every material region');
+assert.match(advanced, /origin: hatchOrigin = null/, 'Geometry hatch generator must accept a shared hatch-grid origin');
 assert.match(app, /function hatchRegionAtPoint\(/, 'Clicking inside a region must create a clipped area hatch');
 assert.match(app, /hatchableDrawingObjects\(\{respectSelection:false\}\)/, 'Click-to-hatch must include all visible boundary objects even when an unrelated object is selected');
 assert.match(app, /hatchRegionAtPoint\(pointFromEvent\(e,true\)\)/, 'Area hatch tool must hit-test the clicked region');
@@ -40,4 +43,4 @@ assert.match(app, /o\.hatchSegments\.forEach/, 'Generated clipped hatch segments
 assert.match(advanced, /export function findClosedLoops\(/, 'Planar face detection helper must be exported');
 assert.match(advanced, /export function createHatch\(/, 'Hatching helper must be exported');
 assert.match(advanced, /export function trimLegacyCurve\(/, 'Legacy editor trim adapter must be exported');
-console.log('Advanced sketch editor integration tests passed (30 assertions).');
+console.log('Advanced sketch editor integration tests passed (33 assertions).');

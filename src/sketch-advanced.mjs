@@ -372,7 +372,7 @@ export function findClosedLoops(curves, { tolerance = 0.02, curveSegments = 256,
  * tangent hits (rather than deduplicating them) preserves even/odd parity for
  * concave boundaries and nested holes.
  */
-export function createHatch(region, { angle = 45, step = 2, pattern = 'single', maxLines = 20000 } = {}) {
+export function createHatch(region, { angle = 45, step = 2, pattern = 'single', maxLines = 20000, origin: hatchOrigin = null } = {}) {
   if (!region || !Array.isArray(region.outer) || region.outer.length < 3) {
     throw new TypeError('Для штриховки нужен замкнутый внешний контур');
   }
@@ -392,7 +392,15 @@ export function createHatch(region, { angle = 45, step = 2, pattern = 'single', 
   if (!all.every(finitePoint)) throw new TypeError('Контур штриховки содержит неверные координаты');
   const minX = Math.min(...all.map(p => p.x)), maxX = Math.max(...all.map(p => p.x));
   const minY = Math.min(...all.map(p => p.y)), maxY = Math.max(...all.map(p => p.y));
-  const center = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  // Every hatch area may share one anchor. This keeps the stripe phase
+  // continuous across disconnected regions instead of restarting the pattern
+  // from the centre of each individual contour.
+  if (hatchOrigin != null && !finitePoint(hatchOrigin)) {
+    throw new TypeError('Начало общей сетки штриховки задано неверно');
+  }
+  const center = hatchOrigin == null
+    ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
+    : clonePoint(hatchOrigin);
   const extent = Math.hypot(maxX - minX, maxY - minY);
   const normalizedAngle = ((baseAngle % 180) + 180) % 180;
   const families = hatchPattern === 'cross'
@@ -480,6 +488,7 @@ export function createHatch(region, { angle = 45, step = 2, pattern = 'single', 
     angle: normalizedAngle,
     spacing,
     pattern: hatchPattern,
+    anchor: clonePoint(center),
     segments
   };
 }
