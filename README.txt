@@ -1,14 +1,34 @@
-## 1.5.22 full project exchange (.kcad)
+# CAD Geometry Core 1.5.23
+
+## 1.5.23 advanced 2D sketch operations
+
+- Object snaps are now connected to the main editor: endpoints, segment midpoints, circle/arc/ellipse centres, circle quadrants and intersections. The analytic geometry kernel is used for line/circle/arc and circle/circle intersections; sampled paths are used only where the source is intrinsically freeform.
+- Trim now works by clicking the section to remove between adjacent intersections on line segments, circles, arcs, rectangles, ellipses and closed polylines. Source objects are replaced by editable pieces in one undoable transaction.
+- Added the **Arc (3 points)** tool: start, a point on the arc, and end. The solver selects the corresponding minor/major sweep and rejects degenerate collinear input.
+- Regular polygons now include **Across flats** sizing. For a hexagon with 40 mm across flats, set the cursor at the apothem distance (20 mm from the centre to the midpoint of a side); the core API accepts the full across-flats measurement.
+- Added planar-region recognition from independent and intersecting sketch curves. The graph splits intersections, walks bounded faces, and classifies nested loops as holes/islands.
+- Added automatic region hatching for the detected faces. Hatch segments are clipped around inner holes; solid hatching uses even-odd fill. Original source curves remain unchanged.
+- Existing circles, lines, arcs, polygons, circular/rectangular arrays, single-boundary hatch, and basic geometry primitives were already present and were not duplicated. 3D boss extrusion and through-all Boolean cuts are not included because this project remains a 2D editor and has no 3D solid kernel.
+
+## 1.5.23 full project exchange (.kcad)
 
 Use **Экспорт проекта** to download a `.kcad` file. It preserves the complete editable drawing: all geometry, open/closed cut contours, dimensions and individual arrow/label settings, text with multi-line content and frames, title-block/frame template and per-cell overrides, sheet and GOST/DSTU settings, layers/visibility, ruler and viewport options, and embedded image references. Use **Импорт проекта** to restore it; the application automatically creates a separate “— импорт” project in the local file library instead of overwriting the source. Legacy plain `.json` project files remain importable.
 
 КОМПАС Онлайн 2.5.4.2 — учебный браузерный редактор чертежей
 
+НОВЫЕ 2D-ИНСТРУМЕНТЫ 1.5.23
+- Объектные привязки: конечные точки, середины, центры, квадранты и пересечения.
+- Дуга по трём точкам: начало, точка на дуге, конец.
+- Правильный многоугольник по граням: введите размер между параллельными сторонами; например, щелчок на 20 мм от центра задаёт шестигранник 40 мм между гранями.
+- Trim удаляет выбранный сегмент между соседними пересечениями на отрезках, окружностях, дугах и замкнутых контурах.
+- Автопоиск замкнутых областей по нескольким пересекающимся кривым и штриховка с пропуском внутренних отверстий.
+- 3D-выдавливание и булевы 3D-вырезы пока не поддерживаются: текущая программа является 2D-редактором.
+
 ЗАПУСК
 1. Распакуйте архив в отдельную папку.
 2. Откройте index.html в актуальном Chrome, Edge или Firefox.
 3. Выберите формат/шаблон листа и создавайте чертёж.
-4. Сохраняйте проект через команду сохранения JSON в редакторе.
+4. Для полного переноса чертежа используйте «Экспорт проекта» (.kcad); импорт восстанавливает редактируемый документ как новый отдельный проект.
 
 УПРАВЛЕНИЕ ОБЪЕКТАМИ
 - Запретить перемещение выбранного объекта: выделите его и включите «Заблокировать объект» в панели свойств.

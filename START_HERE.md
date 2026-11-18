@@ -1,8 +1,26 @@
-## 1.5.22 full project exchange (.kcad)
+## 1.5.24 advanced 2D sketch tools
+
+- Toggle **Привязка к объектам** to snap to endpoints, midpoints, centres, quadrants and intersections. The tolerance follows the current zoom.
+- Use **Дуга (3 точки)** and pick start, a point on the curve, and end.
+- For regular polygons choose **По граням** and click at the apothem distance from the centre; the generated across-flats dimension is twice that distance. **По вершинам** and **По апофеме** remain available.
+- Use **Усечь** and click the line/arc/circle section between two adjacent intersections. Closed rectangles, ellipses and closed polylines can also be trimmed; each edit can be undone.
+- To hatch faces formed by several separate/intersecting lines and curves, select the relevant geometry (or leave the selection empty to use all visible geometry) and press **Найти замкнутые области из линий и заштриховать**. Holes are detected and left unhatched.
+
+## 1.5.24 2D sketch tools
+
+3D boss extrusion and Boolean through-all cutting are not available in this 2D-only application; these require a separate 3D solid kernel.
+
+## 1.5.24 full project exchange (.kcad)
 
 Use **Экспорт проекта** to download a `.kcad` file. It preserves the complete editable drawing: all geometry, open/closed cut contours, dimensions and individual arrow/label settings, text with multi-line content and frames, title-block/frame template and per-cell overrides, sheet and GOST/DSTU settings, layers/visibility, ruler and viewport options, and embedded image references. Use **Импорт проекта** to restore it; the application automatically creates a separate “— импорт” project in the local file library instead of overwriting the source. Legacy plain `.json` project files remain importable.
 
 # Start here
+
+## Precise dimension editing (1.5.24)
+
+Select one or more dimensions. Use the **Поворот только цифры** slider for smooth label rotation, the number field for an exact 0.1° value, or the ±1°/±5°/±15° buttons. The reset button returns the label to 0° without changing the measured geometry.
+
+To change the extension-leg length, adjust **Отступ размерной линии (длина ножек)** with its slider or ±0.1/±0.5 mm buttons. The signed number field selects which side of the measured geometry the dimension line occupies. **Длина ножек за размерной линией** controls the small continuation beyond the dimension line separately.
 
 ## Add text and diameter dimensions
 
@@ -53,7 +71,7 @@ Choose **Разделить объект**. For an open line/path, click once at
 5. Add centre lines and dimensions.
 6. Use Trim to remove contour sections at intersections.
 7. Use the partial Eraser for small local corrections. It starts on a single target object and never deletes a fully covered object.
-8. Export the scene to JSON. Undo/Redo is available during the session.
+8. Export the complete editable project with **Экспорт проекта** as `.kcad`; import creates a separate project copy. Undo/Redo is available during the session.
 
 This is a 2D drafting toolkit. It does not create 3D solids or perform a general polygon-Boolean subtraction between arbitrary closed shapes.
 
@@ -98,3 +116,12 @@ This is a 2D drafting toolkit. It does not create 3D solids or perform a general
 ### Исправление повторных вырезов — версия 1.5.21
 
 При каждом повторном проходе программа временно замыкает старую открытую полилинию только для геометрического расчёта. Эта вспомогательная линия теперь гарантированно удаляется из результата, в том числе если новая полоса разделила её на несколько участков. Поэтому нижняя/торцевая стенка предыдущего выреза больше не появляется снова. Выбранный режим относится только к новому проходу; старые открытые концы сохраняются независимо от текущего режима.
+
+### Перемещение отдельной стороны многоугольника (1.5.25)
+
+1. Открой категорию **Редактирование** и включи **Переместить грань**.
+2. Наведи указатель на сторону замкнутого многоугольника. Подсветка покажет, какая именно грань будет редактироваться.
+3. Перетащи сторону мышью. Сторона останется параллельной самой себе, а две соседние вершины будут пересчитаны по соседним сторонам.
+4. Для точного значения щёлкни сторону без перетаскивания, введи смещение со знаком в миллиметрах и нажми **Применить точное смещение**. Shift во время перетаскивания задаёт шаг 0,5 мм; поле точного ввода поддерживает шаг 0,1 мм.
+
+Каждая операция отменяется через Ctrl+Z. Поддерживаются замкнутые многоугольники и обычные прямоугольники; скруглённые прямоугольники не поддерживаются этим режимом.

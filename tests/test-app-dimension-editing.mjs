@@ -6,7 +6,9 @@ const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 
 for (const id of [
   'dimensionArrowStyle', 'dimensionArrowStartStyle', 'dimensionArrowEndStyle',
-  'dimensionArrowSize', 'dimensionLabelRotation', 'resetDimensionLabelRotation'
+  'dimensionArrowSize', 'dimensionLabelRotation', 'dimensionLabelRotationSlider',
+  'dimensionSelectedOffset', 'dimensionSelectedOffsetSlider',
+  'dimensionExtensionBeyondSlider', 'dimensionExtensionBeyond', 'resetDimensionLabelRotation'
 ]) {
   assert.match(html, new RegExp(`id="${id}"`), `The dimension properties panel must expose ${id}`);
 }
@@ -15,6 +17,16 @@ assert.match(html, /value="tick">Косая засечка/);
 assert.match(html, /value="dot">Точка/);
 assert.match(html, /value="none">Без стрелок/);
 assert.match(html, /Поворот только цифры/);
+assert.match(html, /data-dimension-rotation-step="-1"/);
+assert.match(html, /data-dimension-rotation-step="1"/);
+assert.match(html, /data-dimension-extension-step="-0.1"/);
+assert.match(html, /data-dimension-extension-step="0.1"/);
+assert.match(html, /data-dimension-offset-step="-0.1"/);
+assert.match(html, /data-dimension-offset-step="0.1"/);
+assert.match(html, /id="dimensionSelectedOffset" type="number" min="-200" max="200" step="0.1"/);
+assert.match(html, /id="dimensionSelectedOffsetSlider" type="range" min="10" max="200" step="0.1"/);
+assert.match(html, /id="dimensionExtensionBeyond" type="number" min="0.1" max="10" step="0.1"/);
+assert.match(html, /id="dimensionExtensionBeyondSlider" type="range" min="0.1" max="10" step="0.1"/);
 
 assert.match(app, /function dimensionArrow\([\s\S]*?style='filled'/, 'Dimension arrow renderer must accept an editable arrow style');
 assert.match(app, /style==='open'/, 'Open V arrowheads must be rendered');
@@ -31,6 +43,13 @@ assert.match(app, /dimensionLabel\(g,labelX,labelY,`⌀\$\{label\}`,textSize,col
 assert.match(app, /dimensionLabel\(g,labelX,labelY,label,textSize,color,labelRotationExtra\)/, 'Angular label must use independent rotation');
 assert.match(app, /finalLabelRotation=\(horizontal\?0:labelRotation\)\+labelRotationExtra/, 'Linear label rotation must be additive and independent');
 assert.match(app, /updateSelectedDimension\('labelRotationDeg','dimensionLabelRotation'/);
+assert.match(app, /bindDimensionLiveSlider\('dimensionLabelRotationSlider','dimensionLabelRotation','labelRotationDeg',-360,360/);
+assert.match(app, /bindDimensionLiveSlider\('dimensionSelectedOffsetSlider','dimensionSelectedOffset','offset',10,200/);
+assert.match(app, /bindDimensionLiveSlider\('dimensionExtensionBeyondSlider','dimensionExtensionBeyond','extensionBeyond',\.1,10/);
+assert.match(app, /data-dimension-rotation-step/);
+assert.match(app, /data-dimension-extension-step/);
+assert.match(app, /data-dimension-offset-step/);
+assert.match(app, /extension=clamp\(Number\(o\.extensionBeyond\?\?2\),\.1,10\)/);
 assert.match(app, /resetDimensionLabelRotation/);
 
 console.log('Dimension arrow editing and independent label rotation tests passed (25 assertions).');

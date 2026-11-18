@@ -1,8 +1,25 @@
-# CAD Geometry Core 1.5.22
+# CAD Geometry Core 1.5.24
+
+## 1.5.24 dimension editing controls
+
+- Dimension label rotation has a live slider (−360°…+360°, 0.5° steps), precise numeric input (0.1°), quick ±1°/±5°/±15° increments and reset. Only the text rotates.
+- Dimension-line offset (the main length of the extension legs) has a slider and ±0.1/±0.5 mm buttons. Its numeric field accepts either sign to keep the dimension on either side of the measured geometry.
+- Extension beyond the dimension line has a separate 0.1 mm fine slider and numeric field. Each slider drag is one Undo operation.
+
+## 1.5.23 advanced 2D sketch operations
+
+- Object snaps are now connected to the main editor: endpoints, segment midpoints, circle/arc/ellipse centres, circle quadrants and intersections. The analytic geometry kernel is used for line/circle/arc and circle/circle intersections; sampled paths are used only where the source is intrinsically freeform.
+- Trim now works by clicking the section to remove between adjacent intersections on line segments, circles, arcs, rectangles, ellipses and closed polylines. Source objects are replaced by editable pieces in one undoable transaction.
+- Added the **Arc (3 points)** tool: start, a point on the arc, and end. The solver selects the corresponding minor/major sweep and rejects degenerate collinear input.
+- Regular polygons now include **Across flats** sizing. For a hexagon with 40 mm across flats, set the cursor at the apothem distance (20 mm from the centre to the midpoint of a side); the core API accepts the full across-flats measurement.
+- Added planar-region recognition from independent and intersecting sketch curves. The graph splits intersections, walks bounded faces, and classifies nested loops as holes/islands.
+- Added automatic region hatching for the detected faces. Hatch segments are clipped around inner holes; solid hatching uses even-odd fill. Original source curves remain unchanged.
+- Existing circles, lines, arcs, polygons, circular/rectangular arrays, single-boundary hatch, and basic geometry primitives were already present and were not duplicated. 3D boss extrusion and through-all Boolean cuts are not included because this project remains a 2D editor and has no 3D solid kernel.
+
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
-## 1.5.22 full project exchange (.kcad)
+## 1.5.23 full project exchange (.kcad)
 
 Use **Экспорт проекта** to download a `.kcad` file. It preserves the complete editable drawing: all geometry, open/closed cut contours, dimensions and individual arrow/label settings, text with multi-line content and frames, title-block/frame template and per-cell overrides, sheet and GOST/DSTU settings, layers/visibility, ruler and viewport options, and embedded image references. Use **Импорт проекта** to restore it; the application automatically creates a separate “— импорт” project in the local file library instead of overwriting the source. Legacy plain `.json` project files remain importable.
 
@@ -158,3 +175,11 @@ Wheel events are handled by the drawing viewport itself in capture phase, before
 - Средняя кнопка + перетаскивание и `Space` + левая кнопка + перетаскивание остаются альтернативными способами панорамирования.
 - Обычная левая кнопка работает как раньше — выбирает объекты и запускает текущий инструмент; для панорамирования левой кнопкой нужно удерживать `Space`.
 - В 1.5.14 ошибка инициализации JavaScript останавливала подключение навигационных обработчиков. В 1.5.15 она исправлена; проверено реальными wheel/pointer событиями в Chromium.
+
+## 1.5.25 перемещение отдельной грани многоугольника
+
+Выбери категорию **Редактирование** → **Переместить грань**. Наведи курсор на любую сторону замкнутого многоугольника или обычного прямоугольника: сторона подсветится. Зажми левую кнопку и перетащи её поперёк — она останется параллельной исходной, а две соседние вершины автоматически сместятся по линиям соседних сторон. Остальные вершины останутся на месте.
+
+Для точного изменения можно один раз щёлкнуть по стороне, ввести знаковое смещение в миллиметрах (шаг поля 0,1 мм) и нажать **Применить точное смещение**. Положительное/отрицательное значения двигают грань в противоположных направлениях относительно её обхода. Во время перетаскивания удерживай **Shift**, чтобы округлять смещение до шага 0,5 мм. `Ctrl+Z` отменяет последнее изменение грани.
+
+Поддерживаются замкнутые полилинии, включая правильные многоугольники и контуры, а также обычные прямоугольники (они становятся редактируемой полилинией после первого изменения). Скруглённые прямоугольники, открытые линии и окружности этим инструментом не редактируются. Операция отклоняется, если соседняя грань параллельна выбранной, сторона схлопывается или контур самопересекается.

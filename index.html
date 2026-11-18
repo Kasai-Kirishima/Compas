@@ -84,7 +84,8 @@
           <button class="tool-tile" data-tool="rect"><span>□</span>Прямоуг.</button>
           <button class="tool-tile" data-tool="roundRect"><span>▢</span>Скругл. прямоуг.</button>
           <button class="tool-tile" data-tool="circle"><span>◯</span>Окружность</button>
-          <button class="tool-tile" data-tool="arc"><span>◜</span>Дуга</button>
+          <button class="tool-tile" data-tool="arc"><span>◜</span>Дуга (центр)</button>
+          <button class="tool-tile" data-tool="arc3"><span>⌒</span>Дуга (3 точки)</button>
           <button class="tool-tile" data-tool="ellipse"><span>⬭</span>Эллипс</button>
           <button class="tool-tile" data-tool="polygon"><span>⬡</span>Многоуг.</button>
           <button class="tool-tile" data-tool="spline"><span>∿</span>Сплайн</button>
@@ -117,6 +118,11 @@
         </div>
 
         <div class="panel-heading">РЕДАКТИРОВАНИЕ</div>
+        <div class="panel-heading spaced">ПЕРЕМЕЩЕНИЕ ГРАНЕЙ МНОГОУГОЛЬНИКА</div>
+        <button class="tool-tile face-edit-tool" type="button" data-tool="moveFace"><span>⇆</span>Переместить грань</button>
+        <label class="field-label">Точное смещение выбранной грани, мм<input id="polygonFaceOffset" type="number" step="0.1" value="0.0"></label>
+        <button class="secondary-btn" id="applyPolygonFaceOffsetBtn" type="button">Применить точное смещение</button>
+        <div class="muted-hint">Выберите «Переместить грань», наведите курсор на нужную сторону замкнутого многоугольника и перетащите её. Сторона перемещается параллельно самой себе, а две соседние вершины автоматически пересчитываются по линиям соседних сторон. Можно также щёлкнуть по грани, ввести точное смещение со знаком (+/−) и нажать «Применить». Shift при перетаскивании фиксирует шаг 0,5 мм. Поддерживаются замкнутые многоугольники и обычные прямоугольники; скруглённые прямоугольники не изменяются этим инструментом.</div>
         <div class="cutout-controls">
           <div class="panel-heading spaced">ВЫРЕЗ И ОТВЕРСТИЯ</div>
           <div class="three-fields cutout-tool-choices">
@@ -199,6 +205,8 @@
         <button class="secondary-btn" id="coordinateApplyBtn">＋ Использовать точку X/Y</button>
         <div class="panel-heading spaced">ПАРАМЕТРЫ ПОСТРОЕНИЯ</div>
         <label class="field-label">Сторон многоугольника<input id="polygonSides" type="number" min="3" max="24" value="6"></label>
+        <label class="field-label">Способ задания размера многоугольника<select id="polygonMode"><option value="circumradius">По вершинам — радиус от центра до вершины</option><option value="acrossFlats">По граням — размер между параллельными сторонами</option><option value="inradius">По апофеме — от центра до стороны</option></select></label>
+        <div class="muted-hint">При режиме «По граням» щёлкните на расстоянии от центра до середины стороны: для шестигранника 40 мм между гранями укажите точку на расстоянии 20 мм от центра. При режиме «По вершинам» указывайте расстояние до вершины.</div>
         <label class="field-label">Радиус скругления, мм<input id="roundingRadius" type="number" min="0" max="50" step="0.5" value="3"></label>
         <label class="field-label">Шаг сетки, мм<input id="gridStep" type="number" min="0.1" max="100" step="0.5" value="5"></label>
         <div class="panel-heading">ЛИНЕЙКА И ТОЧНОСТЬ</div>
@@ -246,9 +254,11 @@ R17
         <div class="two-fields"><label class="field-label">Толщина, мм<input id="hatchWidth" type="number" min="0.05" max="1" step="0.05" value="0.25"></label><label class="field-label">Цвет<input id="hatchColor" type="color" value="#20252a"></label></div>
         <div class="hatch-presets"><span>Быстрый угол:</span><button type="button" data-hatch-angle="0">0°</button><button type="button" data-hatch-angle="45">45°</button><button type="button" data-hatch-angle="90">90°</button><button type="button" data-hatch-angle="135">135°</button></div>
         <button class="primary-btn" id="hatchSelectedBoundaryBtn" type="button">Заштриховать выделенный контур</button>
-        <div class="muted-hint">Выделите прямоугольник, окружность, эллипс или замкнутую ломаную. Штриховка заполнит только внутреннюю область. Можно также выбрать инструмент «Штриховка» и задать прямоугольную область двумя углами.</div>
+        <button class="secondary-btn" id="findClosedLoopsHatchBtn" type="button">Найти замкнутые области из линий и заштриховать</button>
+        <div class="muted-hint">Автопоиск строит граф пересечений из выделенной геометрии (если ничего не выбрано — из всей видимой геометрии), находит замкнутые области и вложенные отверстия. Штриховка обходит отверстия и островки; исходные линии не удаляются.</div>
         <label class="check-row"><input type="checkbox" id="orthoToggle"> Ортогональное черчение (F8)</label>
         <label class="check-row"><input type="checkbox" id="objectSnapToggle" checked> Привязка к объектам</label>
+        <div class="muted-hint">OSNAP: конечные точки, середины, центры окружностей/дуг/эллипсов, квадранты 0°/90°/180°/270° и пересечения кривых. Допуск привязки автоматически зависит от масштаба экрана.</div>
         <label class="check-row"><input type="checkbox" id="gridToggle"> Сетка</label>
         <label class="check-row"><input type="checkbox" id="snapToggle"> Привязка к сетке</label>
         <div class="panel-heading spaced">БІБЛІОТЕКА ШАБЛОНІВ</div><label class="field-label">Вибрати шаблон<select id="templateQuickSelect"><option value="user-template">Мій шаблон із зображення</option><option value="lab5-template">Лабораторна робота 5 — чистий шаблон без моделі</option><option value="gost-form1">ДСТУ ГОСТ 2.104 — форма 1</option><option value="form2">ДСТУ ГОСТ 2.104 — форма 2</option><option value="form2a">ДСТУ ГОСТ 2.104 — форма 2а</option><option value="form2b-odd">ДСТУ ГОСТ 2.104 — форма 2б (додаткові графи ліворуч)</option><option value="form2b-even">ДСТУ ГОСТ 2.104 — форма 2б (додаткові графи праворуч)</option><option value="spec-form1">Специфікація (ГОСТ 2.106-96) — форма 1</option><option value="spec-form1a">Специфікація (ГОСТ 2.106-96) — форма 1а</option><option value="blank">Чистий лист із рамкою</option></select></label><label class="field-label">Формат аркуша<select id="paperFormat"><option value="A4P">A4 · книжный</option><option value="A4L">A4 · альбомный</option><option value="A3L">A3 · альбомный</option><option value="A3P">A3 · книжный</option><option value="A2L">A2 · альбомный</option><option value="A2P">A2 · книжный</option><option value="A1L">A1 · альбомный</option><option value="A1P">A1 · книжный</option><option value="A0L">A0 · альбомный</option><option value="A0P">A0 · книжный</option><option value="A5L">A5 · альбомний (210×148)</option><optgroup label="Додаткові формати за ГОСТ 2.301"><option value="A0x2">A0×2 · 1189×1682</option><option value="A0x3">A0×3 · 1189×2523</option><option value="A1x3">A1×3 · 841×1783</option><option value="A1x4">A1×4 · 841×2378</option><option value="A2x3">A2×3 · 594×1261</option><option value="A2x4">A2×4 · 594×1682</option><option value="A2x5">A2×5 · 594×2102</option><option value="A3x3">A3×3 · 420×891</option><option value="A3x4">A3×4 · 420×1189</option><option value="A3x5">A3×5 · 420×1486</option><option value="A3x6">A3×6 · 420×1783</option><option value="A3x7">A3×7 · 420×2080</option><option value="A4x3">A4×3 · 297×630</option><option value="A4x4">A4×4 · 297×841</option><option value="A4x5">A4×5 · 297×1051</option><option value="A4x6">A4×6 · 297×1261</option><option value="A4x7">A4×7 · 297×1471</option><option value="A4x8">A4×8 · 297×1682</option><option value="A4x9">A4×9 · 297×1892</option></optgroup></select></label>
@@ -316,12 +326,51 @@ R17
             <label class="field-label">Положение размерного числа
               <select id="dimensionTextOrientation"><option value="horizontal">Горизонтально</option><option value="aligned">Параллельно размерной линии</option></select>
             </label>
-            <div class="two-fields">
-              <label class="field-label">Поворот только цифры, °<input id="dimensionLabelRotation" type="number" min="-360" max="360" step="1" value="0"></label>
-              <button class="secondary-btn" id="resetDimensionLabelRotation" type="button">Сбросить до 0°</button>
+            <div class="dimension-adjust-card">
+              <div class="dimension-adjust-head">
+                <label class="field-label" for="dimensionLabelRotation">Поворот только цифры, °<input id="dimensionLabelRotation" type="number" min="-360" max="360" step="0.1" value="0"></label>
+                <button class="secondary-btn dimension-reset-btn" id="resetDimensionLabelRotation" type="button">Сброс 0°</button>
+              </div>
+              <input class="dimension-fine-slider" id="dimensionLabelRotationSlider" type="range" min="-360" max="360" step="0.5" value="0" aria-label="Плавный поворот размерного числа">
+              <div class="dimension-step-row" aria-label="Шаги поворота размерного числа">
+                <button type="button" data-dimension-rotation-step="-15">−15°</button>
+                <button type="button" data-dimension-rotation-step="-5">−5°</button>
+                <button type="button" data-dimension-rotation-step="-1">−1°</button>
+                <button type="button" data-dimension-rotation-step="1">+1°</button>
+                <button type="button" data-dimension-rotation-step="5">+5°</button>
+                <button type="button" data-dimension-rotation-step="15">+15°</button>
+              </div>
+              <div class="muted-hint">Перетаскивай ползунок для плавного поворота или вводи точный угол. Поворачивается только надпись, геометрия и стрелки остаются на месте.</div>
             </div>
-            <div class="two-fields"><label class="field-label">Отступ размера, мм<input id="dimensionSelectedOffset" type="number" min="10" max="200" step="0.5" value="10"></label><label class="field-label">Зазор ножек, мм<input id="dimensionExtensionGap" type="number" min="0" max="5" step="0.5" value="1"></label></div>
-            <label class="field-label">Продолжение выносных линий за размерную, мм<input id="dimensionExtensionBeyond" type="number" min="1" max="5" step="0.5" value="2"></label>
+            <div class="dimension-adjust-card">
+              <div class="dimension-adjust-head">
+                <label class="field-label" for="dimensionSelectedOffset">Отступ размерной линии (длина ножек), мм<input id="dimensionSelectedOffset" type="number" min="-200" max="200" step="0.1" value="10"></label>
+                <span class="dimension-value-hint">шаг 0,1 мм</span>
+              </div>
+              <input class="dimension-fine-slider" id="dimensionSelectedOffsetSlider" type="range" min="10" max="200" step="0.1" value="10" aria-label="Плавное изменение длины выносных ножек">
+              <div class="dimension-step-row dimension-step-row-short" aria-label="Точная регулировка длины ножек">
+                <button type="button" data-dimension-offset-step="-0.5">−0,5</button>
+                <button type="button" data-dimension-offset-step="-0.1">−0,1</button>
+                <button type="button" data-dimension-offset-step="0.1">+0,1</button>
+                <button type="button" data-dimension-offset-step="0.5">+0,5</button>
+              </div>
+              <div class="muted-hint">Ползунок меняет отступ плавно. Знак в числовом поле задаёт сторону размещения размера.</div>
+            </div>
+            <div class="two-fields"><label class="field-label">Зазор ножек, мм<input id="dimensionExtensionGap" type="number" min="0" max="5" step="0.1" value="1"></label></div>
+            <div class="dimension-adjust-card">
+              <div class="dimension-adjust-head">
+                <label class="field-label" for="dimensionExtensionBeyond">Длина ножек за размерной линией, мм<input id="dimensionExtensionBeyond" type="number" min="0.1" max="10" step="0.1" value="2"></label>
+                <span class="dimension-value-hint">шаг 0,1 мм</span>
+              </div>
+              <input class="dimension-fine-slider" id="dimensionExtensionBeyondSlider" type="range" min="0.1" max="10" step="0.1" value="2" aria-label="Точная длина продолжения выносных линий">
+              <div class="dimension-step-row dimension-step-row-short" aria-label="Точная регулировка длины выносных линий">
+                <button type="button" data-dimension-extension-step="-0.5">−0,5</button>
+                <button type="button" data-dimension-extension-step="-0.1">−0,1</button>
+                <button type="button" data-dimension-extension-step="0.1">+0,1</button>
+                <button type="button" data-dimension-extension-step="0.5">+0,5</button>
+              </div>
+              <div class="muted-hint">Длину можно менять очень плавно: ползунком, кнопками по 0,1 мм или точным вводом. Настройка применяется к обеим выносным ножкам.</div>
+            </div>
             <div class="two-fields"><label class="field-label">Смещение числа X, мм<input id="dimensionLabelDx" type="number" step="0.5" value="0"></label><label class="field-label">Смещение Y числа, мм<input id="dimensionLabelDy" type="number" step="0.5" value="0"></label></div>
             <div class="muted-hint">Размерное число можно перетаскивать прямо за цифры или за голубую ручку: свободно вдоль размерной линии и перпендикулярно ей — ближе к линии или дальше. В горизонтальном режиме наклонный размер получает полку-ответвление; длина продолжения обеих выносных линий задаётся одинаково.</div>
           </div>

@@ -36,3 +36,17 @@ The main editor stores dimension display settings on each dimension object:
 - `labelRotationDeg`: additional label-only rotation in degrees (-360 to +360).
 
 The first and second arrowhead can therefore be styled differently or independently hidden. `labelRotationDeg` is applied to the displayed number only. It does not alter the measured geometry, dimension line, extension lines, or arrow positions. For aligned text, the extra angle is added to the automatically derived alignment angle; for horizontal text, it is added to zero. All these settings are saved with the dimension object.
+
+
+## Fine dimension annotation controls (1.5.24)
+
+The main editor exposes a range slider and exact numeric entry for independent label rotation (`labelRotationDeg`), plus quick relative steps of ±1°, ±5° and ±15°. Rotation affects only the label glyph group.
+
+The extension-line continuation beyond the dimension line (`extensionBeyond`) is adjustable from 0.1 to 10 mm in 0.1 mm increments using a slider, numeric input, or ±0.1/±0.5 mm controls. The same extension is used for both witness/extension legs. One slider drag is recorded as a single undo action.
+
+
+## Convenient label rotation and extension-line adjustment (1.5.24)
+
+The main editor includes a live slider for independent dimension-label rotation (−360° to +360°, 0.5° steps), exact numeric entry, quick ±1°/±5°/±15° controls and reset to 0°. The displayed number rotates without moving the dimension geometry or arrowheads.
+
+The dimension-line offset (which controls the length of the extension legs from the measured geometry) is adjustable with 0.1 mm precision. A slider and ±0.1/±0.5 mm buttons preserve the existing side of the dimension line; the signed numeric field can also switch sides. The extra extension beyond the dimension line has its own 0.1 mm slider and numeric input (0.1–10 mm). A complete slider drag is one Undo step.
