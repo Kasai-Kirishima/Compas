@@ -673,7 +673,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     state.selectedIds=replacements.map(o=>o.id);
     return true;
   }
-  function replaceWithContourResults(source,closedFragments=[],openFragments=[]){
+  function replaceWithContourResults(source,closedFragments=[],openFragments=[],passCutMeta={}){
     const idx=state.objects.findIndex(o=>o.id===source.id);
     if(idx<0)return false;
     const pieces=[...closedFragments.map(points=>({points,closed:true})),...openFragments.map(points=>({points,closed:false}))];
@@ -682,6 +682,11 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       const obj={...deep(source),id:i===0?source.id:newId(),type:'polyline',points:points.map(p=>({x:mm(p.x),y:mm(p.y)})),closed};
       delete obj.x;delete obj.y;delete obj.x2;delete obj.y2;delete obj.r;delete obj.start;delete obj.end;delete obj.rx;delete obj.x3;delete obj.y3;
       obj.name=`${source.name||'Контур'} — ${closed?'часть':'открытый участок'} ${i+1}`;
+      if(passCutMeta.straightPassCut){
+        obj.straightPassCut=true;
+        obj.straightPassMode=passCutMeta.mode||'noBottom';
+        obj.feature='straight-pass-cut-fragment';
+      }
       return obj;
     });
     state.objects.splice(idx,1,...replacements);
@@ -775,12 +780,23 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       const contour=appClosedContourPoints(source);
       if(!contour){
         const path=appOpenPathPoints(source);if(!path||path.length<2)continue;
-        const tx=cutOpenPathByStraightPass(path,start,end,width,{eps:1e-7});
+        // Rebuild real walls on an open contour produced by an earlier pass.
+        // Keep ordinary open lines/curves as simple line gaps: they are not
+        // closed material boundaries and must not grow artificial walls.
+        const isPreviousPass=source.straightPassCut===true||source.feature==='straight-pass-cut-fragment'||/— открытый участок \d+$/.test(source.name||'');
+        const tx=cutOpenPathByStraightPass(path,start,end,width,{
+          eps:1e-7,mode,reconstructContour:isPreviousPass,
+        });
         if(!tx.ok){if(!/не пересекает оставшиеся участки контура/.test(tx.reason||''))failures.push(`${source.name||source.type}: ${tx.reason||'пропущен'}`);continue;}
         const idsBefore=new Set(state.objects.map(o=>o.id));
-        if(!replaceWithOpenFragments(source,tx.fragments)){failures.push(`${source.name||source.type}: не удалось сохранить повторный вырез`);continue;}
+        const rebuilt=tx.operation==='repeatable-straight-pass-cut-open-contour';
+        const saved=rebuilt
+          ?replaceWithContourResults(source,tx.fragments||[],tx.openFragments||[],{straightPassCut:true,mode})
+          :replaceWithOpenFragments(source,tx.fragments);
+        if(!saved){failures.push(`${source.name||source.type}: не удалось сохранить повторный вырез`);continue;}
         const replacementIds=state.objects.filter(o=>o.id===source.id||!idsBefore.has(o.id)).map(o=>o.id);
-        successes.push({sourceId:source.id,ids:replacementIds,count:tx.fragments.length,closed:0,open:tx.fragments.length,removedArea:0,removedLength:tx.metadata.removedLength,wasOpen:true});
+        const count=(tx.fragments||[]).length+(tx.openFragments||[]).length;
+        successes.push({sourceId:source.id,ids:replacementIds,count,closed:(tx.fragments||[]).length,open:(tx.openFragments||[]).length||(!rebuilt?tx.fragments.length:0),removedArea:tx.metadata.removedArea||0,removedLength:tx.metadata.removedLength||0,wasOpen:true,wallsRebuilt:!!tx.metadata.wallsRebuilt});
         continue;
       }
       if(contour.length<3)continue;
@@ -790,7 +806,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
         continue;
       }
       const idsBefore=new Set(state.objects.map(o=>o.id));
-      if(!replaceWithContourResults(source,tx.fragments,tx.openFragments||[])){failures.push(`${source.name||source.type}: не удалось сохранить результат`);continue;}
+      if(!replaceWithContourResults(source,tx.fragments,tx.openFragments||[],{straightPassCut:true,mode})){failures.push(`${source.name||source.type}: не удалось сохранить результат`);continue;}
       const replacementIds=state.objects.filter(o=>o.id===source.id||!idsBefore.has(o.id)).map(o=>o.id);
       successes.push({sourceId:source.id,ids:replacementIds,count:tx.fragments.length+(tx.openFragments||[]).length,closed:tx.fragments.length,open:(tx.openFragments||[]).length,removedArea:tx.metadata.removedArea,directionReversed:!!tx.metadata.directionReversed});
     }
@@ -800,8 +816,8 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     commit(before);renderAll();
     const pieces=successes.reduce((sum,s)=>sum+s.count,0),split=successes.filter(s=>s.count>1).length,reversed=successes.filter(s=>s.directionReversed).length;
     const modeLabel=mode==='noWalls'?'без стенок':mode==='noBottom'?'без нижней стенки':'со всеми стенками';
-    const recut=successes.filter(s=>s.wasOpen).length;
-    setMessage(`Прямой проход (${modeLabel}) выполнен: затронуто объектов ${successes.length}, создано фрагментов ${pieces}${split?` · разделено на несколько частей ${split}`:''}${recut?` · повторно обработано открытых контуров ${recut}`:''}${failures.length?` · пропущено ${failures.length}`:''}${reversed?` · направление автоматически адаптировано для ${reversed} контуров`:''}. ${mode==='noBottom'?'Боковые стенки прямые и параллельные, внутренний конец открыт.':mode==='noWalls'?'Новые боковые линии и торец не добавляются.':'Боковые стенки прямые и параллельные.'} Повторные вырезы на полученных фрагментах разрешены. Ширина ${mm(width)} мм.`);
+    const recut=successes.filter(s=>s.wasOpen).length,wallsRebuilt=successes.filter(s=>s.wallsRebuilt).length;
+    setMessage(`Прямой проход (${modeLabel}) выполнен: затронуто объектов ${successes.length}, создано фрагментов ${pieces}${split?` · разделено на несколько частей ${split}`:''}${recut?` · повторно обработано открытых контуров ${recut}`:''}${wallsRebuilt?` · стенки построены повторно ${wallsRebuilt}`:''}${failures.length?` · пропущено ${failures.length}`:''}${reversed?` · направление автоматически адаптировано для ${reversed} контуров`:''}. ${mode==='noBottom'?'Боковые стенки прямые и параллельные, внутренний конец открыт.':mode==='noWalls'?'Новые боковые линии и торец не добавляются.':'Боковые стенки прямые и параллельные.'} Повторные вырезы на полученных фрагментах разрешены. Ширина ${mm(width)} мм.`);
     return true;
   }
   function applyEdgeCutout(point,clickedId=null,mode='walls'){

@@ -104,6 +104,65 @@ const repeatThird = cutOpenPathByStraightPass(secondPiece,
 assert.equal(repeatThird.ok, true, repeatThird.reason);
 assert.ok(repeatThird.fragments.length >= 1, 'A third pass can be applied to a fragment created by the second pass');
 
+// Editor-style repeat on a previous no-bottom cut must rebuild real side-wall
+// geometry, not merely delete more points from the open path.
+const repeatedThroughWithWalls = cutOpenPathByStraightPass(blindNoBottom.openFragments[0],
+  { x: 70, y: -30 }, { x: 70, y: 30 }, 3,
+  { mode: 'noBottom', reconstructContour: true });
+assert.equal(repeatedThroughWithWalls.ok, true, repeatedThroughWithWalls.reason);
+assert.equal(repeatedThroughWithWalls.operation, 'repeatable-straight-pass-cut-open-contour');
+assert.equal(repeatedThroughWithWalls.fragments.length, 2, 'Repeated through-cut returns two editable closed parts');
+assert.equal(repeatedThroughWithWalls.metadata.wallsRebuilt, true);
+for (const [sideIndex, expectedX] of [68.5, 71.5].entries()) {
+  const sideExists = repeatedThroughWithWalls.fragments.some(fragment => fragment.some((a, i) => {
+    const b = fragment[(i + 1) % fragment.length];
+    return Math.abs(a.x - expectedX) < 1e-6 && Math.abs(b.x - expectedX) < 1e-6 && Math.abs(a.y - b.y) > 1e-5;
+  }));
+  assert.equal(sideExists, true, `Repeated no-bottom pass creates side wall ${sideIndex + 1}`);
+}
+
+// A second blind pass also adds both parallel walls but omits its end cap.
+const repeatedBlindWithWalls = cutOpenPathByStraightPass(blindNoBottom.openFragments[0],
+  { x: 40, y: 0 }, { x: 70, y: 0 }, 3,
+  { mode: 'noBottom', reconstructContour: true });
+assert.equal(repeatedBlindWithWalls.ok, true, repeatedBlindWithWalls.reason);
+assert.equal(repeatedBlindWithWalls.openFragments.length, 1);
+assert.equal(repeatedBlindWithWalls.metadata.wallsRebuilt, true);
+assert.equal(repeatedBlindWithWalls.metadata.bottomWallRemoved, true);
+const repeatedBlindEdges = openEdges(repeatedBlindWithWalls.openFragments[0]);
+for (const y of [1.5, -1.5]) {
+  assert.ok(repeatedBlindEdges.some(e => Math.abs(e.a.y - y) < 1e-6 && Math.abs(e.b.y - y) < 1e-6 && Math.abs(e.a.x - e.b.x) > 1),
+    `Repeated blind no-bottom pass creates a straight wall at y=${y}`);
+}
+assert.equal(repeatedBlindEdges.some(e => Math.abs(e.a.x - 70) < 1e-6 && Math.abs(e.b.x - 70) < 1e-6), false,
+  'Repeated no-bottom pass omits the lower/end connecting wall');
+
+// A third pass on the second pass result also rebuilds a fresh pair of walls.
+const repeatedThirdWithWalls = cutOpenPathByStraightPass(repeatedBlindWithWalls.openFragments[0],
+  { x: 80, y: -30 }, { x: 80, y: 30 }, 2,
+  { mode: 'noBottom', reconstructContour: true });
+assert.equal(repeatedThirdWithWalls.ok, true, repeatedThirdWithWalls.reason);
+assert.equal(repeatedThirdWithWalls.fragments.length, 2);
+assert.equal(repeatedThirdWithWalls.metadata.wallsRebuilt, true);
+for (const x of [79, 81]) {
+  assert.ok(repeatedThirdWithWalls.fragments.some(fragment => fragment.some((a, i) => {
+    const b = fragment[(i + 1) % fragment.length];
+    return Math.abs(a.x - x) < 1e-6 && Math.abs(b.x - x) < 1e-6 && Math.abs(a.y - b.y) > 1e-5;
+  })), `Third pass creates a new straight wall at x=${x}`);
+}
+
+// Repeating in no-walls mode still deliberately removes all newly generated
+// cutter walls; the selected mode controls every pass, including repeats.
+const repeatedWithoutWalls = cutOpenPathByStraightPass(blindNoBottom.openFragments[0],
+  { x: 70, y: -30 }, { x: 70, y: 30 }, 3,
+  { mode: 'noWalls', reconstructContour: true });
+assert.equal(repeatedWithoutWalls.ok, true, repeatedWithoutWalls.reason);
+assert.equal(repeatedWithoutWalls.metadata.wallsRebuilt, false);
+assert.equal(repeatedWithoutWalls.openFragments.length, 2);
+assert.equal(repeatedWithoutWalls.openFragments.some(fragment => fragment.slice(1).some((b, i) => {
+  const a = fragment[i]; return Math.abs(a.x - b.x) < 1e-6 && [68.5,71.5].some(x => Math.abs(a.x-x)<1e-6);
+})), false, 'Repeated no-walls pass does not add side lines');
+
 // A fully traversed profile stays split into closed pieces in no-bottom mode:
 // there is no blind end cap to remove, and the straight side walls remain.
 const throughNoBottom = cutClosedContourByStraightPass(circle(0, 0, 40), start, end, width, { mode: 'noBottom' });

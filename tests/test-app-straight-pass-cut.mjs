@@ -17,7 +17,11 @@ assert.match(app, /applyStraightPassCut\(draft\.start,pointFromEvent\(e,true\),d
 assert.match(app, /state\.objects\.filter\(o=>!o\.hidden&&!o\.locked&&o\.type!=='reference'&&!annotationTypes\.has\(o\.type\).*appClosedContourPoints\(o\)\|\|!!appOpenPathPoints\(o\)\)/, 'The pass must process both closed contours and previously cut open paths on working layers');
 assert.match(app, /const path=appOpenPathPoints\(source\)[\s\S]*?cutOpenPathByStraightPass\(path,start,end,width/, 'Open results from an earlier pass must be cut again by a later pass');
 assert.match(app, /replaceWithOpenFragments\(source,tx\.fragments\)/, 'Repeated passes must keep their new open fragments editable for further cuts');
-assert.match(app, /replaceWithContourResults\(source,tx\.fragments,tx\.openFragments\|\|\[\]\)/, 'Through-cuts and open-wall modes must preserve editable contour fragments');
+assert.match(app, /straightPassCut=true/, 'Pass-cut results must be tagged so legacy and new open fragments can rebuild walls');
+assert.match(app, /mode,reconstructContour:isPreviousPass/, 'Repeated pass-cut on an existing cut contour must rebuild walls using the selected mode');
+assert.match(app, /source\.straightPassCut===true\|\|source\.feature==='straight-pass-cut-fragment'\|\|\/— открытый участок \\d\+\$\//, 'Existing version 1.5.19 open cut fragments must be recognized for wall rebuilding');
+assert.match(app, /replaceWithContourResults\(source,tx\.fragments\|\|\[\],tx\.openFragments\|\|\[\],\{straightPassCut:true,mode\}\)/, 'Repeated cuts of pass-cut contours must save the rebuilt walls as editable contour geometry');
+assert.match(app, /replaceWithContourResults\(source,tx\.fragments,tx\.openFragments\|\|\[\],\{straightPassCut:true,mode\}\)/, 'Through-cuts and open-wall modes must preserve tagged editable contour fragments');
 assert.match(geometry, /sideWalls:/, 'The cut result must report the two straight pass walls');
 assert.match(geometry, /blindEnd[,}]/, 'The cut result must report blind-entry status');
 assert.match(geometry, /openFragments/, 'The cut result must provide open paths for wall-free modes');

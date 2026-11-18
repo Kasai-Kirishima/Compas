@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.19
+# CAD Geometry Core 1.5.20
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
 
@@ -12,7 +12,7 @@ A dependency-free JavaScript ES-module geometry core and browser demo for 2D mec
 
 ### Editing
 - Straight pass-cut by left-button drag: sweep a fixed-width straight corridor through visible unlocked closed profiles and open paths; choose **Без нижней стенки** to retain exact parallel side walls while leaving a blind end open, or **Без стенок** to remove only boundary portions without adding side lines; through-cuts remain editable fragments;
-- Unlimited repeated straight passes on the same geometry: open contours left by earlier blind/no-walls cuts are also eligible for later passes, and each pass leaves new editable fragments for further cuts;
+- Unlimited repeated straight passes on the same geometry: open contours left by earlier blind/no-walls cuts are reconstructed virtually for Boolean subtraction, then saved again with the selected side-wall mode; second and later passes therefore create their own exact parallel walls instead of only deleting line segments;
 - Split open paths at any interior point, including the exact midpoint or very near an endpoint;
 - Split closed profiles into two independent closed contours by picking two boundary points;
 - Split support includes lines, construction/centre lines, arcs, open polylines, splines, freehand curves, rectangles, rounded rectangles, circles, ellipses, and closed polygonal contours;

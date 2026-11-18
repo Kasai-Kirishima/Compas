@@ -1,6 +1,6 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.19",
+  "version": "1.5.20",
   "private": true,
   "type": "module",
   "description": "2D mechanical CAD geometry with repeatable arbitrary-angle straight pass cuts on closed and open geometry, cursor-centred viewport zoom and pan, editable dimensions, edge cutouts, batch cutting, splitting, duplicate placement and text insertion",

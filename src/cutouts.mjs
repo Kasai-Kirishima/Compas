@@ -1087,12 +1087,16 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
  * the result is an open polyline, and later passes must be able to cut that
  * same geometry again. There is intentionally no per-object operation count.
  *
- * The pass is a rectangle swept from start to end. Each source segment is
- * clipped against that rectangle, the portions inside it are discarded, and
- * all retained portions are stitched into independent open fragments.
+ * For a prior pass-cut contour, pass `reconstructContour: true`: the open
+ * boundary is closed virtually for Boolean calculation, then the requested
+ * wall mode is rebuilt and returned as editable closed/open fragments. For
+ * ordinary user-drawn open lines, the legacy segment-clipping path remains in
+ * use so no artificial walls are added to a line.
  */
 export function cutOpenPathByStraightPass(points, start, end, width, {
   eps = 1e-7,
+  mode = 'noBottom',
+  reconstructContour = false,
 } = {}) {
   if (!Array.isArray(points) || points.length < 2) {
     throw new TypeError('Для повторного проходного выреза нужен открытый путь минимум из двух точек');
@@ -1109,6 +1113,44 @@ export function cutOpenPathByStraightPass(points, start, end, width, {
   }
   positive(width, 'Ширина повторного проходного выреза');
   if (!Number.isFinite(eps) || eps <= 0) throw new TypeError('Допуск геометрии должен быть положительным числом');
+  if (!['walls', 'noBottom', 'noWalls'].includes(mode)) throw new RangeError('Неподдерживаемый режим повторного проходного выреза');
+
+  // A no-bottom/no-walls pass is stored by the editor as an open boundary
+  // path. Merely clipping that path (the legacy behaviour below) creates a
+  // gap, but cannot create the new side walls. For pass-cut fragments, close
+  // the path virtually for the Boolean calculation, subtract the new strip,
+  // and let the closed-contour routine rebuild the selected wall style.
+  // The closing edge is computational only; the selected mode decides whether
+  // a cap or side walls are actually kept in the returned geometry.
+  if (reconstructContour) {
+    const contour = points.filter((p, i) => i === 0 || distance(p, points[i - 1]) > eps)
+      .map(p => ({ x: p.x, y: p.y }));
+    if (contour.length > 1 && distance(contour[0], contour.at(-1)) <= eps) contour.pop();
+    if (contour.length < 3 || !isSimplePolygon(contour, eps)) {
+      return { ok: false, reason: 'Не удалось восстановить замкнутую область предыдущего выреза — проверь контур перед повторным проходом' };
+    }
+    const rebuilt = cutClosedContourByStraightPass(contour, start, end, width, {
+      eps,
+      rejectStartInside: true,
+      autoReverseIfStartInside: true,
+      mode,
+    });
+    if (!rebuilt.ok) return rebuilt;
+    const removedLength = rebuilt.metadata?.removedArea > 0
+      ? rebuilt.metadata.removedArea / width
+      : 0;
+    return {
+      ...rebuilt,
+      operation: 'repeatable-straight-pass-cut-open-contour',
+      sourceWasOpen: true,
+      metadata: {
+        ...rebuilt.metadata,
+        removedLength,
+        reconstructedFromOpenBoundary: true,
+        wallsRebuilt: mode !== 'noWalls',
+      },
+    };
+  }
 
   const dx = end.x - start.x, dy = end.y - start.y;
   const passLength = Math.hypot(dx, dy);

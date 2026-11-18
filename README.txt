@@ -70,6 +70,12 @@
 1.5.14: scroll the mouse wheel over the drawing to zoom at the cursor; hold the right mouse button and drag to pan the workspace. The right-button gesture does not select or edit drawing objects and suppresses the browser context menu over the workspace.
 1.5.14: middle-button drag and Space + left drag remain as alternatives; wheel events are captured before nested SVG layers and only intercepted inside the drawing viewport.
 
-ПРЯМОЙ ПРОХОДНОЙ ВЫРЕЗ (1.5.19)
+ПРЯМОЙ ПРОХОДНОЙ ВЫРЕЗ (1.5.20)
 - В панели «Вырез и отверстия» выберите «Без нижней стенки» (две ровные параллельные боковые стенки, открытый внутренний конец) или «Без стенок» (удаляется только часть границы, новые боковые линии не создаются).
 - Задайте ширину, нажмите левую кнопку мыши с любой стороны и под любым углом, протяните линию и отпустите в нужной глубине. Если начало жеста внутри конкретного профиля, а конец снаружи, алгоритм сам разворачивает направление только для этого профиля. Если начало жеста оказалось внутри конкретного профиля, а конец снаружи, направление для этого профиля автоматически разворачивается. Один проход обрабатывает все пересечённые видимые незаблокированные замкнутые профили.
+
+
+1.5.20: repeated cuts on an open result created by a previous pass now reconstruct the boundary virtually for the Boolean step and rebuild new side walls according to the selected mode. In no-bottom mode both straight parallel walls are generated again without the end cap; in no-walls mode new side walls remain intentionally absent.
+
+ПОВТОРНЫЕ ПРОХОДЫ (1.5.20)
+- Повторный проход по открытому контуру, полученному предыдущим прямым вырезом, теперь заново строит боковые стенки в соответствии с текущим режимом. В режиме «Без нижней стенки» две стенки остаются прямыми и параллельными, нижний торец не рисуется. Режим «Без стенок» не добавляет боковые линии. Временное замыкание контура используется только при вычислении и не отображается. Обычные открытые отрезки по-прежнему получают простой разрыв без добавочных стенок.

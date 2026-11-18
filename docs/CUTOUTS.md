@@ -146,3 +146,14 @@ The straight pass tool offers two modes:
 The two modes apply to every visible unlocked closed profile and open geometry path intersected by the same drag. If a previous blind/no-walls pass has converted a profile into an open polyline, a later pass clips that path against the new strip and removes the portions inside it. All remaining pieces stay editable and can be cut again. This supports second, third and subsequent passes on the same result without a fixed cut-count limit. Curved outer arcs are sampled into editable polylines, while retained side walls in no-bottom mode use exact line coordinates parallel to the drag axis. The operation is a 2D profile edit, not a 3D milling simulation.
 
 The public geometry helpers are `cutClosedContourByStraightPass(vertices, start, end, width)` for closed profiles and `cutOpenPathByStraightPass(points, start, end, width)` for paths left open by earlier cuts. The closed-profile helper returns closed polygon fragments and, for open-wall modes, open editable paths; it rejects paths that start inside the profile by default (the main editor opts into safe local direction reversal when the drag starts inside and ends outside). The open-path helper removes only the segment portions intersected by the swept strip, returning the remaining open fragments. The editor automatically chooses the matching helper for each target, so repeated passes remain possible. Each successful gesture is one undoable scene action.
+
+
+## Repeated straight pass with regenerated walls — version 1.5.20
+
+An open contour created by a previous straight pass is treated as a cut profile, not as an ordinary line. Before a repeated Boolean pass, the editor temporarily closes the open boundary between its two endpoints for the geometry calculation only. It subtracts the new fixed-width strip and then stores the new contour result using the currently selected wall mode:
+
+- `noBottom`: both new straight, parallel side walls are retained; the blind-end cap is omitted;
+- `walls`: both side walls and the end cap are retained;
+- `noWalls`: only the original boundary spans are removed; no new side walls are added.
+
+The temporary closing edge is not drawn or saved. Ordinary open lines, arcs and user-drawn polylines continue to receive a simple width-defined gap without artificial side walls. Results from version 1.5.19 are also recognized by their generated `— открытый участок N` names when no explicit pass-cut marker exists.
