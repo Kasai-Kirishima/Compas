@@ -6,6 +6,7 @@ const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 const advanced = await readFile(new URL('../src/sketch-advanced.mjs', import.meta.url), 'utf8');
 
 assert.match(html, /data-tool="arc3"/, 'The three-point arc tool must be visible in the geometry toolbar');
+assert.match(html, /data-tool="star6"/, 'The six-pointed star tool must be visible in the geometry toolbar');
 assert.match(app, /arcThroughThreePoints\(pts\[0\],pts\[1\],p\)/, 'Three-point arc creation must use the geometry helper');
 assert.match(app, /state\.tool==='arc3'/, 'Three-point arc clicks must be handled');
 assert.match(html, /id="polygonMode"[\s\S]*?value="acrossFlats"/, 'Polygon size must include across-flats mode');
@@ -15,6 +16,11 @@ assert.match(app, /findObjectSnap\(p,state\.objects/, 'OSNAP must snap input poi
 assert.match(html, /id="objectSnapToggle"/, 'Object snap toggle must be available');
 assert.match(app, /trimLegacyCurve\(subject,pointFromEvent\(e,true\)/, 'Trim must be connected to the canvas click');
 assert.match(app, /function findAndHatchClosedRegions\(/, 'Automatic loop detection/hatching must be wired in the app');
+assert.match(app, /function hatchRegionAtPoint\(/, 'Clicking inside a region must create a clipped area hatch');
+assert.match(app, /hatchableDrawingObjects\(\{respectSelection:false\}\)/, 'Click-to-hatch must include all visible boundary objects even when an unrelated object is selected');
+assert.match(app, /hatchRegionAtPoint\(pointFromEvent\(e,true\)\)/, 'Area hatch tool must hit-test the clicked region');
+assert.match(app, /pointInRegion\(point,region\)/, 'Hatching must be restricted to the selected planar region');
+assert.match(app, /sixPointStarTriangles\(center,radius,\{angle\}\)/, 'Star tool must create two equilateral triangles');
 assert.match(html, /id="findClosedLoopsHatchBtn"/, 'Automatic region hatch command must be available');
 assert.match(app, /'fill-rule':'evenodd'/, 'Hatch renderer must preserve holes using even-odd fill');
 assert.match(app, /o\.hatchSegments\.forEach/, 'Generated clipped hatch segments must render');

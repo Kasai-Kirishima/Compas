@@ -16,6 +16,13 @@ Use **Экспорт проекта** to download a `.kcad` file. It preserves t
 
 # Start here
 
+## 1.5.28 area hatching and six-pointed star
+
+- Choose **Штриховка области**, then click inside the closed area. The editor scans all visible, unlocked boundary geometry even if another object was previously selected, detects the smallest region under the click, and clips hatch lines to that region. Inner holes remain empty. To fill the area completely rather than use line hatching, choose **Сплошная** in the hatch pattern setting. Repeat clicks to hatch additional areas.
+- For boundaries made from separate/intersecting lines, keep all boundary pieces visible and make sure the intended region is fully closed. The command **Найти замкнутые области из линий и заштриховать** remains available to fill all detected regions at once.
+- Choose **Звезда 6-кон.**, click its centre, then click a point on the outer radius. The tool creates two equilateral triangles rotated by 60 degrees in one group. Move or duplicate the group as one object; the two triangles remain individually editable if ungrouped.
+- Dimension witness-leg handles are available at both the part-side and outer ends; each endpoint can be dragged independently. Diameter dimensions can place arrows outside the circle (pointing inward), with the diameter sign lowered separately.
+
 ## Precise dimension editing (1.5.24)
 
 Select one or more dimensions. Use the **Поворот только цифры** slider for smooth label rotation, the number field for an exact 0.1° value, or the ±1°/±5°/±15° buttons. The reset button returns the label to 0° without changing the measured geometry.
@@ -144,3 +151,12 @@ This is a 2D drafting toolkit. It does not create 3D solids or perform a general
 ## Compact GOST dash-dot lines (1.5.27)
 
 For a thin centre/dash-dot line choose **Штрихпунктирна тонка — 5/3 мм (ГОСТ)**. The long dash is 5 mm and each gap is 3 mm; the tiny 0.1 mm dash is shown as a round point by the round line cap. The long-dash option uses 8 mm / 3 mm. These choices use the lower end of the ГОСТ 2.303-68 ranges for a compact drawing. Old built-in 12 mm / 24 mm dash patterns are automatically displayed using the new compact patterns, while custom dash values are preserved.
+
+
+## Штриховка внутри области и шестиконечная звезда (1.5.28)
+
+- Выберите **Штриховка области** и щёлкните внутри замкнутого контура или одной из ячеек, полученных пересечением линий. Штриховка будет построена только внутри этой области; внутренние отверстия останутся пустыми. Повторные щелчки позволяют заштриховать другие области.
+- Для автоматической обработки всех найденных ячеек используйте **Найти замкнутые области из линий и заштриховать**.
+- Для шестиконечной звезды выберите **Звезда 6-кон.**, щёлкните центр, затем точку на окружности желаемого радиуса. Создаются два равносторонних треугольника в одной группе.
+- У выбранного размера можно тянуть голубые ручки на дальних концах ножек и зелёные ручки у детали. Каждая ручка регулирует только свой конец; противоположный конец остаётся неподвижным.
+- Для диаметрального размера в поле размещения стрелок можно выбрать **Снаружи**: стрелки будут за кругом и направлены к его контуру.

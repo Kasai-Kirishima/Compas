@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
-  getObjectSnapCandidates, findObjectSnap, findClosedLoops, createHatch,
-  regularPolygonVertices, trimLegacyCurve, arcThroughThreePoints
+  getObjectSnapCandidates, findObjectSnap, findClosedLoops, createHatch, pointInRegion,
+  regularPolygonVertices, sixPointStarTriangles, trimLegacyCurve, arcThroughThreePoints
 } from '../src/sketch-advanced.mjs';
 
 const near=(a,b,e=1e-5)=>assert.ok(Math.abs(a-b)<=e,`${a} != ${b}`);
@@ -27,6 +27,25 @@ assert.equal(exactCircleSnap.length, 2);
 near(exactCircleSnap[0].point.y, 0, 1e-9);
 near(Math.abs(exactCircleSnap[0].point.x), 10, 1e-9);
 
+
+// Region hit-testing follows the clipped fill: outer area is included, holes and exterior are excluded.
+const hitRegion={outer:[{x:0,y:0},{x:20,y:0},{x:20,y:20},{x:0,y:20}],holes:[[{x:6,y:6},{x:14,y:6},{x:14,y:14},{x:6,y:14}]]};
+assert.equal(pointInRegion({x:2,y:2},hitRegion),true);
+assert.equal(pointInRegion({x:10,y:10},hitRegion),false);
+assert.equal(pointInRegion({x:25,y:10},hitRegion),false);
+assert.equal(pointInRegion({x:6,y:10},hitRegion),false,'Hole boundary is not filled');
+
+// Six-pointed star is made from two equilateral triangles on the same circumcircle.
+const star=sixPointStarTriangles({x:5,y:7},12,{angle:.2});
+assert.equal(star.length,2);assert.equal(star[0].length,3);assert.equal(star[1].length,3);
+for(const triangle of star){
+  const sides=triangle.map((p,i)=>Math.hypot(p.x-triangle[(i+1)%3].x,p.y-triangle[(i+1)%3].y));
+  near(sides[0],sides[1]);near(sides[1],sides[2]);
+  triangle.forEach(p=>near(Math.hypot(p.x-5,p.y-7),12));
+}
+const angleA=Math.atan2(star[0][0].y-7,star[0][0].x-5),angleB=Math.atan2(star[1][0].y-7,star[1][0].x-5);
+near(Math.abs(Math.atan2(Math.sin(angleB-angleA),Math.cos(angleB-angleA))),Math.PI/3);
+
 // Four independent line entities are recognized as one closed region.
 const square=[
   {id:'s1',type:'line',x:0,y:0,x2:40,y2:0},
@@ -48,6 +67,9 @@ assert.equal(ringRegions[0].holes.length,1);
 assert.ok(ringRegions[0].area>0);
 const hatch=createHatch(ringRegions[0],{angle:0,step:5,pattern:'single'});
 assert.ok(hatch.segments.length>0);
+const solidHatch=createHatch(ringRegions[0],{pattern:'solid'});
+assert.equal(solidHatch.segments.length,0,'Solid mode should fill the whole detected region rather than generate sparse hatch strokes');
+assert.equal(solidHatch.holes.length,1,'Solid fill must preserve internal holes');
 for(const segment of hatch.segments){
   const mid={x:(segment.a.x+segment.b.x)/2,y:(segment.a.y+segment.b.y)/2};
   assert.ok(Math.hypot(mid.x,mid.y)>=20-1e-4,'Hatch segment must not pass through inner hole');

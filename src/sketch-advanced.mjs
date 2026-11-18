@@ -234,6 +234,26 @@ function pointInPolygon(point, points) {
   }
   return inside;
 }
+
+function pointOnPolygonBoundary(point, points, eps = 1e-8) {
+  if (!finitePoint(point) || !Array.isArray(points) || points.length < 2) return false;
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i], b = points[(i + 1) % points.length];
+    const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy;
+    const t = length2 > eps * eps ? Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / length2)) : 0;
+    const px = a.x + dx * t, py = a.y + dy * t;
+    if (Math.hypot(point.x - px, point.y - py) <= eps) return true;
+  }
+  return false;
+}
+
+/** True only for points in the material area: inside outer, outside every hole. */
+export function pointInRegion(point, region, { boundaryTolerance = 1e-7 } = {}) {
+  if (!finitePoint(point) || !region || !Array.isArray(region.outer) || region.outer.length < 3) return false;
+  const inOuter = pointInPolygon(point, region.outer) || pointOnPolygonBoundary(point, region.outer, boundaryTolerance);
+  if (!inOuter) return false;
+  return !(region.holes || []).some(ring => pointInPolygon(point, ring) || pointOnPolygonBoundary(point, ring, boundaryTolerance));
+}
 function loopInteriorPoint(points, tolerance) {
   const sign = Math.sign(polygonArea(points)) || 1;
   for (let i = 0; i < points.length; i++) {
@@ -388,6 +408,20 @@ export function regularPolygonVertices(center, sides, measuredRadius, { mode = '
     const a = Number(angle) + TAU * i / sides;
     return { x: center.x + radius * Math.cos(a), y: center.y + radius * Math.sin(a) };
   });
+}
+
+/**
+ * A regular six-pointed star (hexagram) as two separately editable equilateral
+ * triangles sharing one circumcircle. The caller can place both in one group.
+ */
+export function sixPointStarTriangles(center, radius, { angle = -Math.PI / 2 } = {}) {
+  if (!finitePoint(center)) throw new TypeError('Центр звезды задан неверно');
+  if (!(Number(radius) > 0) || !Number.isFinite(Number(radius))) throw new RangeError('Радиус звезды должен быть положительным');
+  const r = Number(radius);
+  return [
+    regularPolygonVertices(center, 3, r, { mode: 'circumradius', angle: Number(angle) }),
+    regularPolygonVertices(center, 3, r, { mode: 'circumradius', angle: Number(angle) + Math.PI / 3 })
+  ];
 }
 
 /** Construct the unique circular arc passing through three non-collinear points. */

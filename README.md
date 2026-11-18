@@ -1,4 +1,13 @@
-# CAD Geometry Core 1.5.27
+# CAD Geometry Core 1.5.28
+
+## 1.5.28 — area hatch, six-pointed star and dimension handle refinements
+
+- The **Штриховка области** tool now works by clicking inside a closed region. It identifies the smallest bounded face under the cursor, clips generated hatch segments to that exact region, and excludes interior holes. Multiple regions can be filled one after another without leaving the tool.
+- Automatic loop detection uses a tighter boundary tolerance and more curve samples for smooth circular/elliptical boundaries. Original sketch curves remain unchanged; the hatch is stored as its own editable object.
+- Added a **Шестиконечная звезда** tool. Click the center and a point on the circumcircle; the star is created as two equilateral triangle polylines in one group, so it moves, duplicates and exports together while remaining editable.
+- Front/object-side and far/outer endpoints of both dimension witness legs are independently draggable. Relative pointer movement avoids jumps and supports both shortening and lengthening; changing one leg leaves the other untouched.
+- Diameter dimensions expose **Снаружи** arrow placement: both arrowheads are positioned outside the circle and point inward. The `⌀` glyph is lowered slightly independently of the numeric baseline.
+- Added regression tests for point-in-region hit-testing (including holes), click-to-hatch UI wiring, star geometry, diameter arrow placement and dimension-leg drag behavior.
 
 ## 1.5.24 dimension editing controls
 
@@ -195,3 +204,16 @@ Wheel events are handled by the drawing viewport itself in capture phase, before
 ### 1.5.27 — компактная штрихпунктирная линия по ГОСТ
 
 Тонкая штрихпунктирная линия по умолчанию: штрих 5 мм, промежуток 3 мм, точка — короткая круглая отметка. Дополнительный вариант: штрих 8 мм и промежуток 3 мм. Старые шаблоны 12/24 мм автоматически приводятся к новым компактным значениям при отображении.
+
+
+## Area hatch by clicking inside a boundary
+
+Choose **Штриховка области** and click inside a closed area. The editor builds planar regions from the selected geometry, or from all visible unlocked sketch geometry when nothing is selected. It hatches only the smallest region under the cursor; segments are clipped to the outer boundary and excluded from holes. You can click several different regions consecutively. Use the pattern selector for single, cross or solid fill. The separate **Найти замкнутые области из линий и заштриховать** command still hatches every detected bounded face.
+
+## Six-pointed star
+
+Choose **Звезда 6-кон.**, click its centre, then click a point on the outer circumcircle to define size and orientation. The editor creates two intersecting equilateral triangles as editable closed polylines in one group. Selecting or moving either triangle selects/moves the complete star; ungroup to edit one triangle independently.
+
+## Independent dimension extension endpoints and diameter arrows
+
+When a dimension is selected, blue handles at the far ends and green handles at the object-side beginnings of the two extension lines can be dragged independently. The opposite endpoint does not move. Dragging is relative to the initial pointer position, so grabbing the handle away from its centre does not cause a jump; drag toward the object to shorten a front gap or away from the dimension to lengthen it. For diameter dimensions, choose **Снаружи** in arrow placement to draw both arrowheads beyond the circle, pointing inward. The diameter `⌀` glyph sits slightly below the numeric baseline.

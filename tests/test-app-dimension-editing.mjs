@@ -42,7 +42,7 @@ assert.match(app, /arrowEndStyle/);
 assert.match(app, /Number\(o\.arrowSize\)[\s\S]*?\.8,12/, 'Per-dimension arrow size must be applied with a useful adjustable range');
 assert.match(app, /labelRotationExtra=clamp\(Number\(o\.labelRotationDeg\)/, 'Dimension label rotation must be stored separately from dimension geometry');
 assert.match(app, /dimensionLabel\(g,mx,my,`R\$\{label\}`,textSize,color,labelRotationExtra\)/, 'Radius label must use independent rotation');
-assert.match(app, /dimensionLabel\(g,labelX,labelY,`⌀\$\{label\}`,textSize,color,labelRotationExtra\)/, 'Diameter label must use independent rotation');
+assert.match(app, /dimensionLabel\(g,labelX,labelY,`⌀\$\{label\}`,textSize,color,labelRotationExtra,\{lowerDiameterSign:true\}\)/, 'Diameter label must use independent rotation while lowering only the ⌀ glyph');
 assert.match(app, /dimensionLabel\(g,labelX,labelY,label,textSize,color,labelRotationExtra\)/, 'Angular label must use independent rotation');
 assert.match(app, /finalLabelRotation=\(horizontal\?0:labelRotation\)\+labelRotationExtra/, 'Linear label rotation must be additive and independent');
 assert.match(app, /updateSelectedDimension\('labelRotationDeg','dimensionLabelRotation'/);
