@@ -17,7 +17,7 @@ const rotate = (p, angle) => ({ x: p.x * Math.cos(angle) - p.y * Math.sin(angle)
 const defaultStyle = { stroke: '#111111', lineWidth: 0.25, lineDash: [] };
 
 /** Horizontal and vertical centre mark for a hole or circle. */
-export function createCenterMark(center, size, { style = { stroke: '#111', lineWidth: 0.18, lineDash: [8, 2, 1, 2] }, gap = 0 } = {}) {
+export function createCenterMark(center, size, { style = { stroke: '#111', lineWidth: 0.18, lineDash: [5, 3, 0.1, 3] }, gap = 0 } = {}) {
   finitePositive(size, 'Розмір центрової мітки');
   if (!center || !Number.isFinite(center.x) || !Number.isFinite(center.y)) throw new TypeError('Центр має містити x та y');
   if (!Number.isFinite(gap) || gap < 0 || gap >= size) throw new RangeError('Проміжок центрової мітки має бути ≥ 0 та меншим за її розмір');
@@ -57,7 +57,7 @@ export function createSlot(center, overallLength, width, angle = 0, { style = de
 export function createBoltCircle(center, pitchRadius, count, holeRadius, {
   startAngle = 0, pitchLine = true, centerMarks = true,
   holeStyle = defaultStyle,
-  pitchStyle = { stroke: '#111', lineWidth: 0.18, lineDash: [8, 2, 1, 2] }
+  pitchStyle = { stroke: '#111', lineWidth: 0.18, lineDash: [5, 3, 0.1, 3] }
 } = {}) {
   finitePositive(pitchRadius, 'Радіус болтового кола');
   finitePositive(holeRadius, 'Радіус отвору');
@@ -195,7 +195,7 @@ export function createRadialSlotCover({
   includePitchCircle = true,
   includeCenterMarks = true,
   style = { stroke: '#2877bd', lineWidth: 0.5, lineDash: [] },
-  constructionStyle = { stroke: '#d18a43', lineWidth: 0.18, lineDash: [8, 2, 1, 2] },
+  constructionStyle = { stroke: '#d18a43', lineWidth: 0.18, lineDash: [5, 3, 0.1, 3] },
 } = {}) {
   finitePositive(outerRadius, 'Зовнішній радіус кришки');
   finitePositive(pitchRadius, 'Радіус ділильного кола');

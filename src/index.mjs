@@ -6,3 +6,6 @@ export * from './cutouts.mjs';
 export * from './project-file.mjs';
 export * from './sketch-advanced.mjs';
 export * from './polygon-edit.mjs';
+export * from './dimension-extensions.mjs';
+
+export * from './line-types.mjs';

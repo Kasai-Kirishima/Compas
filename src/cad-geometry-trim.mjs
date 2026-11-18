@@ -80,7 +80,7 @@ export class Line extends Primitive {
 
 export class Centerline extends Line {
   constructor(a, b, options = {}) {
-    super(a, b, { ...options, style: { stroke: '#111111', lineWidth: 0.18, lineDash: [8, 2, 1, 2], ...options.style } });
+    super(a, b, { ...options, style: { stroke: '#111111', lineWidth: 0.18, lineDash: [5, 3, 0.1, 3], ...options.style } });
     this.type = 'centerline';
   }
 }

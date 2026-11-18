@@ -253,3 +253,12 @@ html,body{font-size:15px;}
 .dimension-adjust-card .muted-hint{margin:6px 0 1px;font-size:10px;line-height:1.4;}
 .face-edit-tool{width:100%;margin:4px 0 8px;min-height:38px}
 .drawing-area.moving-face{cursor:grabbing}
+
+/* 1.5.26 — independent dimension witness-leg grips */
+.dimension-extension-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+.dimension-extension-pair .dimension-adjust-card{min-width:0;margin:7px 0 8px;padding:7px 7px 6px;}
+.dimension-extension-pair .dimension-value-hint{font-size:9px;}
+.dimension-extension-pair .dimension-step-row{gap:3px;}
+.dimension-extension-pair .dimension-step-row button{font-size:10px;}
+.drawing-area.moving-dimension-extension{cursor:grabbing;}
+@media(max-width:540px){.dimension-extension-pair{grid-template-columns:1fr;}}
