@@ -1,3 +1,20 @@
+## 1.5.30 — star outline, fixed-angle area hatch, region selection and dimension handles
+
+- Reworked the six-pointed star as a single closed 12-vertex outer contour. The two crossing equilateral-triangle edges are no longer drawn as internal lines; the star is one selectable, movable and editable polyline.
+- Added a separate **Выбор области** tool. It highlights the bounded region under the cursor, then **Заштриховать выбранную область** creates a hatch for that exact selected region. The existing direct click-to-hatch workflow remains available.
+- Hatch direction now comes only from the fixed **Угол** field and is independent of the click location or direction. A true `0°` value is accepted instead of falling back to `45°`; all hatch creation paths use the same angle normalization.
+- Generic square bounding-box resize grips are hidden when a dimension is selected. Circular dimension handles for label movement, individual witness-leg ends/gaps and rotation remain available.
+- Added regression tests for the 12-point star outline, explicit region selection, selected-region hatching, fixed/zero-degree hatch-angle handling and dimension-handle presentation.
+
+## 1.5.29 — исправлено растяжение размеров без наклона
+
+- Исправлено сильное изменение угла размерной линии при растяжении за рамку выделения.
+- Линейные размеры масштабируются в собственных осях: измеряемая длина изменяется вдоль размерной линии, отступ и выносные ножки — перпендикулярно ей.
+- Горизонтальные и вертикальные размеры сохраняют точную ориентацию; наклонные размеры сохраняют исходный угол.
+- Радиальные, диаметральные и угловые размеры сохраняют направления лучей и величину угла.
+- Высота цифр и размер стрелок остаются постоянными при растяжении геометрии.
+- Добавлены регрессионные тесты для всех типов размеров.
+
 # Changelog
 
 ## 1.5.28 — штриховка по области и шестиконечная звезда
@@ -248,3 +265,13 @@
 - Добавлены независимые ползунки, числовые поля и кнопки шага 0,1/0,5 мм для первой и второй ножки; диапазон увеличен до 50 мм.
 - Поддерживаются линейные, горизонтальные, вертикальные и угловые размеры. Отмена жеста и Ctrl+Z работают как единая операция.
 - Добавлены геометрические тесты направлений и проекций, совместимости со старыми проектами и UI-тесты выбора/перетаскивания каждой ножки.
+
+
+## 1.5.29 — Dimension resize keeps its angle
+
+- Fixed dimension annotations tilting sharply when stretched with selection-box resize handles.
+- Linear dimensions now resize in their own local axes: measured length follows the resize along the dimension direction, while offset and witness-leg lengths follow the perpendicular direction.
+- Horizontal and vertical dimensions remain horizontal and vertical; aligned dimensions retain their original angle.
+- Radius, diameter and angular dimensions use orientation-preserving uniform geometry scaling.
+- Dimension text height and arrow size remain unchanged during geometry stretching.
+- Added regression tests for diagonal, horizontal, vertical, radius, diameter and angular dimensions.

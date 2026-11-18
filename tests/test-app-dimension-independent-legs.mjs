@@ -10,6 +10,7 @@ assert.match(html, /data-dimension-extension-side="start"/);
 assert.match(html, /data-dimension-extension-side="end"/);
 assert.match(html, /противоположная остаётся на месте/);
 assert.match(app, /data-dimension-extension-handle/);
+assert.match(app, /if\(source\.type==='dimension'\)return resizeDimensionPreservingOrientation\(source,oldB,newB\)/, 'Selected-dimension resize must preserve its original angle');
 assert.match(app, /beginDimensionExtensionDrag\(e,objGroup\.getAttribute\('data-id'\),extensionHandle\.getAttribute\('data-dimension-extension-handle'\)\)/);
 assert.match(app, /pointerStart:pointFromEvent\(e,true\)/);
 assert.match(app, /data-dimension-extension-gap-handle/);

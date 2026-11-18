@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   getObjectSnapCandidates, findObjectSnap, findClosedLoops, createHatch, pointInRegion,
-  regularPolygonVertices, sixPointStarTriangles, trimLegacyCurve, arcThroughThreePoints
+  regularPolygonVertices, sixPointStarTriangles, sixPointStarOutline, trimLegacyCurve, arcThroughThreePoints
 } from '../src/sketch-advanced.mjs';
 
 const near=(a,b,e=1e-5)=>assert.ok(Math.abs(a-b)<=e,`${a} != ${b}`);
@@ -46,6 +46,13 @@ for(const triangle of star){
 const angleA=Math.atan2(star[0][0].y-7,star[0][0].x-5),angleB=Math.atan2(star[1][0].y-7,star[1][0].x-5);
 near(Math.abs(Math.atan2(Math.sin(angleB-angleA),Math.cos(angleB-angleA))),Math.PI/3);
 
+// The editor's star tool uses one closed 12-vertex outline with no triangle crossing edges.
+const starOutline=sixPointStarOutline({x:5,y:7},12,{angle:.2});
+assert.equal(starOutline.length,12);
+for(let i=0;i<starOutline.length;i++)near(Math.hypot(starOutline[i].x-5,starOutline[i].y-7),i%2===0?12:6,1e-6);
+// Adjacent outline edges are finite and the outline alternates between six tips and six valleys.
+assert.ok(starOutline.every((p,i)=>Math.hypot(p.x-starOutline[(i+1)%12].x,p.y-starOutline[(i+1)%12].y)>0.1));
+
 // Four independent line entities are recognized as one closed region.
 const square=[
   {id:'s1',type:'line',x:0,y:0,x2:40,y2:0},
@@ -67,6 +74,8 @@ assert.equal(ringRegions[0].holes.length,1);
 assert.ok(ringRegions[0].area>0);
 const hatch=createHatch(ringRegions[0],{angle:0,step:5,pattern:'single'});
 assert.ok(hatch.segments.length>0);
+assert.ok(hatch.segments.every(segment=>segment.angle===0),'A zero-degree hatch remains horizontal and is not changed by any hit point');
+for(const segment of hatch.segments)near(segment.a.y,segment.b.y,1e-7);
 const solidHatch=createHatch(ringRegions[0],{pattern:'solid'});
 assert.equal(solidHatch.segments.length,0,'Solid mode should fill the whole detected region rather than generate sparse hatch strokes');
 assert.equal(solidHatch.holes.length,1,'Solid fill must preserve internal holes');

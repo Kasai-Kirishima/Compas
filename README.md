@@ -1,4 +1,12 @@
-# CAD Geometry Core 1.5.28
+# CAD Geometry Core 1.5.30
+
+## 1.5.30 — star outline, region selection and fixed-angle hatching
+
+- The six-pointed star is now one closed outer polyline (12 alternating tips and valleys), with no internal triangle lines.
+- Use **Выбор области** to pick and highlight a bounded face separately from object selection; then press **Заштриховать выбранную область**. Direct click-to-hatch remains available.
+- All area hatches use the angle set in **Фиксированный угол**; pointer location does not change orientation. `0°` is a valid angle. The same angle applies to sequential and automatic hatching.
+- When a dimension is selected, square bounding-box resize handles are hidden; circular handles remain for editing its text, witness-leg endpoints/gaps and rotation.
+
 
 ## 1.5.28 — area hatch, six-pointed star and dimension handle refinements
 
@@ -217,3 +225,8 @@ Choose **Звезда 6-кон.**, click its centre, then click a point on the o
 ## Independent dimension extension endpoints and diameter arrows
 
 When a dimension is selected, blue handles at the far ends and green handles at the object-side beginnings of the two extension lines can be dragged independently. The opposite endpoint does not move. Dragging is relative to the initial pointer position, so grabbing the handle away from its centre does not cause a jump; drag toward the object to shorten a front gap or away from the dimension to lengthen it. For diameter dimensions, choose **Снаружи** in arrow placement to draw both arrowheads beyond the circle, pointing inward. The diameter `⌀` glyph sits slightly below the numeric baseline.
+
+
+### Dimension resizing (1.5.29)
+
+Selection-box resizing now preserves dimension orientation. Diagonal dimensions no longer tilt when the bounding box is stretched unevenly; horizontal and vertical dimensions keep their exact axis. The measured length scales along the dimension direction, while the offset and witness legs scale perpendicular to it. Radius, diameter and angular annotations also retain their ray directions/angle. Text height and arrow size stay fixed during geometry resizing.

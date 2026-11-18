@@ -1,9 +1,9 @@
 import { Polygon, Circle } from '../src/cad-geometry-trim.mjs';
 import { normalizeWheelDeltas, wheelZoomFactor } from '../src/wheel-navigation.mjs';
 import { createProjectFile, readProjectFile, projectFileBaseName } from '../src/project-file.mjs';
-import { getObjectSnapCandidates, findObjectSnap, findClosedLoops, createHatch, regularPolygonVertices, sixPointStarTriangles, pointInRegion, trimLegacyCurve, arcThroughThreePoints } from '../src/sketch-advanced.mjs';
+import { getObjectSnapCandidates, findObjectSnap, findClosedLoops, createHatch, regularPolygonVertices, sixPointStarOutline, pointInRegion, trimLegacyCurve, arcThroughThreePoints } from '../src/sketch-advanced.mjs';
 import { closestClosedPolylineEdge, moveClosedPolylineEdge } from '../src/polygon-edit.mjs';
-import { dimensionExtensionField, dimensionExtensionValue, dimensionExtensionSpec, dimensionExtensionLengthFromPoint, dimensionExtensionGapField, dimensionExtensionGapValue, dimensionExtensionGapSpec, dimensionExtensionGapFromPoint, dimensionExtensionFromDrag, dimensionExtensionGapFromDrag } from '../src/dimension-extensions.mjs';
+import { dimensionExtensionField, dimensionExtensionValue, dimensionExtensionSpec, dimensionExtensionLengthFromPoint, dimensionExtensionGapField, dimensionExtensionGapValue, dimensionExtensionGapSpec, dimensionExtensionGapFromPoint, dimensionExtensionFromDrag, dimensionExtensionGapFromDrag, resizeDimensionPreservingOrientation } from '../src/dimension-extensions.mjs';
 import { GOST_LINE_PATTERNS, normalizeGostDashPattern } from '../src/line-types.mjs';
 import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBottomAtPoint, cutCircleNotchWithoutBottomAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, cutClosedContourByStraightPass, cutOpenPathByStraightPass, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 
@@ -21,7 +21,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     format:'A4P', tool:'select', objects:[], selectedIds:[], points:[], zoom:1.8, grid:false, snap:false,
     objectSnap:true, ortho:false, template:true, space:false, pan:null, viewPan:{x:0,y:0}, drag:null, selectionRect:null, splitPending:null,
     history:[], redo:[], clipboard:[], ruler:null, rulerMode:'off', rulerVisible:true, freehandDraft:null, resize:null, rotateDrag:null, dimensionLabelDrag:null, dimensionExtensionDrag:null, duplicatePlacement:null, erasing:null, straightCutDraft:null,
-    faceDrag:null, faceSelection:null, faceHover:null,
+    faceDrag:null, faceSelection:null, faceHover:null, selectedRegion:null,
     gost:{profile:'dstu-gost-ua',mainLine:.5,thinLine:.25,textHeight:5,dimensionTextHeight:7,dimensionTextDefaultsVersion:3,textDefaultsVersion:2,arrowLength:3.5,dimensionArrowVersion:2,precision:1,lettering:'B-S',fontFamily:'GOST type B,Arial,sans-serif'},
     title:{title:'Лабораторна робота 5',code:'КТ-24.ЛР5.001',material:'',scale:'1:1',sheet:'',sheets:'1',company:'Шосткинський фаховий коледж імені Івана Кожедуба СумДУ',liter:'',mass:'',developer:'Кушвид О.А.',checker:'Базиль Б.',technical:'',normative:'',approved:''},
     titleForm:'lab5-template', templateTextOverrides:{}, projectId:null, fileName:'Кресленик_1', dirty:false, assignmentDimensions:''
@@ -550,10 +550,14 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     const objects=getSelected().filter(o=>!o.hidden&&!o.locked&&!(o.type==='reference'&&o.locked));
     if(!objects.length)return;const b=unionBounds(objects);if(!b)return;
     add(selectionLayer,'rect',{x:b.x,y:b.y,width:b.w,height:b.h,fill:'none',stroke:'#087fa0','stroke-width':.32,'stroke-dasharray':'1.5 1.1','pointer-events':'none'});
-    const handles={nw:[b.x,b.y],n:[b.x+b.w/2,b.y],ne:[b.x+b.w,b.y],e:[b.x+b.w,b.y+b.h/2],se:[b.x+b.w,b.y+b.h],s:[b.x+b.w/2,b.y+b.h],sw:[b.x,b.y+b.h],w:[b.x,b.y+b.h/2]};
-    Object.entries(handles).forEach(([key,[x,y]])=>{
-      add(selectionLayer,'rect',{x:x-1.8,y:y-1.8,width:3.6,height:3.6,rx:.35,fill:'#f7fcff',stroke:'#087fa0','stroke-width':.55,'data-resize-handle':key,'pointer-events':'all',cursor:({nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'})[key]});
-    });
+    // Dimension objects use their own round blue drag handles for label and
+    // extension editing. Hide generic square bounding-box resize grips for them.
+    if(!objects.some(o=>o.type==='dimension')){
+      const handles={nw:[b.x,b.y],n:[b.x+b.w/2,b.y],ne:[b.x+b.w,b.y],e:[b.x+b.w,b.y+b.h/2],se:[b.x+b.w,b.y+b.h],s:[b.x+b.w/2,b.y+b.h],sw:[b.x,b.y+b.h],w:[b.x,b.y+b.h/2]};
+      Object.entries(handles).forEach(([key,[x,y]])=>{
+        add(selectionLayer,'rect',{x:x-1.8,y:y-1.8,width:3.6,height:3.6,rx:.35,fill:'#f7fcff',stroke:'#087fa0','stroke-width':.55,'data-resize-handle':key,'pointer-events':'all',cursor:({nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'})[key]});
+      });
+    }
     const rx=b.x+b.w/2,ry=b.y-9;
     add(selectionLayer,'line',{x1:rx,y1:b.y,x2:rx,y2:ry+1.8,stroke:'#087fa0','stroke-width':.35,'pointer-events':'none'});
     add(selectionLayer,'circle',{cx:rx,cy:ry,r:2.6,fill:'#ffffff',stroke:'#087fa0','stroke-width':.7,'data-rotate-handle':'true','pointer-events':'all',cursor:'grab'});
@@ -561,6 +565,9 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   }
   function mapObjectPoint(p,oldB,newB){const sx=newB.w/Math.max(.0001,oldB.w),sy=newB.h/Math.max(.0001,oldB.h);return{x:mm(newB.x+(p.x-oldB.x)*sx),y:mm(newB.y+(p.y-oldB.y)*sy)};}
   function scaleObjectToBounds(source,oldB,newB){
+    // Dimensions are resized in their own local axes. The generic X/Y map
+    // below skews diagonal dimensions when the selection box is stretched.
+    if(source.type==='dimension')return resizeDimensionPreservingOrientation(source,oldB,newB);
     const o=deep(source),sx=newB.w/Math.max(.0001,oldB.w),sy=newB.h/Math.max(.0001,oldB.h),avg=(sx+sy)/2;
     const map=(x,y)=>mapObjectPoint({x,y},oldB,newB);
     if(o.type==='circle'&&Math.abs(sx-sy)>.0005){
@@ -626,7 +633,13 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   }
   function rotateSelectedBy(degrees){const objs=getSelected().filter(o=>!o.locked&&!o.hidden);if(!objs.length){setMessage('Выберите объекты для поворота');return;}const value=Number(degrees);if(!Number.isFinite(value)||Math.abs(value)<1e-9)return;const before=snapshot(),center=selectionCenter(objs);objs.forEach(o=>transformObj(o,center,value*Math.PI/180));commit(before);renderAll();setMessage(`Повернуто на ${value.toFixed(2)}°`);}
   function renderTree(){const el=$('objectTree');el.innerHTML='';state.objects.forEach((o,i)=>{const b=document.createElement('button');b.className='tree-object'+(state.selectedIds.includes(o.id)?' selected':'');b.textContent=`${o.hidden?'◌ ':o.locked?'🔒 ':''}${i+1}. ${o.name||({point:'Точка',section:'Линия разреза',techReq:'Тех. требования',reference:'Референс / подложка',line:'Отрезок',rect:'Прямоугольник',circle:'Окружность',ellipse:'Эллипс',arc:'Дуга',polyline:'Ломаная',spline:'Сплайн',freehand:'Свободная линия',text:'Текст',dimension:'Размер',leader:'Выноска',hatch:'Штриховка',centerMark:'Обозначение центра',roughness:'Шероховатость',tolerance:'Допуск',weld:'Сварка',table:'Таблица',breakline:'Линия обрыва',construction:'Вспомогательная линия',centerline:'Осевая линия'}[o.type]||o.type)}`;b.addEventListener('click',()=>{const group=o.groupId?state.objects.filter(x=>x.groupId===o.groupId):[o];state.selectedIds=group.map(x=>x.id);renderAll();});el.appendChild(b);});}
-  function renderAll(){snapCandidateCache=null;referenceLayer.innerHTML='';geometryLayer.innerHTML='';constructionLayer.innerHTML='';annotationLayer.innerHTML='';previewLayer.innerHTML='';selectionLayer.innerHTML='';state.objects.forEach(renderObject);renderRuler();renderSelectionHandles();$('geometryCount').textContent=state.objects.filter(o=>layerFor(o)==='geometry'&&!o.hidden).length;$('annotationCount').textContent=state.objects.filter(o=>layerFor(o)==='annotation'&&!o.hidden).length;$('constructionCount').textContent=state.objects.filter(o=>layerFor(o)==='construction'&&!o.hidden).length;$('selectedStatus').textContent=state.selectedIds.length;renderTree();updateSelectionPanel();}
+  function renderSelectedRegion(){
+    const region=state.selectedRegion?.region;if(!region?.outer?.length)return;
+    const rings=[region.outer,...(region.holes||[])];
+    const d=rings.map(ring=>`M ${ring.map((p,i)=>`${i?'L':' '}${p.x} ${p.y}`).join(' ')} Z`).join(' ');
+    add(selectionLayer,'path',{d,fill:'#16a5c9','fill-opacity':.08,'fill-rule':'evenodd',stroke:'#078db2','stroke-width':.55,'stroke-dasharray':'2 1','pointer-events':'none','data-region-selection':'true'});
+  }
+  function renderAll(){snapCandidateCache=null;referenceLayer.innerHTML='';geometryLayer.innerHTML='';constructionLayer.innerHTML='';annotationLayer.innerHTML='';previewLayer.innerHTML='';selectionLayer.innerHTML='';state.objects.forEach(renderObject);renderRuler();renderSelectionHandles();renderSelectedRegion();$('geometryCount').textContent=state.objects.filter(o=>layerFor(o)==='geometry'&&!o.hidden).length;$('annotationCount').textContent=state.objects.filter(o=>layerFor(o)==='annotation'&&!o.hidden).length;$('constructionCount').textContent=state.objects.filter(o=>layerFor(o)==='construction'&&!o.hidden).length;$('selectedStatus').textContent=state.selectedIds.length;renderTree();updateSelectionPanel();}
   function updateSelectionPanel(){
     const arr=state.objects.filter(o=>state.selectedIds.includes(o.id)),o=arr.length===1?arr[0]:null;
     $('noSelection').classList.toggle('hidden',arr.length>0);$('selectionFields').classList.toggle('hidden',arr.length===0);const refsOnly=arr.length>0&&arr.every(x=>x.type==='reference'),allRefsLocked=refsOnly&&arr.every(x=>x.locked);$('quickReferenceLockBtn').disabled=!refsOnly;$('quickReferenceLockBtn').innerHTML=refsOnly?(allRefsLocked?'<span>🔓</span>Разрешить движение':'<span>🔒</span>Запретить движение'):'<span>🔒</span>Блокировка';$('quickReferenceLockBtn').setAttribute('aria-pressed',String(!!allRefsLocked));$('quickReferenceLockBtn').title=refsOnly?(allRefsLocked?'Разблокировать выбранные референсы':'Закрепить выбранные референсы'):'Выберите референс, чтобы переключить перемещение';
@@ -1015,24 +1028,57 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     const selected=getSelected().filter(o=>allowed.has(o.type)&&!o.hidden&&!o.locked);
     return respectSelection&&selected.length?selected:state.objects.filter(o=>allowed.has(o.type)&&!o.hidden&&!o.locked);
   }
-  function hatchRegionAtPoint(point){
-    // Click-to-hatch searches all visible geometry so a stale selection cannot hide part of a boundary.
+  function hatchAngleValue(){
+    const raw=$('hatchAngle')?.value,parsed=raw===''||raw==null?45:Number(raw);
+    if(!Number.isFinite(parsed))return 45;
+    // Hatch direction is a global drafting setting, not inferred from click position.
+    // A line hatch repeats every 180 degrees; preserve zero as a valid horizontal angle.
+    return ((parsed%180)+180)%180;
+  }
+  function findRegionAtPoint(point){
     const source=hatchableDrawingObjects({respectSelection:false});
-    if(!source.length){setMessage('Нет видимых контуров для штриховки');return false;}
-    let regions=[];
-    try{regions=findClosedLoops(source,{tolerance:.01,curveSegments:512,maxSegments:20000});}
-    catch(error){setMessage(error?.message||'Не удалось определить область для штриховки');return false;}
-    const containing=regions.filter(region=>pointInRegion(point,region)).sort((a,b)=>a.area-b.area);
-    if(!containing.length){setMessage('Щёлкните внутри замкнутой области. Штриховка не выйдет за её контур.');return false;}
-    const region=containing[0];
-    const pattern=$('hatchPattern').value,angle=Number($('hatchAngle').value)||45,spacing=clamp(Number($('hatchSpacing').value)||3,.5,100),width=clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color=$('hatchColor').value||'#20252a';
+    if(!source.length)throw new Error('Нет видимых контуров для выбора области');
+    const regions=findClosedLoops(source,{tolerance:.01,curveSegments:512,maxSegments:20000});
+    return regions.filter(region=>pointInRegion(point,region)).sort((a,b)=>a.area-b.area)[0]||null;
+  }
+  function selectRegionAtPoint(point){
+    try{
+      const region=findRegionAtPoint(point);
+      if(!region){state.selectedRegion=null;renderAll();setMessage('В этой точке замкнутая область не найдена. Щёлкните внутри контура.');return false;}
+      state.selectedRegion={point:deep(point),region:deep(region)};
+      renderAll();setMessage(`Выбрана область · площадь ${region.area.toFixed(2)} мм² · отверстий ${region.holes.length}. Нажмите «Заштриховать выбранную область».`);
+      return true;
+    }catch(error){setMessage(error?.message||'Не удалось выбрать область');return false;}
+  }
+  function createHatchForRegion(region){
+    if(!region?.outer?.length){setMessage('Сначала выберите замкнутую область');return false;}
+    const pattern=$('hatchPattern').value,angle=hatchAngleValue(),spacing=clamp(Number($('hatchSpacing').value)||3,.5,100),width=clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color=$('hatchColor').value||'#20252a';
     try{
       const generated=createHatch(region,{angle,step:spacing,pattern,maxLines:20000});
       const before=snapshot(),object={id:newId(),type:'hatch',name:'Штриховка области',points:generated.outer,holes:generated.holes,hatchSegments:generated.segments,closed:true,pattern,angle,spacing,width,color,layer:'annotation',boundaryAuto:true,sourceIds:region.sourceIds};
-      state.objects.push(object);state.selectedIds=[object.id];commit(before);renderAll();
-      setMessage(`Область заштрихована внутри границ · площадь ${region.area.toFixed(2)} мм² · отверстий ${region.holes.length}`);
+      state.objects.push(object);state.selectedIds=[object.id];state.selectedRegion=null;commit(before);renderAll();
+      setMessage(`Область заштрихована под фиксированным углом ${angle}° · площадь ${region.area.toFixed(2)} мм² · отверстий ${region.holes.length}`);
       return true;
     }catch(error){setMessage(error?.message||'Не удалось заштриховать область');return false;}
+  }
+  function hatchRegionAtPoint(point){
+    // The clicked point selects only the region; hatch angle always comes from the
+    // fixed angle field and never from the pointer direction or click position.
+    try{
+      const region=findRegionAtPoint(point);
+      if(!region){setMessage('Щёлкните внутри замкнутой области. Штриховка не выйдет за её контур.');return false;}
+      return createHatchForRegion(region);
+    }catch(error){setMessage(error?.message||'Не удалось определить область для штриховки');return false;}
+  }
+  function hatchSelectedRegion(){
+    if(!state.selectedRegion?.point){setMessage('Сначала используйте «Выбор области» и щёлкните внутри нужного контура');return false;}
+    try{
+      // Re-detect from the stored click point so edited/removed geometry cannot
+      // leave a stale region boundary in the drawing.
+      const region=findRegionAtPoint(state.selectedRegion.point);
+      if(!region){state.selectedRegion=null;renderAll();setMessage('Ранее выбранная область изменилась. Выберите её заново.');return false;}
+      return createHatchForRegion(region);
+    }catch(error){setMessage(error?.message||'Не удалось заштриховать выбранную область');return false;}
   }
   function createHatchFromSelectedBoundary(){
     const selected=getSelected().filter(o=>!o.hidden&&!o.locked);if(selected.length!==1){setMessage('Выберите один замкнутый контур для штриховки');return;}
@@ -1042,8 +1088,8 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     else if(src.type==='ellipse'){const cx=(src.x+src.x2)/2,cy=(src.y+src.y2)/2,rx=Math.abs(src.x2-src.x)/2,ry=Math.abs(src.y2-src.y)/2;points=Array.from({length:96},(_,i)=>({x:mm(cx+Math.cos(i*Math.PI/48)*rx),y:mm(cy+Math.sin(i*Math.PI/48)*ry)}));}
     else if((src.type==='polyline'||src.type==='spline'||src.type==='freehand')&&src.closed&&Array.isArray(src.points))points=deep(src.points);
     if(points.length<3){setMessage('Поддерживаются прямоугольники, окружности, эллипсы и замкнутые контуры.');return;}
-    addObject({type:'hatch',name:'Штриховка',points,closed:true,pattern:$('hatchPattern').value,angle:Number($('hatchAngle').value)||45,spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a',layer:'annotation',boundaryOf:src.id});
-    setMessage('Штриховка создана внутри выделенного контура. Контур сохранён отдельно.');
+    addObject({type:'hatch',name:'Штриховка',points,closed:true,pattern:$('hatchPattern').value,angle:hatchAngleValue(),spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a',layer:'annotation',boundaryOf:src.id});
+    setMessage(`Штриховка создана под фиксированным углом ${hatchAngleValue()}°. Контур сохранён отдельно.`);
   }
   function findAndHatchClosedRegions(){
     const source=hatchableDrawingObjects();
@@ -1052,15 +1098,15 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     try{regions=findClosedLoops(source,{tolerance:.01,curveSegments:512,maxSegments:20000});}
     catch(error){setMessage(error?.message||'Не удалось построить граф пересечений');return;}
     if(!regions.length){setMessage('Замкнутые области не найдены. Проверьте соединение концов линий.');return;}
-    const pattern=$('hatchPattern').value,angle=Number($('hatchAngle').value)||45,spacing=clamp(Number($('hatchSpacing').value)||3,.5,100),width=clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color=$('hatchColor').value||'#20252a';
+    const pattern=$('hatchPattern').value,angle=hatchAngleValue(),spacing=clamp(Number($('hatchSpacing').value)||3,.5,100),width=clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color=$('hatchColor').value||'#20252a';
     try{
       const before=snapshot(),created=regions.map((region,index)=>{const hatch=createHatch(region,{angle,step:spacing,pattern});return{id:newId(),type:'hatch',name:`Автоштриховка ${index+1}`,points:hatch.outer,holes:hatch.holes,hatchSegments:hatch.segments,closed:true,pattern,angle,spacing,width,color,layer:'annotation',boundaryAuto:true,sourceIds:region.sourceIds};});
-      state.objects.push(...created);state.selectedIds=created.map(o=>o.id);recordHistory(before);renderAll();
+      state.objects.push(...created);state.selectedIds=created.map(o=>o.id);state.selectedRegion=null;recordHistory(before);renderAll();
       const holeCount=regions.reduce((sum,r)=>sum+r.holes.length,0);
-      setMessage(`Найдено областей: ${regions.length}; внутренних отверстий: ${holeCount}; штриховок создано: ${created.length}`);
+      setMessage(`Найдено областей: ${regions.length}; внутренних отверстий: ${holeCount}; угол ${angle}°; штриховок создано: ${created.length}`);
     }catch(error){setMessage(error?.message||'Не удалось создать штриховку для найденных областей');}
   }
-  function selectTool(tool){if(tool!=='straightCut'&&state.straightCutDraft){state.straightCutDraft=null;previewLayer.innerHTML='';}if(state.duplicatePlacement&&tool!=='select'){state.duplicatePlacement=null;previewLayer.innerHTML='';}state.tool=tool;if(tool!=='select')state.referenceCalibration=null;if(tool!=='moveFace'){state.faceSelection=null;state.faceHover=null;}state.points=[];state.freehandDraft=null;state.splitPending=null;previewLayer.innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор: щелчок — объект, Shift — добавить, рамка — выделить область. Размерное число можно перетаскивать прямо за цифры или голубую ручку в любом направлении.',cutoutNoWalls:'Вырез без стенок: удаляется участок границы без боковых и нижней линий. Выделите несколько объектов и щёлкните один раз — каждый получит вырез у ближайшей к курсору границы.',cutoutNoBottom:'Вырез без нижней стенки: сохраняются обе боковые линии паза, но нижняя соединительная линия отсутствует. При нескольких выделенных объектах один щелчок применяет вырез ко всем по ближайшей точке границы.',straightCut:'Прямой проходной вырез: свободно ведите прямую полосу под любым углом — снизу вверх, сверху вниз, слева направо или по диагонали. Если жест начинается внутри одного из пересекаемых контуров и заканчивается снаружи, направление для этого контура автоматически разворачивается, чтобы вход остался со стороны начала жеста. Выберите «Без нижней стенки» для двух параллельных боковых линий без поперечного торца или «Без стенок» для удаления только границы.',split:'Разделить объект: по открытой линии щёлкните один раз в любом месте, в том числе точно посередине. По замкнутому контуру щёлкните две точки границы — объект разделится на две самостоятельные замкнутые части.',cutout:'Полный вырез: на замкнутом контуре остаются две боковые стенки и нижняя соединительная линия. На открытой линии удаляется участок заданной ширины. При нескольких выделенных объектах один щелчок применяется ко всем по ближайшей точке.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная прямая: две точки',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',moveFace:'Перемещение грани: наведите курсор на сторону замкнутого многоугольника и перетащите её перпендикулярно. Соседние вершины сохранят направления соседних граней. Щелчок выбирает грань для точного смещения в поле слева. Shift — шаг 0,5 мм.',polygon:'Правильный многоугольник: центр и размер. «По граням» — щёлкните на расстоянии от центра до середины стороны; программа построит точный размер между параллельными сторонами. «По вершинам» — щёлкните по радиусу до вершины.',star6:'Шестиконечная звезда: укажите центр, затем радиус до вершины. Создаются два равносторонних треугольника в общей группе; их можно перемещать, копировать и экспортировать вместе.',arc3:'Дуга по трём точкам: укажите начало, точку через которую должна пройти дуга, и конец. Можно построить как малую, так и большую дугу.',trim:'Усечь кривую: щёлкните по удаляемому участку между соседними пересечениями. Поддерживаются отрезки, окружности, дуги, прямоугольники, эллипсы и замкнутые полилинии.',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Добавить текст: выберите инструмент (или нажмите T), затем щёлкните по листу. Двойной щелчок по пустому месту также откроет редактор надписи',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Штриховка области: щёлкните внутри замкнутого контура или области, образованной пересекающимися линиями. Программа заполнит только выбранную область, не выходя за границы и обходя внутренние отверстия. Можно щёлкать по нескольким областям подряд.',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
+  function selectTool(tool){if(tool!=='straightCut'&&state.straightCutDraft){state.straightCutDraft=null;previewLayer.innerHTML='';}if(state.duplicatePlacement&&tool!=='select'){state.duplicatePlacement=null;previewLayer.innerHTML='';}state.tool=tool;if(!['selectRegion','hatch'].includes(tool))state.selectedRegion=null;if(tool!=='select')state.referenceCalibration=null;if(tool!=='moveFace'){state.faceSelection=null;state.faceHover=null;}state.points=[];state.freehandDraft=null;state.splitPending=null;previewLayer.innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор объектов: щелчок — выбрать объект, Shift — добавить к выбору, рамка — выделить несколько объектов. Для выбора замкнутой территории используйте отдельный инструмент «Выбор области».',selectRegion:'Выбор области: щёлкните внутри замкнутого контура или внутри одной из областей пересекающейся геометрии. Область подсветится; затем нажмите «Заштриховать выбранную область». Угол штриховки берётся только из поля «Угол» и не зависит от места щелчка.',cutoutNoWalls:'Вырез без стенок: удаляется участок границы без боковых и нижней линий. Выделите несколько объектов и щёлкните один раз — каждый получит вырез у ближайшей к курсору границы.',cutoutNoBottom:'Вырез без нижней стенки: сохраняются обе боковые линии паза, но нижняя соединительная линия отсутствует. При нескольких выделенных объектах один щелчок применяет вырез ко всем по ближайшей точке границы.',straightCut:'Прямой проходной вырез: свободно ведите прямую полосу под любым углом — снизу вверх, сверху вниз, слева направо или по диагонали. Если жест начинается внутри одного из пересекаемых контуров и заканчивается снаружи, направление для этого контура автоматически разворачивается, чтобы вход остался со стороны начала жеста. Выберите «Без нижней стенки» для двух параллельных боковых линий без поперечного торца или «Без стенок» для удаления только границы.',split:'Разделить объект: по открытой линии щёлкните один раз в любом месте, в том числе точно посередине. По замкнутому контуру щёлкните две точки границы — объект разделится на две самостоятельные замкнутые части.',cutout:'Полный вырез: на замкнутом контуре остаются две боковые стенки и нижняя соединительная линия. На открытой линии удаляется участок заданной ширины. При нескольких выделенных объектах один щелчок применяется ко всем по ближайшей точке.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная прямая: две точки',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',moveFace:'Перемещение грани: наведите курсор на сторону замкнутого многоугольника и перетащите её перпендикулярно. Соседние вершины сохранят направления соседних граней. Щелчок выбирает грань для точного смещения в поле слева. Shift — шаг 0,5 мм.',polygon:'Правильный многоугольник: центр и размер. «По граням» — щёлкните на расстоянии от центра до середины стороны; программа построит точный размер между параллельными сторонами. «По вершинам» — щёлкните по радиусу до вершины.',star6:'Шестиконечная звезда: укажите центр, затем радиус до вершины. Создаётся один замкнутый внешний контур из 12 вершин без внутренних пересекающихся линий. Звезда редактируется, перемещается и дублируется как единый объект.',arc3:'Дуга по трём точкам: укажите начало, точку через которую должна пройти дуга, и конец. Можно построить как малую, так и большую дугу.',trim:'Усечь кривую: щёлкните по удаляемому участку между соседними пересечениями. Поддерживаются отрезки, окружности, дуги, прямоугольники, эллипсы и замкнутые полилинии.',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Добавить текст: выберите инструмент (или нажмите T), затем щёлкните по листу. Двойной щелчок по пустому месту также откроет редактор надписи',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Штриховка области: щёлкните внутри замкнутого контура или области, образованной пересекающимися линиями. Программа заполнит только выбранную область, не выходя за границы и обходя внутренние отверстия. Можно щёлкать по нескольким областям подряд.',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
   function snapToObjects(p){
     if(!state.objectSnap)return p;
     // Cache candidates between scene edits; only the distance check changes with the cursor.
@@ -1075,7 +1121,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     else if(state.tool==='polygon'){const n=clamp(Number($('polygonSides').value)||6,3,24),mode=$('polygonMode')?.value||'circumradius',angle=Math.atan2(p.y-a.y,p.x-a.x),pickedRadius=Math.hypot(p.x-a.x,p.y-a.y),measured=mode==='acrossFlats'?pickedRadius*2:pickedRadius,vertices=regularPolygonVertices(a,n,measured,{mode,angle});el=add(previewLayer,'path',{d:vertices.map((q,i)=>`${i?'L':'M'} ${q.x} ${q.y}`).join(' ')+' Z'});}
     else if(state.tool==='star6'){
       const radius=Math.hypot(p.x-a.x,p.y-a.y),angle=Math.atan2(p.y-a.y,p.x-a.x);
-      if(radius>.05){const triangles=sixPointStarTriangles(a,radius,{angle});triangles.forEach(points=>add(previewLayer,'path',{d:points.map((q,i)=>`${i?'L':'M'} ${q.x} ${q.y}`).join(' ')+' Z',fill:'none',stroke:'#078db2','stroke-width':.45}));return;}
+      if(radius>.05){const points=sixPointStarOutline(a,radius,{angle});el=add(previewLayer,'path',{d:points.map((q,i)=>`${i?'L':'M'} ${q.x} ${q.y}`).join(' ')+' Z',fill:'none',stroke:'#078db2','stroke-width':.45});}
     }
     else if(state.tool==='arc3'&&pts.length>=2){try{const curve=arcThroughThreePoints(pts[0],pts[1],p),r=curve.radius,p1={x:curve.center.x+Math.cos(curve.startAngle)*r,y:curve.center.y+Math.sin(curve.startAngle)*r},p2={x:curve.center.x+Math.cos(curve.endAngle)*r,y:curve.center.y+Math.sin(curve.endAngle)*r};el=add(previewLayer,'path',{d:`M ${p1.x} ${p1.y} A ${r} ${r} 0 ${curve.sweep>Math.PI?1:0} 1 ${p2.x} ${p2.y}`});}catch{}}
     else if(state.tool==='arc'&&pts.length>=2){const center=pts[0],start=pts[1],r=Math.hypot(start.x-center.x,start.y-center.y),sa=Math.atan2(start.y-center.y,start.x-center.x),ea=Math.atan2(p.y-center.y,p.x-center.x);const s={x:center.x+Math.cos(sa)*r,y:center.y+Math.sin(sa)*r},e={x:center.x+Math.cos(ea)*r,y:center.y+Math.sin(ea)*r},delta=(ea-sa+Math.PI*2)%(Math.PI*2);el=add(previewLayer,'path',{d:`M ${s.x} ${s.y} A ${r} ${r} 0 ${delta>Math.PI?1:0} 1 ${e.x} ${e.y}`});}
@@ -1512,6 +1558,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       applyEdgeCutout(p,clickedId,mode);return;
     }
     if(state.tool==='cutoutInner'){placeInnerCutout(pointFromEvent(e));return;}
+    if(state.tool==='selectRegion'){selectRegionAtPoint(pointFromEvent(e,true));return;}
     if(state.tool==='hatch'){hatchRegionAtPoint(pointFromEvent(e,true));return;}
     if(state.tool==='select'){
       if(target){const id=target.getAttribute('data-id'),hitObj=state.objects.find(o=>o.id===id),group=hitObj?.groupId?state.objects.filter(o=>o.groupId===hitObj.groupId):[hitObj],groupIds=group.filter(Boolean).map(o=>o.id);if(e.shiftKey){const allSelected=groupIds.every(gid=>state.selectedIds.includes(gid));state.selectedIds=allSelected?state.selectedIds.filter(x=>!groupIds.includes(x)):[...new Set([...state.selectedIds,...groupIds])];}else if(!groupIds.every(gid=>state.selectedIds.includes(gid)))state.selectedIds=groupIds;renderAll();const objs=getSelected().filter(o=>!o.locked&&!(o.type==='reference'&&o.locked));if(objs.length)state.drag={ids:objs.map(o=>o.id),start:pointFromEvent(e),originals:deep(objs),historyBefore:snapshot(),moved:false};else setMessage('Выбранные объекты заблокированы');}
@@ -1569,10 +1616,9 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       const [center,edge]=state.points;state.points=[];previewLayer.innerHTML='';
       const radius=Math.hypot(edge.x-center.x,edge.y-center.y);
       if(radius<.1){setMessage('Радиус звезды должен быть больше 0,1 мм');return;}
-      const angle=Math.atan2(edge.y-center.y,edge.x-center.x),triangles=sixPointStarTriangles(center,radius,{angle});
-      const groupId=`group_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,before=snapshot();
-      const created=triangles.map((points,index)=>({id:newId(),type:'polyline',name:`Шестиконечная звезда — треугольник ${index+1}`,points:points.map(q=>({x:mm(q.x),y:mm(q.y)})),closed:true,groupId,layer:'geometry',color:'#20252a',width:state.gost.mainLine}));
-      state.objects.push(...created);state.selectedIds=created.map(o=>o.id);commit(before);renderAll();setMessage('Шестиконечная звезда создана из двух равносторонних треугольников');return;
+      const angle=Math.atan2(edge.y-center.y,edge.x-center.x),points=sixPointStarOutline(center,radius,{angle}).map(q=>({x:mm(q.x),y:mm(q.y)}));
+      const before=snapshot(),created={id:newId(),type:'polyline',name:'Шестиконечная звезда',points,closed:true,layer:'geometry',color:'#20252a',width:state.gost.mainLine,starOutline:true};
+      state.objects.push(created);state.selectedIds=[created.id];commit(before);renderAll();setMessage('Шестиконечная звезда создана одним замкнутым контуром без внутренних линий');return;
     }
     if(state.tool==='trim'){
       const clickedId=target?.getAttribute('data-id')||null;
@@ -1598,7 +1644,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       const direction=prompt('Направление взгляда для разреза:\n1 — со стороны слева от линии от первой точки ко второй\n2 — со стороны справа','1');
       if(direction!==null)addObject({type:'section',x:a.x,y:a.y,x2:p.x,y2:p.y,label:'А',viewSide:String(direction).trim()==='2'?-1:1,layer:'annotation'});
     }
-    else if(state.tool==='hatch')addObject({type:'hatch',x:a.x,y:a.y,x2:p.x,y2:p.y,layer:'annotation',spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),angle:Number($('hatchAngle').value)||45,pattern:$('hatchPattern').value,width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a'});
+    else if(state.tool==='hatch')addObject({type:'hatch',x:a.x,y:a.y,x2:p.x,y2:p.y,layer:'annotation',spacing:clamp(Number($('hatchSpacing').value)||3,.5,100),angle:hatchAngleValue(),pattern:$('hatchPattern').value,width:clamp(Number($('hatchWidth').value)||state.gost.thinLine,.05,1),color:$('hatchColor').value||'#20252a'});
     else if(['dimension','dimAuto','dimH','dimV','dimRad','dimDia'].includes(state.tool)){
       const kind=state.tool==='dimAuto'?(Math.abs(p.x-a.x)>=Math.abs(p.y-a.y)*2?'horizontal':Math.abs(p.y-a.y)>=Math.abs(p.x-a.x)*2?'vertical':'linear'):state.tool==='dimH'?'horizontal':state.tool==='dimV'?'vertical':state.tool==='dimRad'?'radius':state.tool==='dimDia'?'diameter':'linear';
       const requestedOffset=Number($('dimensionOffset').value),offsetSign=requestedOffset<0?-1:1,offset=offsetSign*Math.max(10,Math.abs(Number.isFinite(requestedOffset)?requestedOffset:10));
@@ -2328,7 +2374,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
   $('applyObjectRotationBtn').addEventListener('click',()=>rotateSelectedBy(Number($('objectRotationAngle').value)||0));
   $('objectRotationSlider').addEventListener('input',e=>{$('objectRotationAngle').value=e.target.value;});$('objectRotationSlider').addEventListener('change',e=>{rotateSelectedBy(Number(e.target.value)||0);e.target.value=0;$('objectRotationAngle').value='0';});$('objectRotationAngle').addEventListener('change',e=>{if(Number.isFinite(Number(e.target.value)))$('objectRotationSlider').value=clamp(Number(e.target.value),-180,180);});
   document.querySelectorAll('[data-rotate-step]').forEach(b=>b.addEventListener('click',()=>rotateSelectedBy(Number(b.dataset.rotateStep))));
-  $('hatchSelectedBoundaryBtn').addEventListener('click',createHatchFromSelectedBoundary);$('findClosedLoopsHatchBtn').addEventListener('click',findAndHatchClosedRegions);
+  $('hatchSelectedBoundaryBtn').addEventListener('click',createHatchFromSelectedBoundary);$('findClosedLoopsHatchBtn').addEventListener('click',findAndHatchClosedRegions);$('hatchSelectedRegionBtn').addEventListener('click',hatchSelectedRegion);
   document.querySelectorAll('[data-hatch-angle]').forEach(b=>b.addEventListener('click',()=>{$('hatchAngle').value=b.dataset.hatchAngle;}));
   $('objectWidth').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.width=clamp(Number(e.target.value)||.35,.05,3));renderAll();}});$('objectDash').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>{if(e.target.value==='WAVE'){o.linePattern='wave';o.width=state.gost.thinLine;delete o.dash;}else if(e.target.value==='ZIGZAG'){o.linePattern='zigzag';o.width=state.gost.thinLine;delete o.dash;}else{o.linePattern='';o.dash=e.target.value;}});renderAll();}});$('objectLayer').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.layer=e.target.value);renderAll();}});$('objectName').addEventListener('change',e=>{if(getSelected().length===1){commit();getSelected()[0].name=e.target.value;renderAll();}});$('objectLocked').addEventListener('change',e=>{if(getSelected().length){commit();getSelected().forEach(o=>o.locked=e.target.checked);renderAll();setMessage(e.target.checked?'Объекты заблокированы':'Блокировка снята');}});
   $('lockAllObjectsBtn').addEventListener('click',()=>{if(!state.objects.length){setMessage('На листе пока нет объектов');return;}const targets=state.objects.filter(o=>!o.locked);if(!targets.length){setMessage('Все объекты уже заблокированы');return;}commit();targets.forEach(o=>o.locked=true);renderAll();setMessage(`Заблокировано объектов: ${targets.length}`);});

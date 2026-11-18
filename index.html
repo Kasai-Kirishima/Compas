@@ -88,7 +88,7 @@
           <button class="tool-tile" data-tool="arc3"><span>⌒</span>Дуга (3 точки)</button>
           <button class="tool-tile" data-tool="ellipse"><span>⬭</span>Эллипс</button>
           <button class="tool-tile" data-tool="polygon"><span>⬡</span>Многоуг.</button>
-          <button class="tool-tile" data-tool="star6" title="Шестиконечная звезда из двух равносторонних треугольников"><span>✡</span>Звезда 6-кон.</button>
+          <button class="tool-tile" data-tool="star6" title="Шестиконечная звезда одним замкнутым внешним контуром без внутренних линий"><span>✡</span>Звезда 6-кон.</button>
           <button class="tool-tile" data-tool="spline"><span>∿</span>Сплайн</button>
           <button class="tool-tile" data-tool="breakline"><span>⌁</span>Линия обрыва</button>
           <button class="tool-tile" data-tool="section"><span>А—А</span>Линия сечения</button>
@@ -110,7 +110,8 @@
           <button class="tool-tile" data-tool="text" title="Создать многострочную надпись на листе"><span>Т</span>Добавить текст</button>
           <button class="tool-tile" data-tool="leader"><span>↗</span>Выноска</button>
           <button class="tool-tile" data-tool="centerMark"><span>⊕</span>Центр</button>
-          <button class="tool-tile" data-tool="hatch" title="Щёлкните внутри замкнутой области для штриховки с отсечением по контуру"><span>▨</span>Штриховка области</button>
+          <button class="tool-tile" data-tool="selectRegion" title="Отдельно выбрать замкнутую область перед штриховкой"><span>◫</span>Выбор области</button>
+          <button class="tool-tile" data-tool="hatch" title="Щёлкните внутри замкнутой области для штриховки под заданным углом"><span>▨</span>Штриховка области</button>
           <button class="tool-tile" data-tool="roughness"><span>▽</span>Шероховат.</button>
           <button class="tool-tile" data-tool="tolerance"><span>▤</span>Допуск</button>
           <button class="tool-tile" data-tool="weld"><span>△</span>Сварка</button>
@@ -251,12 +252,14 @@ R17
         <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.25"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
         <div class="panel-heading">ШТРИХОВКА</div>
         <label class="field-label">Тип штриховки<select id="hatchPattern"><option value="single">Одинарная</option><option value="cross">Перекрёстная</option><option value="solid">Заливка</option></select></label>
-        <div class="two-fields"><label class="field-label">Угол, °<input id="hatchAngle" type="number" value="45" step="5"></label><label class="field-label">Шаг, мм<input id="hatchSpacing" type="number" min="0.5" value="3" step="0.5"></label></div>
+        <div class="two-fields"><label class="field-label">Фиксированный угол, °<input id="hatchAngle" type="number" value="45" step="1"></label><label class="field-label">Шаг, мм<input id="hatchSpacing" type="number" min="0.5" value="3" step="0.5"></label></div>
+        <div class="muted-hint">Угол задаётся здесь один раз и одинаков для всех выбранных областей. Положение щелчка и направление выбора области угол не меняют. Допускается 0°.</div>
         <div class="two-fields"><label class="field-label">Толщина, мм<input id="hatchWidth" type="number" min="0.05" max="1" step="0.05" value="0.25"></label><label class="field-label">Цвет<input id="hatchColor" type="color" value="#20252a"></label></div>
         <div class="hatch-presets"><span>Быстрый угол:</span><button type="button" data-hatch-angle="0">0°</button><button type="button" data-hatch-angle="45">45°</button><button type="button" data-hatch-angle="90">90°</button><button type="button" data-hatch-angle="135">135°</button></div>
-        <button class="primary-btn" id="hatchSelectedBoundaryBtn" type="button">Заштриховать выделенный контур</button>
+        <button class="primary-btn" id="hatchSelectedRegionBtn" type="button">Заштриховать выбранную область</button>
+        <button class="secondary-btn" id="hatchSelectedBoundaryBtn" type="button">Заштриховать выделенный контур</button>
         <button class="secondary-btn" id="findClosedLoopsHatchBtn" type="button">Найти замкнутые области из линий и заштриховать</button>
-        <div class="muted-hint">Для ручной штриховки выберите инструмент «Штриховка области» и щёлкните внутри нужной замкнутой территории: программа найдёт границы, заполнит только внутреннюю область и оставит отверстия пустыми. Кнопка автопоиска штрихует все найденные области. Исходные линии не удаляются; штриховка не выходит за границы.</div>
+        <div class="muted-hint">Для отдельного выбора нажмите «Выбор области» и щёлкните внутри замкнутой территории. Область подсветится; затем нажмите «Заштриховать выбранную область». Можно также сразу выбрать инструмент «Штриховка области» и щёлкнуть внутри контура. Штрихи обрезаются по границе, отверстия остаются пустыми. Угол всегда берётся из поля выше.</div>
         <label class="check-row"><input type="checkbox" id="orthoToggle"> Ортогональное черчение (F8)</label>
         <label class="check-row"><input type="checkbox" id="objectSnapToggle" checked> Привязка к объектам</label>
         <div class="muted-hint">OSNAP: конечные точки, середины, центры окружностей/дуг/эллипсов, квадранты 0°/90°/180°/270° и пересечения кривых. Допуск привязки автоматически зависит от масштаба экрана.</div>

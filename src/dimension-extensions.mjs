@@ -152,3 +152,88 @@ export function dimensionExtensionGapFromDrag(spec, point, pointerStart, origina
   return dimensionExtensionFromDrag(spec, point, pointerStart, originalValue, min, max);
 }
 
+
+/**
+ * Resize a dimension annotation without introducing angular skew.
+ * Generic scene resizing scales X and Y independently; doing that to a
+ * diagonal dimension rotates its measured vector. Here the measured vector
+ * keeps its original direction, while its length responds to the scale
+ * projected along that vector. Offset and extension legs respond to the
+ * perpendicular scale. Radial and angular dimensions use a uniform scale so
+ * their rays and included angle remain unchanged.
+ */
+export function resizeDimensionPreservingOrientation(source, oldBounds, newBounds) {
+  if (!source || source.type !== 'dimension' || !oldBounds || !newBounds) return null;
+
+  const oldW = Math.max(0.2, Number(oldBounds.w) || 0.2);
+  const oldH = Math.max(0.2, Number(oldBounds.h) || 0.2);
+  const sx = Math.max(0.001, (Number(newBounds.w) || oldW) / oldW);
+  const sy = Math.max(0.001, (Number(newBounds.h) || oldH) / oldH);
+  const mapPoint = (x, y) => ({
+    x: Number(newBounds.x) + (Number(x) - Number(oldBounds.x)) * sx,
+    y: Number(newBounds.y) + (Number(y) - Number(oldBounds.y)) * sy,
+  });
+  const uniformScale = Math.sqrt(sx * sy);
+  const o = { ...source };
+  const kind = source.kind || 'linear';
+
+  // Dimension text height and arrow size are drafting settings, not geometric
+  // coordinates. Keep them fixed so a tall/narrow selection box cannot make
+  // lettering or arrows explode in size.
+  if (Number.isFinite(Number(source.labelDx))) o.labelDx = Number(source.labelDx) * sx;
+  if (Number.isFinite(Number(source.labelDy))) o.labelDy = Number(source.labelDy) * sy;
+
+  if (kind === 'angular') {
+    const center = mapPoint(source.x, source.y);
+    const scaleRay = (x, y) => ({
+      x: center.x + (Number(x) - Number(source.x)) * uniformScale,
+      y: center.y + (Number(y) - Number(source.y)) * uniformScale,
+    });
+    const first = scaleRay(source.x2, source.y2);
+    const second = scaleRay(source.x3, source.y3);
+    o.x = center.x; o.y = center.y;
+    o.x2 = first.x; o.y2 = first.y;
+    o.x3 = second.x; o.y3 = second.y;
+    if (Number.isFinite(Number(source.radius))) o.radius = Number(source.radius) * uniformScale;
+    return o;
+  }
+
+  if (kind === 'radius' || kind === 'diameter') {
+    const center = mapPoint(source.x, source.y);
+    o.x = center.x; o.y = center.y;
+    o.x2 = center.x + (Number(source.x2) - Number(source.x)) * uniformScale;
+    o.y2 = center.y + (Number(source.y2) - Number(source.y)) * uniformScale;
+    return o;
+  }
+
+  const x1 = Number(source.x), y1 = Number(source.y);
+  const x2 = Number(source.x2), y2 = Number(source.y2);
+  const dx = x2 - x1, dy = y2 - y1;
+  const length = Math.hypot(dx, dy);
+  if (!Number.isFinite(length) || length < 1e-8) {
+    const center = mapPoint(x1, y1);
+    o.x = center.x; o.y = center.y;
+    const fallback = mapPoint(x2, y2);
+    o.x2 = fallback.x; o.y2 = fallback.y;
+    return o;
+  }
+
+  const ux = dx / length, uy = dy / length;
+  // Scale the dimension along its own axis, without rotating it.
+  const alongScale = ux * ux * sx + uy * uy * sy;
+  // Scale its offset and witness legs in the perpendicular direction.
+  const normalScale = uy * uy * sx + ux * ux * sy;
+  const nextCenter = mapPoint((x1 + x2) / 2, (y1 + y2) / 2);
+  const nextLength = Math.max(0.2, length * alongScale);
+  const halfX = ux * nextLength / 2;
+  const halfY = uy * nextLength / 2;
+  o.x = nextCenter.x - halfX;
+  o.y = nextCenter.y - halfY;
+  o.x2 = nextCenter.x + halfX;
+  o.y2 = nextCenter.y + halfY;
+
+  for (const field of ['offset', 'extensionBeyond', 'extensionBeyondStart', 'extensionBeyondEnd', 'extensionGap', 'extensionGapStart', 'extensionGapEnd']) {
+    if (Number.isFinite(Number(source[field]))) o[field] = Number(source[field]) * normalScale;
+  }
+  return o;
+}

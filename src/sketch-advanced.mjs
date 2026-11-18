@@ -411,6 +411,22 @@ export function regularPolygonVertices(center, sides, measuredRadius, { mode = '
 }
 
 /**
+ * Return the single outer boundary of a six-pointed star (hexagram).
+ * Alternating outer tips and inner valleys produce one closed 12-vertex contour,
+ * without the internal crossing edges of the two-triangle construction.
+ */
+export function sixPointStarOutline(center, radius, { angle = -Math.PI / 2, innerRatio = 0.5 } = {}) {
+  if (!finitePoint(center)) throw new TypeError('Центр звезды задан неверно');
+  if (!(Number(radius) > 0) || !Number.isFinite(Number(radius))) throw new RangeError('Радиус звезды должен быть положительным');
+  const r = Number(radius), inner = clamp(Number(innerRatio) || 0.5, 0.1, 0.9);
+  return Array.from({ length: 12 }, (_, i) => {
+    const a = Number(angle) + Math.PI * i / 6;
+    const rr = i % 2 === 0 ? r : r * inner;
+    return { x: center.x + Math.cos(a) * rr, y: center.y + Math.sin(a) * rr };
+  });
+}
+
+/**
  * A regular six-pointed star (hexagram) as two separately editable equilateral
  * triangles sharing one circumcircle. The caller can place both in one group.
  */
