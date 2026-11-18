@@ -3,3 +3,4 @@ export * from './eraser.mjs';
 export * from './history.mjs';
 export * from './templates.mjs';
 export * from './cutouts.mjs';
+export * from './project-file.mjs';

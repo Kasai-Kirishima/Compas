@@ -1,6 +1,14 @@
-# CAD Geometry Core 1.5.20
+# CAD Geometry Core 1.5.22
 
 A dependency-free JavaScript ES-module geometry core and browser demo for 2D mechanical drafting.
+
+## 1.5.22 full project exchange (.kcad)
+
+Use **Экспорт проекта** to download a `.kcad` file. It preserves the complete editable drawing: all geometry, open/closed cut contours, dimensions and individual arrow/label settings, text with multi-line content and frames, title-block/frame template and per-cell overrides, sheet and GOST/DSTU settings, layers/visibility, ruler and viewport options, and embedded image references. Use **Импорт проекта** to restore it; the application automatically creates a separate “— импорт” project in the local file library instead of overwriting the source. Legacy plain `.json` project files remain importable.
+
+## 1.5.21 repeated-cut opening preservation
+
+When an earlier blind/no-bottom pass leaves an open contour, the editor temporarily closes it for the next Boolean calculation. The temporary segment joining the two open endpoints is now tracked and removed again after the calculation (including any sub-segments created where a new pass crosses it). This prevents a previous missing bottom wall from reappearing on the second, third, or later pass. The selected wall mode applies only to the newly created cut; previously open ends stay open.
 
 ## Included capabilities
 

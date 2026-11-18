@@ -1,3 +1,10 @@
+## 1.5.21 — предыдущие открытые концы больше не закрываются при повторном проходе
+
+- Исправлен баг, из-за которого при втором/третьем проходе виртуальная замыкающая линия предыдущего выреза попадала обратно в результат и становилась видимой нижней стенкой.
+- При повторной Boolean-обработке программа теперь отдельно запоминает сегмент, которым временно замыкает открытую полилинию, и удаляет его из результата после вычисления. Если новая полоса пересекает этот сегмент, удаляются также все образовавшиеся части виртуальной линии.
+- Старые открытые концы остаются открытыми независимо от режима следующего прохода. Выбранный режим управляет только стенками нового выреза: предыдущий «Без нижней стенки» не превращается в закрытый паз после следующей операции.
+- Добавлены регрессионные тесты: второй проход в другом месте, третий глухой проход с двумя независимыми открытыми концами, а также повторная обработка в режиме «Без стенок».
+
 ## 1.5.20 — повторные проходы заново строят боковые стенки
 
 - Исправлен повторный прямой проход по открытому контуру, полученному после предыдущего выреза. Раньше повторная операция только удаляла пересекающиеся сегменты пути и не добавляла боковые стенки.
@@ -80,6 +87,14 @@
 - Добавлены автоматические тесты направления, масштаба и нормализации событий колеса.
 
 # Changelog
+
+## 1.5.22 — полный экспорт и импорт редактируемого проекта (.kcad)
+
+- Added a dedicated native `.kcad` project-file envelope with schema versioning. The file contains the complete editable document rather than a flattened drawing export.
+- Preserves every geometry and annotation object record verbatim, including dimensions and their arrow/text settings, multiline text and frames, cut features, layer/visibility/locking/style fields, and embedded raster reference data URLs.
+- Preserves sheet format, title-block template, title-cell overrides, main title fields, GOST/DSTU profile settings, assignment-dimension notes, ruler, viewport pan/zoom, grid settings, object/grid snaps, orthogonal mode and layer visibility.
+- Import accepts the new `.kcad` format and legacy plain-document `.json` files. It restores the complete drawing and automatically saves it as a new, separate project-library entry with an “— импорт” suffix; the source project is never overwritten.
+- Added full round-trip, compatibility, schema-version rejection, project-name parsing and main-editor UI-contract tests.
 
 ## 1.5.16 — прямой проходной вырез через несколько контуров
 
