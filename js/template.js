@@ -1,6 +1,6 @@
-/* Ukrainian-language editable drawing sheet templates.
-   Includes a user-provided custom A4 layout, educational vector reconstructions of GOST 2.104-2006 forms 1/2/2a/2b, plus GOST 2.106-96 specification layouts.
-   These are editable teaching templates, not certified or legally attested standard files. */
+/* Editable ESKD drawing sheet templates.
+   Includes two A3 portrait custom presets, GOST 2.104-2006 forms 1/2/2a/2b, and GOST 2.106-96 specification layouts.
+   Custom/educational variants are drafting aids, not certified standard files. */
 (function () {
   const BLUE = '#000000';
   const TEXT = '#000000';
@@ -53,6 +53,33 @@
     bands.forEach(([a,b,label])=>{s+=rect(x1,a,x3-x1,b-a,.20);s+=line(x2,a,x2,b,.18);s+=vlabel((x1+x2)/2,a,b,label,1.55);});
     return s;
   }
+  // ГОСТ 2.104-2006, форма 1: supplemental fields along the left binding margin.
+  // Segment heights follow the standard form: 60, 60, 35, 25, 25, 35, 25 mm,
+  // with the 22 mm break between the upper reference fields and lower archive fields.
+  function addGostForm1AuxFields(s, h=297) {
+    if (h < 280) return s;
+    const x0=5, x1=12, x2=20;
+    // Auxiliary archive fields follow the order shown in Appendix A.
+    // On A3 portrait the sequence is proportionally distributed over the longer binding edge.
+    const baseBands=[
+      [5,65,'Перше застос.'],
+      [65,125,'Довід. №'],
+      [147,182,'Підпис і дата'],
+      [182,207,'Інв. № дубл.'],
+      [207,232,'Зам. інв. №'],
+      [232,267,'Підпис і дата'],
+      [267,292,'Інв. № ориг.']
+    ];
+    const k=(h-10)/287;
+    const bands=h>300?baseBands.map(([a,b,label])=>[5+(a-5)*k,5+(b-5)*k,label]):baseBands;
+    bands.forEach(([a,b,label])=>{
+      s+=rect(x0,a,x2-x0,b-a,.25);
+      s+=line(x1,a,x1,b,.25);
+      s+=txt((x0+x1)/2,(a+b)/2,label,2.5,'middle',-90,{slanted:true});
+    });
+    return s;
+  }
+
   function form1(w,h,d) {
     let s='';
     s+=rect(0,0,w,h,.12,'#000000');
@@ -130,33 +157,104 @@
   }
 
   // Standardized, clean ESKD/GOST-style forms, kept separate from the user's custom template.
-  function basicFrame(w,h){let s='';s+=rect(0,0,w,h,.12,'#000000');s+=rect(20,5,w-25,h-10,.32);return s;}
+  function basicFrame(w,h){return rect(20,5,w-25,h-10,.5);}
   function eskdForm1(w,h,d,format){
-    let s=basicFrame(w,h);if(h>=280)s=addAuxFields(s,5,h-5);const bx=w-190,by=h-60;
-    s+=rect(bx,by,185,55,.32);
-    const X=[bx,bx+7,bx+17,bx+40,bx+55,bx+65,bx+135,bx+155,bx+170,bx+185];
-    // Revision register and approval/signature columns.
-    [1,2,3,4,5].forEach(i=>s+=line(X[i],by,X[i],by+55,.18));
-    [5,10].forEach(v=>s+=line(bx,by+v,bx+65,by+v,.18));
-    [19,28,37,46].forEach(v=>s+=line(bx,by+v,bx+65,by+v,.18));
-    s+=cell(X[0],X[1],by+4,'Зм.',1.25)+cell(X[1],X[2],by+4,'Арк.',1.15)+cell(X[2],X[3],by+4,'№ докум.',1.15)+cell(X[3],X[4],by+4,'Підпис',1.15)+cell(X[4],X[5],by+4,'Дата',1.15);
-    [['Розробив','developer'],['Перевірив','checker'],['Т. контр.','technical'],['Н. контр.','normative'],['Затвердив','approved']].forEach((r,i)=>{const y=by+16+i*9;s+=txt(bx+1, y,r[0],1.45);if(d[r[1]])s+=txt(bx+18,y,d[r[1]],1.35);});
-    // Document name, designation and material.
-    s+=line(X[5],by+15,X[9],by+15,.18);s+=line(X[5],by+37,X[8],by+37,.18);s+=line(X[5],by+46,X[9],by+46,.18);
-    s+=txt(bx+67,by+5.5,'Найменування виробу / документа',1.45);
-    s+=txt(bx+67,by+24,d.title||'Найменування деталі',2.15);
-    s+=txt(bx+67,by+33,'Позначення: '+(d.code||'КРЕСЛЕННЯ.001'),1.45);
-    s+=txt(bx+67,by+44,'Матеріал: '+(d.material||'не зазначено'),1.4);
-    // Litera, mass, scale and sheet numbering.
-    [X[7],X[8]].forEach(x=>s+=line(x,by,x,by+37,.18));
-    s+=line(X[6],by+9,X[9],by+9,.18);s+=line(X[6],by+28,X[9],by+28,.18);s+=line(X[6],by+37,X[9],by+37,.18);s+=line(X[7]+5,by+28,X[7]+5,by+55,.18);
-    s+=txt(X[6]+2,by+7,'Літ.',1.25);s+=txt(X[7]+2,by+7,'Маса',1.25);s+=txt(X[8]+2,by+7,'Масштаб',1.2);
-    s+=cell(X[6],X[7],by+20,d.liter||'У',1.8)+cell(X[7],X[8],by+20,d.mass||'—',1.7)+cell(X[8],X[9],by+20,d.scale||'1:1',1.8);
-    s+=txt(X[6]+2,by+34,'Арк.',1.2);s+=txt(X[7]+7,by+34,'Аркушів',1.2);
-    s+=cell(X[6],X[7]+5,by+45,d.sheet||'1',1.5)+cell(X[7]+5,X[9],by+45,d.sheets||'1',1.5);
-    s+=txt(bx+92,by+54,'Копіював',1.4,'middle');s+=txt(bx+183,by+54,'Формат '+format,1.4,'end');
+    // ГОСТ 2.104-2006, форма 1, portrait A3 layout (main title block along the short side).
+    let s=basicFrame(w,h);
+    const gtxt=(x,y,value,size=2.5,anchor='start',rotate=0,opts={})=>txt(x,y,value,size,anchor,rotate,{...opts,slanted:true});
+    const gcell=(x1,x2,y,value,size=2.5)=>gtxt((x1+x2)/2,y,value,size,'middle');
+    const clean=(value,fallback='')=>{
+      if(value===null||value===undefined) return fallback;
+      const v=String(value).trim();
+      return /^(?:none|null|undefined)$/i.test(v)?fallback:v;
+    };
+    s=addGostForm1AuxFields(s,h);
+    const bx=w-190, by=h-60, right=bx+185;
+
+    // Graph 26: on formats larger than A4 with the title block along the short side,
+    // the repeated document designation is placed vertically and rotated by 90 degrees.
+    const code=clean(d.code,'');
+    s+=rect(w-19,5,14,70,.35);
+    if(code) s+=gtxt(w-12,40,code,2.5,'middle',90,{slanted:true});
+
+    // Form 1 overall dimensions: 185 x 55 mm. X dimensions: 7, 10, 23, 15, 10, 70, 50.
+    s+=rect(bx,by,185,55,.5);
+    const X=[bx,bx+7,bx+17,bx+40,bx+55,bx+65,bx+135,bx+150,bx+167,bx+185];
+
+    // Change register: 11 rows of 5 mm. The five header columns are 7/10/23/15/10 mm.
+    [X[1],X[2],X[3],X[4],X[5]].forEach(x=>s+=line(x,by,x,by+55,.25));
+    [X[2],X[3],X[4]].forEach(x=>s+=line(x,by+5,x,by+55,.25));
+    for(let row=1;row<=10;row++) s+=line(bx,by+row*5,X[5],by+row*5,.25);
+    s+=gcell(X[0],X[1],by+3.6,'Зм.',2.5)
+      +gcell(X[1],X[2],by+3.6,'Арк.',2.5)
+      +gcell(X[2],X[3],by+3.6,'№ докум.',2.5)
+      +gcell(X[3],X[4],by+3.6,'Підпис',2.5)
+      +gcell(X[4],X[5],by+3.6,'Дата',2.5);
+    const roles=[['Розроб.','developer'],['Перевір.','checker'],['Т. контр.','technical'],['Н. контр.','normative'],['Затв.','approved']];
+    roles.forEach(([label,key],i)=>{
+      const baseline=by+8.6+i*5;
+      s+=gtxt(bx+1,baseline,label,2.5);
+      const value=clean(d[key],'');
+      if(value) s+=gtxt(X[2]+1,baseline,value,2.5);
+    });
+
+    // Graph 2 (designation), graph 1 (product/document name), and graph 3 (material).
+    // Graph 2 is 120 x 15 mm; graph 1 is 70 x 25 mm; graph 3 is 70 x 15 mm.
+    s+=line(X[5],by+15,right,by+15,.25);
+    s+=line(X[5],by+40,X[6],by+40,.25);
+    const designation=clean(d.code,'');
+    const titleValue=clean(d.title,'Найменування деталі');
+    if(designation) s+=gtxt(X[5]+2,by+10.5,designation,3.5);
+    const titleSize=titleValue.length<=24?5:(titleValue.length<=34?3.5:2.5);
+    s+=gtxt(X[5]+35,by+30,titleValue,titleSize,'middle',0,{slanted:true});
+    const material=clean(d.material,'');
+    if(material) s+=gtxt(X[5]+2,by+49,material,2.5);
+
+    // Graphs 4, 5 and 6 have widths 15, 17 and 18 mm.
+    [X[7],X[8]].forEach(x=>s+=line(x,by+15,x,by+35,.25));
+    s+=line(X[6],by+20,right,by+20,.25);
+    s+=line(X[6],by+35,right,by+35,.25);
+    s+=line(X[6],by+40,right,by+40,.25);
+    s+=gtxt((X[6]+X[7])/2,by+18.3,'Літ.',2.5,'middle');
+    s+=gtxt((X[7]+X[8])/2,by+18.3,'Маса',2.5,'middle');
+    s+=gtxt((X[8]+X[9])/2,by+18.3,'Масштаб',2.5,'middle');
+    const liter=clean(d.liter,'');
+    const mass=clean(d.mass,'');
+    const scale=clean(d.scale,'1:1');
+    if(liter) s+=gcell(X[6],X[7],by+30,liter,3.5);
+    if(mass) s+=gcell(X[7],X[8],by+30,mass,3.5);
+    s+=gcell(X[8],X[9],by+30,scale,3.5);
+
+    // Graphs 7 and 8 share the 5 mm row. Graph 7 is blank for a one-sheet document.
+    s+=line(X[6]+20,by+35,X[6]+20,by+40,.25);
+    const sheet=clean(d.sheet,'1');
+    const sheets=clean(d.sheets,'1');
+    if(Number(sheets)>1) s+=gcell(X[6],X[6]+20,by+38.4,`Арк. ${sheet}`,2.5);
+    s+=gcell(X[6]+20,right,by+38.4,`Аркушів ${sheets}`,2.5);
+
+    // Graph 9: issuing organisation, shown on two legible standard-height lines.
+    const organisation=clean(d.company,'');
+    if(organisation){
+      const words=organisation.split(/\s+/); let split=words.length;
+      if(words.length>1){
+        let best=Infinity;
+        for(let i=1;i<words.length;i++){
+          const a=words.slice(0,i).join(' '), b=words.slice(i).join(' ');
+          const score=Math.max(a.length,b.length)+Math.abs(a.length-b.length)*.05;
+          if(score<best){best=score;split=i;}
+        }
+      }
+      const first=words.slice(0,split).join(' '), second=words.slice(split).join(' ');
+      s+=gtxt((X[6]+X[9])/2,by+47,first,2.5,'middle');
+      if(second) s+=gtxt((X[6]+X[9])/2,by+52,second,2.5,'middle');
+    }
+
+    // Graphs 31 and 32 lie in the 5 mm sheet margin below the 185 x 55 mm Form 1 block.
+    s+=gtxt((bx+X[6])/2,h-1.4,'Копіював',2.5,'middle');
+    s+=gtxt(right-1,h-1.4,'Формат '+clean(format,'А3'),2.5,'end');
     return s;
   }
+
   function textForm2(w,h,d,format){
     // Form 2 is for the first/title page of text design documents. This is an editable teaching reconstruction.
     let s=basicFrame(w,h);if(h>=280)s=addAuxFields(s,5,h-5);
@@ -377,6 +475,85 @@
     return s;
   }
 
+
+  // A3 drawing sheet reconstructed from the user's technical drawing sample.
+  // The central field is empty; all title-block lettering remains editable in the app.
+  function technicalA3Template(w,h,d={}){
+    const BLUE='#2147d0', INK='#111111';
+    const ln=(x1,y1,x2,y2,sw=.32)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${BLUE}" stroke-width="${sw}" fill="none"/>`;
+    const rc=(x,y,width,height,sw=.45)=>`<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="none" stroke="${BLUE}" stroke-width="${sw}"/>`;
+    const tx=(x,y,value,size=2.2,anchor='start',rotate=0)=>txt(x,y,value,size,anchor,rotate,{
+      slanted:true,italic:true,fontFamily:"'GOST type B','ISO 3098','DejaVu Sans',Arial,sans-serif",color:INK
+    });
+    const frameX=20, frameY=5, frameW=w-25, frameH=h-10;
+    let out='';
+    // The blue drawing frame is rendered on the dedicated sheet-frame layer,
+    // so it remains visible when the title-block/template layer is hidden.
+
+    // Archival / reference fields in the left margin, matching the sample's interrupted strip.
+    const ax0=7.5,ax1=13.75,ax2=20;
+    const bands=[
+      [5,65,'Перше застос.'],[65,125,'Довідковий №'],
+      [145,180,'Підпис і дата'],[180,206,'Інв. № дубл.'],[206,231,'Зам. інв. №'],
+      [231,256,'Підпис і дата'],[256,292,'Інв. № ориг.']
+    ];
+    bands.forEach(([a,b,label],i)=>{
+      out+=ln(ax0,a,ax2,a,.32)+ln(ax0,b,ax2,b,.42);
+      out+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.28);
+      out+=tx((ax0+ax1)/2,(a+b)/2+1.1,label,1.55,'middle',-90);
+    });
+
+    // Small document-designation cell at the upper-left corner of the drawing field.
+    const code=String(d.code||'8.090220 АР ХХ ХХ 01');
+    out+=rc(20,5,70,14,.42);
+    out+=tx(55,12.7,code,2.65,'middle',180);
+
+    // Main inscription: fixed 185 x 55 mm, anchored 5 mm from right and bottom edges.
+    const bx=w-190, by=h-60, right=bx+185;
+    out+=rc(bx,by,185,55,.52);
+    const lx=[bx+7,bx+17,bx+40,bx+55,bx+65];
+    lx.forEach(x=>out+=ln(x,by,x,by+55,.27));
+    // Revision/signature register (left 65 mm) with a header row and five signature rows.
+    for(let i=1;i<=10;i++)out+=ln(bx,by+i*5,bx+65,by+i*5,.24);
+    const headerY=by+28.25;
+    [['Зм.',bx,bx+7],['Арк.',bx+7,bx+17],['№ докум.',bx+17,bx+40],['Підп.',bx+40,bx+55],['Дата',bx+55,bx+65]].forEach(([label,a,b])=>{
+      out+=tx((a+b)/2,headerY,label,1.35,'middle');
+    });
+    const roles=['Разраб.','Пров.','Т. контр.','Н. контр.','Утв.'];
+    roles.forEach((role,i)=>out+=tx(bx+1,by+33.3+i*5,role,1.45,'start'));
+
+    // Central designation, detail name and variant fields.
+    const midX=bx+135;
+    out+=ln(bx+65,by+15,right,by+15,.35);
+    out+=ln(bx+65,by+35,bx+135,by+35,.35);
+    out+=tx(bx+125,by+9.5,code,4.8,'middle');
+    out+=tx(bx+100,by+28.4,d.title||'Корпус',8.2,'middle');
+    out+=tx(bx+100,by+48.6,'Вариант 8',6.6,'middle');
+
+    // Right-hand data cells: literature, mass, scale, sheet captions and organisation.
+    out+=ln(midX,by+15,midX,by+55,.3);
+    out+=ln(bx+150,by+15,bx+150,by+35,.25);
+    out+=ln(bx+167,by+15,bx+167,by+35,.25);
+    out+=ln(midX,by+20,right,by+20,.22);
+    out+=tx(bx+142.5,by+18.4,'Літ.',1.55,'middle');
+    out+=tx(bx+158.5,by+18.4,'Маса',1.55,'middle');
+    out+=tx(bx+176,by+18.4,'Масштаб',1.45,'middle');
+    out+=tx(bx+142.5,by+30.5,String(d.liter||''),2.15,'middle');
+    out+=tx(bx+158.5,by+30.5,String(d.mass||''),2.15,'middle');
+    out+=tx(bx+176,by+30.5,String(d.scale||'1:1'),2.15,'middle');
+    out+=ln(midX,by+35,right,by+35,.25)+ln(midX,by+40,right,by+40,.25);
+    out+=ln(bx+160,by+35,bx+160,by+40,.22);
+    out+=tx(bx+147.5,by+38.5,'Арк.',1.45,'middle');
+    out+=tx(bx+172.5,by+38.5,'Аркушів',1.45,'middle');
+    out+=tx(bx+160,by+50.8,d.company||'ШЦМГУ',4.2,'middle');
+
+    // Footer captions below the frame.
+    out+=tx(bx+92,h-1.15,'Копіював',1.6,'middle');
+    out+=tx(w-5,h-1.15,'Формат '+String(formatLabel(w,h)),1.55,'end');
+    return out;
+  }
+  function formatLabel(w,h){return (Math.max(w,h)===420?'А3':(Math.max(w,h)===297?'А4':(Math.max(w,h)===594?'А2':(Math.max(w,h)===841?'А1':'А0'))));}
+
   function blankSheet(w,h){return basicFrame(w,h);}
 
   window.KompasTemplate={
@@ -390,7 +567,7 @@
       const {w,h}=this.dimensions(format),d=data||{},f=form||'user-template';
       templateTextCoordinateCounts={};
       activeTemplateTextOverrides=d.templateTextOverrides&&typeof d.templateTextOverrides==='object'?d.templateTextOverrides:{};
-      if(f==='lab5-template')return lab5Template(w,h,d);
+      if(f==='lab5-template'||f==='technical-a3-template')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
       if(f==='blank')return blankSheet(w,h);
       if(f==='gost-form1')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
       if(f==='form2')return textForm2(w,h,d,String(format).replace(/[PL]$/,''));

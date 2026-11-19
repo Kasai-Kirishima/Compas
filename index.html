@@ -79,6 +79,7 @@
           <button class="tool-tile" data-tool="ruler"><span>▤</span>Линейка</button>
           <button class="tool-tile" data-tool="freehand"><span>✎</span>Свободная линия</button>
           <button class="tool-tile" data-tool="construction"><span>┄</span>Всп. линия</button>
+          <button class="tool-tile" data-tool="xline"><span>↔</span>Бесконечная прямая</button><button class="tool-tile" data-tool="ray"><span>⇢</span>Луч</button>
           <button class="tool-tile" data-tool="centerline"><span>┄·</span>Осевая</button>
           <button class="tool-tile" data-tool="polyline"><span>⌁</span>Ломаная</button>
           <button class="tool-tile" data-tool="rect"><span>□</span>Прямоуг.</button>
@@ -116,6 +117,7 @@
           <button class="tool-tile" data-tool="tolerance"><span>▤</span>Допуск</button>
           <button class="tool-tile" data-tool="weld"><span>△</span>Сварка</button>
           <button class="tool-tile" data-tool="table"><span>▦</span>Таблица</button>
+          <button class="tool-tile" data-action="centerMarks" title="Создать маркеры центров для всех выбранных окружностей"><span>⊕</span>Центры отверстий</button>
           <button class="tool-tile" data-tool="techReq"><span>≡</span>Требования</button>
         </div>
 
@@ -167,8 +169,8 @@
           <button class="secondary-btn" data-action="rotate">Повернуть</button>
           <button class="secondary-btn" data-action="mirror">Зеркально…</button>
           <button class="secondary-btn" data-action="scale">Масштабировать</button>
-          <button class="secondary-btn" data-action="offset">Эквидистанта</button>
-          <button class="secondary-btn" data-action="fillet">Скруглить</button>
+          <button class="secondary-btn" data-action="offset">Смещение / Offset</button>
+          <button class="secondary-btn" data-action="fillet">Сопряжение / Fillet</button>
           <button class="secondary-btn" data-action="chamfer">Фаска</button>
           <button class="secondary-btn" data-action="arrayRect">Массив по сетке</button>
           <button class="secondary-btn" data-action="arrayPolar">Круговой массив…</button><button class="secondary-btn" data-action="repeatPolarArray">Повторить круговой массив</button><div class="muted-hint action-wide-hint">Для отворів: створіть одне коло на потрібному радіусі → виділіть його → «Круговий масив» → 5 → вкажіть центр деталі → 360°. Кількість включає оригінал.</div>
@@ -209,7 +211,8 @@
         <label class="field-label">Сторон многоугольника<input id="polygonSides" type="number" min="3" max="24" value="6"></label>
         <label class="field-label">Способ задания размера многоугольника<select id="polygonMode"><option value="circumradius">По вершинам — радиус от центра до вершины</option><option value="acrossFlats">По граням — размер между параллельными сторонами</option><option value="inradius">По апофеме — от центра до стороны</option></select></label>
         <div class="muted-hint">При режиме «По граням» щёлкните на расстоянии от центра до середины стороны: для шестигранника 40 мм между гранями укажите точку на расстоянии 20 мм от центра. При режиме «По вершинам» указывайте расстояние до вершины.</div>
-        <label class="field-label">Радиус скругления, мм<input id="roundingRadius" type="number" min="0" max="50" step="0.5" value="3"></label>
+        <label class="field-label">Радиус скругления прямоугольника, мм<input id="roundingRadius" type="number" min="0" max="50" step="0.5" value="3"></label>
+        <label class="field-label">Построение окружности<select id="circleInputMode"><option value="radius">Центр + радиус</option><option value="diameter">Центр + диаметр</option></select></label>
         <label class="field-label">Шаг сетки, мм<input id="gridStep" type="number" min="0.1" max="100" step="0.5" value="5"></label>
         <div class="panel-heading">ЛИНЕЙКА И ТОЧНОСТЬ</div>
         <div class="panel-heading">РЕФЕРЕНС / ПОДЛОЖКА</div>
@@ -266,16 +269,30 @@ R17
         <button class="secondary-btn" id="findClosedLoopsHatchBtn" type="button">Найти замкнутые области из линий и заштриховать</button>
         <div class="muted-hint">Для автоматической обработки нажмите «Найти замкнутые области из линий и заштриховать»: все области получат одну общую сетку под единым углом, а каждое внутреннее отверстие будет исключено. При ручном выборе области используется та же сетка, рассчитанная по всему чертежу. Для примера на изображении подойдут 45° и шаг около 3 мм. Доступны быстрые углы с шагом 15° и точная настройка.</div>
         <label class="check-row"><input type="checkbox" id="orthoToggle"> Ортогональное черчение (F8)</label>
-        <label class="check-row"><input type="checkbox" id="objectSnapToggle" checked> Привязка к объектам</label>
-        <div class="muted-hint">OSNAP: конечные точки, середины, центры окружностей/дуг/эллипсов, квадранты 0°/90°/180°/270° и пересечения кривых. Допуск привязки автоматически зависит от масштаба экрана.</div>
+        <label class="check-row"><input type="checkbox" id="objectSnapToggle" checked> OSNAP — привязка к объектам</label>
+        <div class="snap-mode-grid" aria-label="Режимы объектных привязок">
+          <label class="check-row"><input type="checkbox" id="snapEndpointToggle" checked> Конечная точка</label>
+          <label class="check-row"><input type="checkbox" id="snapMidpointToggle" checked> Середина</label>
+          <label class="check-row"><input type="checkbox" id="snapCenterToggle" checked> Центр</label>
+          <label class="check-row"><input type="checkbox" id="snapIntersectionToggle" checked> Пересечение</label>
+          <label class="check-row"><input type="checkbox" id="snapQuadrantToggle" checked> Квадрант</label>
+          <label class="check-row"><input type="checkbox" id="snapTangentToggle" checked> Касательная</label>
+        </div>
+        <div class="muted-hint">Привязка «Касательная» рассчитывает точку касания от предыдущей указанной точки к окружности или дуге. При наведении появляется маркер типа привязки.</div>
         <label class="check-row"><input type="checkbox" id="gridToggle"> Сетка</label>
         <label class="check-row"><input type="checkbox" id="snapToggle"> Привязка к сетке</label>
-        <div class="panel-heading spaced">БІБЛІОТЕКА ШАБЛОНІВ</div><label class="field-label">Вибрати шаблон<select id="templateQuickSelect"><option value="user-template">Мій шаблон із зображення</option><option value="lab5-template">Лабораторна робота 5 — чистий шаблон без моделі</option><option value="gost-form1">ДСТУ ГОСТ 2.104 — форма 1</option><option value="form2">ДСТУ ГОСТ 2.104 — форма 2</option><option value="form2a">ДСТУ ГОСТ 2.104 — форма 2а</option><option value="form2b-odd">ДСТУ ГОСТ 2.104 — форма 2б (додаткові графи ліворуч)</option><option value="form2b-even">ДСТУ ГОСТ 2.104 — форма 2б (додаткові графи праворуч)</option><option value="spec-form1">Специфікація (ГОСТ 2.106-96) — форма 1</option><option value="spec-form1a">Специфікація (ГОСТ 2.106-96) — форма 1а</option><option value="blank">Чистий лист із рамкою</option></select></label><label class="field-label">Формат аркуша<select id="paperFormat"><option value="A4P">A4 · книжный</option><option value="A4L">A4 · альбомный</option><option value="A3L">A3 · альбомный</option><option value="A3P">A3 · книжный</option><option value="A2L">A2 · альбомный</option><option value="A2P">A2 · книжный</option><option value="A1L">A1 · альбомный</option><option value="A1P">A1 · книжный</option><option value="A0L">A0 · альбомный</option><option value="A0P">A0 · книжный</option><option value="A5L">A5 · альбомний (210×148)</option><optgroup label="Додаткові формати за ГОСТ 2.301"><option value="A0x2">A0×2 · 1189×1682</option><option value="A0x3">A0×3 · 1189×2523</option><option value="A1x3">A1×3 · 841×1783</option><option value="A1x4">A1×4 · 841×2378</option><option value="A2x3">A2×3 · 594×1261</option><option value="A2x4">A2×4 · 594×1682</option><option value="A2x5">A2×5 · 594×2102</option><option value="A3x3">A3×3 · 420×891</option><option value="A3x4">A3×4 · 420×1189</option><option value="A3x5">A3×5 · 420×1486</option><option value="A3x6">A3×6 · 420×1783</option><option value="A3x7">A3×7 · 420×2080</option><option value="A4x3">A4×3 · 297×630</option><option value="A4x4">A4×4 · 297×841</option><option value="A4x5">A4×5 · 297×1051</option><option value="A4x6">A4×6 · 297×1261</option><option value="A4x7">A4×7 · 297×1471</option><option value="A4x8">A4×8 · 297×1682</option><option value="A4x9">A4×9 · 297×1892</option></optgroup></select></label>
+        <div class="panel-heading spaced">БІБЛІОТЕКА ШАБЛОНІВ</div><label class="field-label">Вибрати шаблон<select id="templateQuickSelect"><option value="user-template">Мій шаблон із зображення</option><option value="lab5-template">Лабораторная работа №5 — А3 книжный, ГОСТ форма 1</option><option value="technical-a3-template">Технический чертёж (по образцу) — А3 книжный, ГОСТ форма 1</option><option value="gost-form1">ДСТУ ГОСТ 2.104 — форма 1</option><option value="form2">ДСТУ ГОСТ 2.104 — форма 2</option><option value="form2a">ДСТУ ГОСТ 2.104 — форма 2а</option><option value="form2b-odd">ДСТУ ГОСТ 2.104 — форма 2б (додаткові графи ліворуч)</option><option value="form2b-even">ДСТУ ГОСТ 2.104 — форма 2б (додаткові графи праворуч)</option><option value="spec-form1">Специфікація (ГОСТ 2.106-96) — форма 1</option><option value="spec-form1a">Специфікація (ГОСТ 2.106-96) — форма 1а</option><option value="blank">Чистий лист із рамкою</option></select></label><label class="field-label">Формат аркуша<select id="paperFormat"><option value="A4P">A4 · книжный</option><option value="A4L">A4 · альбомный</option><option value="A3L">A3 · альбомный</option><option value="A3P">A3 · книжный</option><option value="A2L">A2 · альбомный</option><option value="A2P">A2 · книжный</option><option value="A1L">A1 · альбомный</option><option value="A1P">A1 · книжный</option><option value="A0L">A0 · альбомный</option><option value="A0P">A0 · книжный</option><option value="A5L">A5 · альбомний (210×148)</option><optgroup label="Додаткові формати за ГОСТ 2.301"><option value="A0x2">A0×2 · 1189×1682</option><option value="A0x3">A0×3 · 1189×2523</option><option value="A1x3">A1×3 · 841×1783</option><option value="A1x4">A1×4 · 841×2378</option><option value="A2x3">A2×3 · 594×1261</option><option value="A2x4">A2×4 · 594×1682</option><option value="A2x5">A2×5 · 594×2102</option><option value="A3x3">A3×3 · 420×891</option><option value="A3x4">A3×4 · 420×1189</option><option value="A3x5">A3×5 · 420×1486</option><option value="A3x6">A3×6 · 420×1783</option><option value="A3x7">A3×7 · 420×2080</option><option value="A4x3">A4×3 · 297×630</option><option value="A4x4">A4×4 · 297×841</option><option value="A4x5">A4×5 · 297×1051</option><option value="A4x6">A4×6 · 297×1261</option><option value="A4x7">A4×7 · 297×1471</option><option value="A4x8">A4×8 · 297×1682</option><option value="A4x9">A4×9 · 297×1892</option></optgroup></select></label>
         <label class="check-row"><input type="checkbox" id="templateToggle" checked> Показывать шаблон</label>
         <div class="panel-heading">СЛОИ</div>
         <div class="layer-row"><label><input type="checkbox" id="geometryVisible" checked> Геометрия</label><span class="layer-dot blue"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="dimensionsVisible" checked> Размеры и текст</label><span class="layer-dot amber"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="constructionVisible" checked> Вспомогательные</label><span class="layer-dot green"></span></div>
+        <div class="panel-heading spaced">ТИПЫ ЧЕРТЁЖНЫХ ЛИНИЙ</div>
+        <label class="field-label">Тип линии для новых примитивов<select id="drawingLineRole"><option value="main">Основная сплошная</option><option value="thin">Тонкая сплошная</option><option value="center">Осевая штрихпунктирная</option></select></label>
+        <label class="field-label">Толщина новой линии, мм<input id="drawingLineWidth" type="number" min="0.05" max="3" step="0.01" value="0.50"></label>
+        <div class="layer-row"><label><input type="checkbox" id="showMainLines" checked> Показывать основные</label><span class="layer-dot blue"></span></div>
+        <div class="layer-row"><label><input type="checkbox" id="showThinLines" checked> Показывать тонкие</label><span class="layer-dot gray"></span></div>
+        <div class="layer-row"><label><input type="checkbox" id="showCenterLines" checked> Показывать осевые</label><span class="layer-dot green"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="templateVisible" checked> Шаблон листа</label><span class="layer-dot gray"></span></div><div class="layer-row"><label><input type="checkbox" id="referenceVisibleToggleSecondary" checked> Референс</label><span class="layer-dot amber"></span></div>
         <button class="secondary-btn" id="addTextBtn">＋ Добавить надпись с настройками</button>
       </section>
@@ -295,6 +312,7 @@ R17
           <label class="field-label">Товщина лінії, мм<input type="number" id="objectWidth" value="0.5" min="0.05" max="3" step="0.01" list="lineWidths"></label>
           <label class="field-label">Тип лінії<select id="objectDash"><option value="">Суцільна вузька / широка</option><option value="6 2">Штрихова</option><option value="5 3 0.1 3">Штрихпунктирна тонка — 5/3 мм (ГОСТ)</option><option value="8 3 0.1 3">Штрихпунктирна з довшим штрихом — 8/3 мм</option><option value="5 4 0.1 4 0.1 4">Штрихпунктирна з двома крапками — 5/4 мм</option><option value="0.1 2">Крапкова</option><option value="3 2">Коротка штрихова</option><option value="5 3 0.1 3">Штрихпунктирна з короткою крапкою</option><option value="WAVE">Суцільна хвиляста (тонка)</option><option value="ZIGZAG">Суцільна зі зламами (тонка)</option><option value="none">Без лінії</option></select></label>
           <label class="field-label">Слой<select id="objectLayer"><option value="geometry">Геометрия</option><option value="annotation">Размеры и текст</option><option value="construction">Вспомогательные</option></select></label>
+          <label class="field-label">Тип чертёжной линии<select id="objectLineRole"><option value="main">Основная</option><option value="thin">Тонкая</option><option value="center">Осевая</option></select></label>
           <label class="field-label">Имя объекта<input id="objectName" placeholder="Объект"></label>
           <div id="objectGeometryFields" class="object-geometry-fields">
             <div class="panel-heading">ПОЛОЖЕНИЕ И РАЗМЕР</div>
@@ -432,7 +450,7 @@ R17
           <defs><pattern id="gridPattern" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 L 0 0 0 5" fill="none" stroke="#dfe4e8" stroke-width="0.12"/></pattern></defs>
           <rect id="paperRect" x="0" y="0" width="210" height="297" fill="#fff"/>
           <rect id="gridRect" x="0" y="0" width="210" height="297" fill="url(#gridPattern)" visibility="hidden"/>
-          <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="sheetFrameLayer" pointer-events="none"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g><g id="selectionLayer"></g>
+          <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="sheetFrameLayer" pointer-events="none"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g><g id="selectionLayer"></g><g id="snapIndicatorLayer" pointer-events="none"></g>
         </svg>
       </div>
       <div class="statusbar"><span id="statusMessage">Готово</span><span class="coordinates" id="coordinates">X: 0.00 · Y: 0.00 мм</span><span class="status-spacer"></span><span>Ортогонально: <b id="orthoStatus">Выкл.</b></span><span>Выбрано: <b id="selectedStatus">0</b></span></div>
@@ -441,9 +459,9 @@ R17
     <aside class="right-panel">
       <div class="right-panel-title">ОФОРМЛЕНИЕ ЛИСТА</div>
       <p class="right-desc">Виберіть шаблон. Геометрія та референси креслення збережуться під час перемикання.</p>
-      <label class="field-label">Бібліотека шаблонів<select id="titleFormSelect"><optgroup label="Мої шаблони"><option value="user-template">Мій шаблон із надісланого зображення</option><option value="lab5-template">Лабораторна робота 5 — чистий шаблон без моделі</option></optgroup><optgroup label="ДСТУ ГОСТ 2.104:2006 / ЄСКД — креслення, схеми та наступні аркуші"><option value="gost-form1">Форма 1 — перший аркуш графічного документа</option><option value="form2a">Форма 2а — наступний аркуш</option></optgroup><optgroup label="ДСТУ ГОСТ 2.104:2006 / ЄСКД — текстові документи"><option value="form2">Форма 2 — перший аркуш текстового документа</option><option value="form2b-odd">Форма 2б — додаткові графи ліворуч</option><option value="form2b-even">Форма 2б — додаткові графи праворуч</option></optgroup><optgroup label="ГОСТ 2.106-96 — специфікації"><option value="spec-form1">Специфікація — форма 1, перший аркуш</option><option value="spec-form1a">Специфікація — форма 1а, наступні аркуші</option></optgroup><option value="blank">Чистий аркуш із рамкою без штампа</option></select></label><p class="right-desc" id="templateDescription">Ваш початковий шаблон: бокові службові графи, верхня комірка й нижній основний напис.</p>
+      <label class="field-label">Бібліотека шаблонів<select id="titleFormSelect"><optgroup label="Мої шаблони"><option value="user-template">Мій шаблон із надісланого зображення</option><option value="lab5-template">Лабораторная работа №5 — А3 книжный, ГОСТ форма 1</option><option value="technical-a3-template">Технический чертёж (по образцу) — А3 книжный, ГОСТ форма 1</option></optgroup><optgroup label="ДСТУ ГОСТ 2.104:2006 / ЄСКД — креслення, схеми та наступні аркуші"><option value="gost-form1">Форма 1 — перший аркуш графічного документа</option><option value="form2a">Форма 2а — наступний аркуш</option></optgroup><optgroup label="ДСТУ ГОСТ 2.104:2006 / ЄСКД — текстові документи"><option value="form2">Форма 2 — перший аркуш текстового документа</option><option value="form2b-odd">Форма 2б — додаткові графи ліворуч</option><option value="form2b-even">Форма 2б — додаткові графи праворуч</option></optgroup><optgroup label="ГОСТ 2.106-96 — специфікації"><option value="spec-form1">Специфікація — форма 1, перший аркуш</option><option value="spec-form1a">Специфікація — форма 1а, наступні аркуші</option></optgroup><option value="blank">Чистий аркуш із рамкою без штампа</option></select></label><p class="right-desc" id="templateDescription">Ваш початковий шаблон: бокові службові графи, верхня комірка й нижній основний напис.</p>
       <div class="muted-hint template-edit-hint">Двічі клацніть по напису, щоб змінити його; двічі клацніть по порожній комірці, щоб додати новий текст. Поля справа також редагуються.</div>
-      <label class="field-label">Найменування виробу / документа<input id="titleField" value="Лабораторна робота 5"></label>
+      <label class="field-label">Найменування виробу / документа<input id="titleField" value="Лабораторная работа №5"></label>
       <label class="field-label">Позначення документа<input id="codeField" value="КТ-24.ЛР5.001"></label>
       <label class="field-label">Матеріал деталі<input id="materialField" value="" placeholder="Лише якщо матеріал задано"></label>
       <div class="two-fields"><label class="field-label">Літера<input id="literField" value="У"></label><label class="field-label">Маса<input id="massField" value="—"></label></div>
