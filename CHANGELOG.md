@@ -1,3 +1,12 @@
+## 1.5.46
+- Fixed paper-format switching: template presets now provide a recommended starting format instead of locking the document to that size.
+- Enabled genuine A4, A3 and A2 dimensions in portrait and landscape after selecting any active template.
+- New-document preview and creation now honour the format selected by the user instead of resetting to the preset default.
+- Displayed actual paper width and height in the document bar and added dimensions to the paper-format selector labels.
+- Resized Lab 8 archival side fields vertically to follow the full usable sheet height on A4/A3/A2.
+- Kept the standard Form 1 title block at 185 × 55 mm for the generated GOST/ESKD variants and the Lab 8 reference frame.
+- Added regression coverage for all seven templates across six A4/A3/A2 orientations and actual paper-size selection.
+
 # Changelog
 
 ## 1.5.45

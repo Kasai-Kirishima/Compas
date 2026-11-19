@@ -491,11 +491,15 @@
 
     // Archival / reference fields in the left margin, matching the sample's interrupted strip.
     const ax0=7.5,ax1=13.75,ax2=20;
-    const bands=[
+    const baseBands=[
       [5,65,'Перше застос.'],[65,125,'Довідковий №'],
       [145,180,'Підпис і дата'],[180,206,'Інв. № дубл.'],[206,231,'Зам. інв. №'],
       [231,256,'Підпис і дата'],[256,292,'Інв. № ориг.']
     ];
+    // Preserve the standard 20 mm binding strip while distributing its cells
+    // over the full usable height of A4/A3/A2 portrait or landscape sheets.
+    const bandScale=(h-10)/287;
+    const bands=baseBands.map(([a,b,label])=>[5+(a-5)*bandScale,5+(b-5)*bandScale,label]);
     bands.forEach(([a,b,label],i)=>{
       out+=ln(ax0,a,ax2,a,.32)+ln(ax0,b,ax2,b,.42);
       out+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.28);

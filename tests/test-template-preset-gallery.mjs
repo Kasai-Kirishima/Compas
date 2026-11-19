@@ -20,11 +20,17 @@ for(const id of expected){
 assert.match(app,/const templatePresetProfiles=\{/);
 assert.match(app,/const visibleTemplatePresets=Object\.entries\(templatePresetProfiles\)/);
 assert.match(app,/const available=visibleTemplatePresets\.map\(p=>p\.value\)/);
-assert.match(app,/function fixedFormatForTemplate\(template\)/);
+assert.match(app,/function defaultFormatForTemplate\(template\)/);
+const setFormat=app.match(/function setFormat\(fmt\)\{([\s\S]*?)\n  \}/)?.[1]||'';
+assert.ok(setFormat.includes('state.format=fmt'),'Format changes are applied directly');
+assert.ok(!setFormat.includes('defaultFormatForTemplate'),'Preset default must not lock the selected paper size');
+assert.match(app,/const fmt=\$\('newDocFormat'\)\.value\|\|defaultFormatForTemplate\(template\)\|\|'A3P'/,'New document creation must use the selected paper size');
+assert.match(app,/const fmt=\$\('newDocFormat'\)\.value\|\|defaultFormatForTemplate\(template\)\|\|'A3P'/,'New document preview must use the selected paper size');
 for(const [id,fmt] of Object.entries({
   'lab4-reference-template':'A3P','lab8-reference-template':'A3L','lab5-a4-reference-template':'A4P',
   'lab5-gost-a3-landscape':'A3L','technical-gost-a3-landscape':'A3L','lab5-gost-a3-portrait':'A3P','technical-gost-a3-portrait':'A3P'
 })) assert.match(app,new RegExp(`'${id}':\\{label:[^}]*format:'${fmt}'`));
 assert.match(app,/document\.querySelectorAll\('\[data-template-preset\]'\)\.forEach\(button=>button\.addEventListener\('click'/);
 assert.match(html,/Совместимость со старыми чертежами" hidden/);
-console.log('Template preset gallery passed: seven distinct presets are exposed with their fixed A4/A3 orientations.');
+for(const dim of ['210×297 мм','297×420 мм','420×594 мм']) assert.ok(html.includes(dim),`Paper selector exposes physical dimensions ${dim}`);
+console.log('Template preset gallery passed: seven presets keep their default sizes while allowing A4/A3/A2 overrides.');

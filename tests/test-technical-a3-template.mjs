@@ -29,7 +29,7 @@ assert.ok(legacyLab5.length > 1000 && legacyTechnical.length > 1000, 'Legacy tem
 const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 assert.match(app,/titleForm:'lab4-reference-template'/);
 assert.match(app,/'lab8-reference-template':\{label:[^}]*format:'A3L'/);
-assert.match(app,/state\.format=doc\.format\|\|fixedFormatForTemplate\(state\.titleForm\)\|\|'A4P'/);
+assert.match(app,/state\.format=doc\.format\|\|defaultFormatForTemplate\(state\.titleForm\)\|\|'A4P'/);
 assert.match(app,/developer:'Кушвид О\.'/);
 const frame = app.slice(app.indexOf('function renderSheetFrame'), app.indexOf('function svgEl', app.indexOf('function renderSheetFrame')));
 assert.ok(frame.includes("stroke:'#2147d0'"));

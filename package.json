@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.45",
+  "version": "1.5.46",
   "private": true,
   "type": "module",
-  "description": "2D mechanical CAD editor with seven selectable drawing-frame presets from user references and generated GOST/ESKD layouts.",
+  "description": "2D mechanical CAD editor with seven selectable drawing-frame presets with freely changeable A4/A3/A2 sheet sizes from user references and generated GOST/ESKD layouts.",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/cad-geometry-trim.mjs",

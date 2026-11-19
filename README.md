@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.45
+# CAD Geometry Core 1.5.46
 
 2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
 
@@ -19,7 +19,7 @@
 
 The four generated layouts are separate because portrait and landscape layouts have different title-block placement and auxiliary designation fields. They are editable educational reconstructions, not certified official forms. The early file `CAD-A3-Technical-Template.svg` is geometrically the same blue layout as Lab 8 and is not duplicated as an eighth option.
 
-All seven variants appear in the sidebar gallery, the title-block selector, and the new-document dialog. Choosing a preset sets its paper size and orientation. The developer value for the user's custom Lab 4 and Lab 5 samples is **Кушвид О.**.
+All seven variants appear in the sidebar gallery, the title-block selector, and the new-document dialog. Supported standard sheet sizes include A4 210×297 mm, A3 297×420 mm, and A2 420×594 mm; landscape orientation swaps the sides. Choosing a preset sets its recommended starting size and orientation, but does not lock the paper format. The paper-size selector can freely switch between A4, A3 and A2 in portrait or landscape; the saved project, SVG export and print/PDF output use the selected physical dimensions. The developer value for the user's custom Lab 4 and Lab 5 samples is **Кушвид О.**.
 
 ## Compatibility with older drawings
 
