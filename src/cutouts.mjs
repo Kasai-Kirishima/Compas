@@ -1342,3 +1342,167 @@ export function cutOpenPathByStraightPass(points, start, end, width, {
     },
   };
 }
+
+/**
+ * Connect an existing inner void (hole/pocket) to the exterior of its parent
+ * profile with one straight pass. The outer wall and the hole wall are edited
+ * together so the new slot really opens into the hole instead of creating a
+ * second, detached contour around the hole.
+ *
+ * `start` must be inside the hole and `end` must pass outside the parent. The
+ * parent is cut from `end` back to `start`; the closing cap at the hole side is
+ * omitted and the matching arc portion is removed from the hole boundary.
+ */
+export function cutInnerVoidToExteriorStraightPass(outerContour, holeContour, start, end, width, {
+  eps = 1e-7,
+  mode = 'walls',
+} = {}) {
+  if (!Array.isArray(outerContour) || outerContour.length < 3 || !Array.isArray(holeContour) || holeContour.length < 3) {
+    throw new TypeError('Для выреза из отверстия нужны внешний контур и внутренний замкнутый контур');
+  }
+  for (const [name, point] of [['Начальная точка', start], ['Конечная точка', end]]) {
+    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+      throw new TypeError(`${name} выреза из отверстия должна содержать конечные координаты x и y`);
+    }
+  }
+  positive(width, 'Ширина выреза из отверстия');
+  if (!['walls', 'noBottom', 'noWalls'].includes(mode)) throw new RangeError('Неподдерживаемый режим выреза из отверстия');
+  if (!pointInPolygon(start, holeContour, eps)) {
+    return { ok: false, reason: 'Начни вырез внутри отверстия или кармана' };
+  }
+  const dx = end.x - start.x, dy = end.y - start.y, length = Math.hypot(dx, dy);
+  if (length <= eps) return { ok: false, reason: 'Длина прохода слишком мала' };
+  const ux = dx / length, uy = dy / length;
+  // A user often releases the pointer exactly on the outer edge (especially
+  // with OSNAP enabled). Treat a near-boundary endpoint as a valid exit and
+  // extend it a tiny amount along the same drag axis so the Boolean pass is
+  // unambiguously outside. Endpoints well inside the solid are still rejected.
+  const pointSegmentDistance = (p, a, b) => {
+    const ab = sub(b, a), den = dot(ab, ab);
+    const t = den > eps * eps ? clamp(dot(sub(p, a), ab) / den, 0, 1) : 0;
+    return distance(p, { x: a.x + ab.x * t, y: a.y + ab.y * t });
+  };
+  const boundaryDistance = Math.min(...outerContour.map((a, i) => pointSegmentDistance(end, a, outerContour[(i + 1) % outerContour.length])));
+  const endpointTolerance = Math.max(eps * 100, 0.01);
+  const boundaryNudge = Math.max(eps * 1000, Math.min(width * 0.05, 0.25));
+  const effectiveEnd = pointInPolygon(end, outerContour, eps)
+    ? boundaryDistance <= endpointTolerance
+      ? { x: end.x + ux * boundaryNudge, y: end.y + uy * boundaryNudge }
+      : null
+    : { x: end.x, y: end.y };
+  if (!effectiveEnd) {
+    return { ok: false, reason: 'Для соединения отверстия с внешним краем протяни проход через стенку до внешней границы детали' };
+  }
+  const effectiveDx = effectiveEnd.x - start.x, effectiveDy = effectiveEnd.y - start.y;
+  const effectiveLength = Math.hypot(effectiveDx, effectiveDy);
+  const intersections = [];
+  for (let i = 0; i < holeContour.length; i++) {
+    const a = holeContour[i], b = holeContour[(i + 1) % holeContour.length];
+    const edge = sub(b, a), fromStart = sub(a, start), den = cross({ x: effectiveDx, y: effectiveDy }, edge);
+    const scale = Math.max(1, effectiveLength, distance(a, b));
+    if (Math.abs(den) <= eps * scale) continue;
+    const t = cross(fromStart, edge) / den;
+    const u = cross(fromStart, { x: effectiveDx, y: effectiveDy }) / den;
+    if (t >= -eps && t <= 1 + eps && u >= -eps && u <= 1 + eps) intersections.push(clamp(t, 0, 1));
+  }
+  intersections.sort((a, b) => a - b);
+  const unique = intersections.filter((t, i) => i === 0 || Math.abs(t - intersections[i - 1]) > eps * 10);
+  let holeExit = null;
+  for (const t of unique) {
+    if (t <= eps) continue;
+    const afterT = Math.min(1, t + Math.max(1e-7, eps * 20 / effectiveLength));
+    const after = { x: start.x + effectiveDx * afterT, y: start.y + effectiveDy * afterT };
+    if (!pointInPolygon(after, holeContour, eps * 0.1)) {
+      holeExit = { x: start.x + effectiveDx * t, y: start.y + effectiveDy * t };
+      break;
+    }
+  }
+  if (!holeExit) return { ok: false, reason: 'Не найден выход траектории через границу отверстия. Продли линию от его внутренней части наружу.' };
+
+  // The strip is carried from the exterior endpoint through the hole's front
+  // boundary to the actual start point inside the void. Its two side walls are
+  // then trimmed back to where they intersect the remaining hole arc.
+  const parentMode = mode === 'noWalls' ? 'noWalls' : 'noBottom';
+  const outer = cutClosedContourByStraightPass(outerContour, effectiveEnd, start, width, {
+    eps, rejectStartInside: true, autoReverseIfStartInside: false, side: 'inside', mode: parentMode,
+  });
+  if (!outer.ok) return { ok: false, reason: `Не удалось открыть внешний контур: ${outer.reason}`, outer };
+  if (!outer.openFragments?.length) {
+    return { ok: false, reason: 'Внешний контур не создал открытые боковые стенки для соединения с отверстием', outer };
+  }
+
+  const closedHolePath = [...holeContour.map(p => ({ x: p.x, y: p.y })), { x: holeContour[0].x, y: holeContour[0].y }];
+  const hole = cutOpenPathByStraightPass(closedHolePath, effectiveEnd, start, width, { eps, mode: 'noWalls' });
+  if (!hole.ok || !hole.fragments?.length) {
+    return { ok: false, reason: `Не удалось разомкнуть внутренний контур: ${hole.reason || 'нет оставшейся дуги'}`, outer, hole };
+  }
+
+  // The input loop is passed as an open path with its first point repeated at
+  // the end. If the removed arc does not cross that seam, clipping returns two
+  // fragments which are actually one continuous remaining arc. Join fragments
+  // whose endpoints meet at the original loop seam before aligning the walls.
+  const holeFragments = hole.fragments.map(path => path.map(p => ({ x: p.x, y: p.y })));
+  let merged = true;
+  while (merged && holeFragments.length > 1) {
+    merged = false;
+    outerMerge: for (let i = 0; i < holeFragments.length; i++) for (let j = i + 1; j < holeFragments.length; j++) {
+      const a = holeFragments[i], b = holeFragments[j];
+      if (distance(a.at(-1), b[0]) <= eps * 20) {
+        holeFragments[i] = [...a, ...b.slice(1)];
+      } else if (distance(b.at(-1), a[0]) <= eps * 20) {
+        holeFragments[i] = [...b, ...a.slice(1)];
+      } else if (distance(a[0], b[0]) <= eps * 20) {
+        holeFragments[i] = [...a.slice().reverse(), ...b.slice(1)];
+      } else if (distance(a.at(-1), b.at(-1)) <= eps * 20) {
+        holeFragments[i] = [...a, ...b.slice().reverse().slice(1)];
+      } else continue;
+      holeFragments.splice(j, 1); merged = true; break outerMerge;
+    }
+  }
+  // A single straight pass through a simple hole should leave exactly one arc.
+  if (outer.openFragments.length !== 1 || holeFragments.length !== 1) {
+    return { ok: false, reason: 'Отверстие или внешний контур разделяется неоднозначно. Выбери один замкнутый контур без пересечений.', outer, hole };
+  }
+  const outerPath = outer.openFragments[0].map(p => ({ x: p.x, y: p.y }));
+  const holePath = holeFragments[0];
+  if (outerPath.length < 2 || holePath.length < 2) {
+    return { ok: false, reason: 'Не удалось сформировать соединённые стенки выреза', outer, hole };
+  }
+  const outerEnds = [outerPath[0], outerPath.at(-1)], holeEnds = [holePath[0], holePath.at(-1)];
+  const directCost = distance(outerEnds[0], holeEnds[0]) + distance(outerEnds[1], holeEnds[1]);
+  const reverseCost = distance(outerEnds[0], holeEnds[1]) + distance(outerEnds[1], holeEnds[0]);
+  if (directCost <= reverseCost) {
+    outerPath[0] = { ...holeEnds[0] };
+    outerPath[outerPath.length - 1] = { ...holeEnds[1] };
+  } else {
+    outerPath[0] = { ...holeEnds[1] };
+    outerPath[outerPath.length - 1] = { ...holeEnds[0] };
+  }
+  const endpointExtension = Math.max(directCost, reverseCost) / 2;
+  // The outer wall endpoints are intentionally extended from the drag start
+  // to the first intersection of each side wall with the hole contour. A
+  // long extension is normal when the gesture begins near the hole centre.
+  // Both resulting contours share the exact same endpoint coordinates.
+  const joinedEndpointDistance = Math.max(
+    distance(outerPath[0], directCost <= reverseCost ? holeEnds[0] : holeEnds[1]),
+    distance(outerPath.at(-1), directCost <= reverseCost ? holeEnds[1] : holeEnds[0])
+  );
+  if (joinedEndpointDistance > eps * 100) {
+    return { ok: false, reason: 'Не удалось состыковать боковые стенки с внутренней дугой. Проверь ширину прохода и контур.', outer, hole };
+  }
+
+  return {
+    ok: true,
+    operation: 'inside-void-to-exterior-straight-pass',
+    outer: { ...outer, openFragments: [outerPath] },
+    hole: { ...hole, fragments: [holePath] },
+    metadata: {
+      mode, parentMode, width, start: { ...start }, end: { ...effectiveEnd }, requestedEnd: { ...end }, holeExit,
+      matchedEndpoints: [ { ...outerPath[0] }, { ...outerPath.at(-1) } ],
+      boundaryNudge, endpointExtension,
+      outerAreaRemoved: outer.metadata?.removedArea || 0,
+      holeBoundaryRemoved: hole.metadata?.removedLength || 0,
+      wallsConnectedToHole: true,
+    },
+  };
+}

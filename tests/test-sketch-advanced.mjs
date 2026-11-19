@@ -63,6 +63,7 @@ const square=[
 const squareRegions=findClosedLoops(square);
 assert.equal(squareRegions.length,1);
 near(squareRegions[0].area,1200);
+assert.deepEqual([...squareRegions[0].outerSourceIds].sort(),['s1','s2','s3','s4'],'A reconstructed region must expose the exact source objects that form its outer loop');
 
 // A pair of nested rings forms one material region with an inner hole.
 const ringRegions=findClosedLoops([
@@ -71,6 +72,9 @@ const ringRegions=findClosedLoops([
 ]);
 assert.equal(ringRegions.length,1);
 assert.equal(ringRegions[0].holes.length,1);
+assert.deepEqual(ringRegions[0].outerSourceIds,['outer']);
+assert.deepEqual(ringRegions[0].holeSourceIds,[['inner']]);
+assert.deepEqual([...ringRegions[0].sourceIds].sort(),['inner','outer']);
 assert.ok(ringRegions[0].area>0);
 const hatch=createHatch(ringRegions[0],{angle:0,step:5,pattern:'single'});
 assert.ok(hatch.segments.length>0);

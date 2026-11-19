@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.53
+# CAD Geometry Core 1.5.56
 
 2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
 
@@ -56,3 +56,10 @@ No external npm dependencies are required to run the editor.
 
 
 Arrow 1: the filled arrowhead grows or shrinks proportionally with the line weight. The default reference is 0.50 mm line weight and a visibly enlarged 4.725 mm triangle length (1.35× base scale), with a wider 28° included angle. This relationship is retained in saved projects and CSV exports.
+
+### Исправление выреза изнутри наружу — 1.5.56
+Теперь предварительное выделение не обязательно: начни жест внутри отверстия/паза или внутри внешнего контура детали. Вложенные контуры распознаются автоматически; для одиночного внешнего контура строится выходной паз внутрь материала от края к точке начала.
+
+### Вырез из внутреннего отверстия наружу (1.5.56)
+
+Инструмент автоматически собирает замкнутую область даже из отдельных соединённых отрезков/дуг. Если жест начинается внутри отверстия, внешний контур открывается к отверстию, соответствующий участок внутренней дуги удаляется, а боковые стенки соединяются с ней. Для этого протяни линию из отверстия за внешний край детали.

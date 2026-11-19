@@ -288,7 +288,7 @@ export function findClosedLoops(curves, { tolerance = 0.02, curveSegments = 256,
     if (!hit) continue;
     splitParams[i].push(hit.t); splitParams[j].push(hit.u);
   }
-  const nodeMap = new Map(), nodes = [], edgeKeys = new Set(), edges = [];
+  const nodeMap = new Map(), nodes = [], edgeKeys = new Map(), edges = [];
   const tol = Math.max(1e-7, Number(tolerance) || 0.02);
   const nodeFor = p => {
     const qx = Math.round(p.x / tol), qy = Math.round(p.y / tol), key = `${qx},${qy}`;
@@ -305,8 +305,13 @@ export function findClosedLoops(curves, { tolerance = 0.02, curveSegments = 256,
       const u = nodeFor(a), v = nodeFor(b);
       if (u === v) continue;
       const edgeKey = u < v ? `${u}:${v}` : `${v}:${u}`;
-      if (edgeKeys.has(edgeKey)) continue;
-      edgeKeys.add(edgeKey); edges.push({ u, v });
+      if (edgeKeys.has(edgeKey)) {
+        const existing = edgeKeys.get(edgeKey);
+        if (s.sourceId) existing.sourceIds.add(String(s.sourceId));
+        continue;
+      }
+      const edge = { u, v, sourceIds: new Set(s.sourceId ? [String(s.sourceId)] : []) };
+      edgeKeys.set(edgeKey, edge); edges.push(edge);
       nodes[u].neighbours.push(v); nodes[v].neighbours.push(u);
     }
   }
@@ -318,11 +323,13 @@ export function findClosedLoops(curves, { tolerance = 0.02, curveSegments = 256,
   for (const edge of edges) for (const [startU, startV] of [[edge.u, edge.v], [edge.v, edge.u]]) {
     const startKey = `${startU}>${startV}`;
     if (visited.has(startKey)) continue;
-    let u = startU, v = startV, closed = false; const ids = [];
+    let u = startU, v = startV, closed = false; const ids = [], cycleSourceIds = new Set();
     for (let guard = 0; guard < maxWalk; guard++) {
       const key = `${u}>${v}`;
       if (visited.has(key)) { closed = u === startU && v === startV; break; }
       visited.add(key); ids.push(u);
+      const edgeKey = u < v ? `${u}:${v}` : `${v}:${u}`;
+      for (const sourceId of (edgeKeys.get(edgeKey)?.sourceIds || [])) cycleSourceIds.add(sourceId);
       const neighbours = nodes[v].neighbours, reverseIndex = neighbours.indexOf(u);
       if (reverseIndex < 0 || !neighbours.length) break;
       const next = neighbours[(reverseIndex - 1 + neighbours.length) % neighbours.length];
@@ -334,7 +341,7 @@ export function findClosedLoops(curves, { tolerance = 0.02, curveSegments = 256,
     if (area <= tol * tol) continue; // Keep bounded CCW faces; discard the exterior face.
     const key = ids.join(',');
     if (cycles.some(c => c.key === key)) continue;
-    cycles.push({ key, points: pts, area, perimeter: pts.reduce((sum, p, i) => sum + hypot(p, pts[(i + 1) % pts.length]), 0) });
+    cycles.push({ key, points: pts, area, sourceIds: [...cycleSourceIds], perimeter: pts.reduce((sum, p, i) => sum + hypot(p, pts[(i + 1) % pts.length]), 0) });
   }
   if (!cycles.length) return [];
   // Build a nesting tree: odd depth loops are voids; even depth loops are material islands.
@@ -352,13 +359,19 @@ export function findClosedLoops(curves, { tolerance = 0.02, curveSegments = 256,
   const regions = [];
   for (const loop of ordered) {
     if (loop.depth % 2 !== 0) continue;
-    const holes = ordered.filter(candidate => candidate.parent === loop && candidate.depth === loop.depth + 1).map(h => h.points.map(clonePoint));
+    const holeLoops = ordered.filter(candidate => candidate.parent === loop && candidate.depth === loop.depth + 1);
+    const holes = holeLoops.map(h => h.points.map(clonePoint));
+    const outerSourceIds = [...new Set(loop.sourceIds || [])];
+    const holeSourceIds = holeLoops.map(h => [...new Set(h.sourceIds || [])]);
+    // Keep the legacy combined sourceIds field for hatch provenance while also
+    // exposing exact source ownership for safe edits of outer and inner loops.
+    const sourceIds = [...new Set([...outerSourceIds, ...holeSourceIds.flat()])];
     regions.push({
-      outer: loop.points.map(clonePoint), holes,
+      outer: loop.points.map(clonePoint), holes, outerSourceIds, holeSourceIds,
       area: Math.max(0, Math.abs(loop.area) - holes.reduce((sum, h) => sum + Math.abs(polygonArea(h)), 0)),
       perimeter: loop.perimeter,
       depth: loop.depth,
-      sourceIds: [...new Set(segments.map(s => s.sourceId).filter(Boolean))]
+      sourceIds
     });
   }
   return regions.sort((a, b) => b.area - a.area);

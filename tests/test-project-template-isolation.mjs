@@ -18,7 +18,7 @@ assert.match(app,/templateSnapshot:deep\(state\.templateSnapshot\|\|null\)/);
 assert.match(html,/id="developerField" value="Кушвид О\."/);
 assert.match(app,/developer:'Кушвид О\.'/);
 assert.match(app,/next\.developer='Кушвид О\.'/);
-assert.equal(pkg.version,'1.5.53');
+assert.equal(pkg.version,'1.5.56');
 assert.ok(html.includes('data-template-preset="lab5-a4-reference-template"'));
 assert.ok(html.includes('data-template-preset="lab5-gost-a3-portrait"'));
 assert.ok(html.includes('data-template-preset="technical-gost-a3-landscape"'));

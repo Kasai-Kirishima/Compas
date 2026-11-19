@@ -1,3 +1,17 @@
+## 1.5.56 — fixed inside-to-outside pass cut
+- Added an application-style regression test that reconstructs a part perimeter from four separate line entities, detects a separate circular bore, and joins the cut walls to the remaining bore arc.
+- A release exactly on the outer profile is now accepted and nudged slightly past the boundary along the same drag vector; releases that stop inside the material are still rejected with a clear prompt.
+- Updated the panel and help text: no preselection is required; the gesture starts inside the hole/pocket and ends past or exactly on the external boundary.
+- Retained support for rectangular pockets, circular holes, arbitrary-angle passes, and all three wall modes.
+
+
+## 1.5.55 — исправлен проходной вырез изнутри
+
+- Внутренний вырез теперь определяет замкнутую область, собранную как из одного объекта, так и из отдельных соединённых отрезков/дуг.
+- При старте внутри отверстия проход соединяет его с внешней границей: обрезается внешний контур, удаляется участок внутренней дуги, а боковые стенки стыкуются с оставшейся дугой без лишней торцевой заглушки.
+- Сохранены обычный режим выреза из материала наружу, режимы стенок и обработка ранее созданных открытых фрагментов.
+- Добавлены геометрические и интеграционные тесты для круглых и прямоугольных отверстий, отдельных линий и диагонального прохода.
+
 # CAD Geometry Core 1.5.53
 
 - Added bidirectional 2D cutouts: edge notches and straight pass-cuts can now cut inward from an external profile or outward from an inner hole/pocket boundary.
@@ -104,3 +118,11 @@
 - Preset applies to linear, diameter and angular dimensions; radius dimensions keep their natural single arrow at the measured arc.
 - Existing independent first/second arrow overrides remain available.
 - The selected preset is stored on each dimension and is preserved when the project is saved and reopened.
+
+## 1.5.54 — inside-out cut target detection
+
+- Fixed the inside-to-outside straight pass workflow: preselection is now optional.
+- The editor resolves the smallest closed contour containing the drag start, classifying nested loops as holes/pockets and expanding them outward.
+- When the start lies inside a single external part profile, the operation becomes an inward notch with the drag direction reversed, creating a proper exit slot rather than enlarging the external outline.
+- Explicitly selected contours take priority; previously cut open fragments retain their saved side.
+- Added regression tests for nested holes, solid starts, explicit selection, and parent-profile protection.

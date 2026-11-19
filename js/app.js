@@ -6,7 +6,8 @@ import { closestClosedPolylineEdge, moveClosedPolylineEdge } from '../src/polygo
 import { dimensionExtensionField, dimensionExtensionValue, dimensionExtensionSpec, dimensionExtensionLengthFromPoint, dimensionExtensionGapField, dimensionExtensionGapValue, dimensionExtensionGapSpec, dimensionExtensionGapFromPoint, dimensionExtensionFromDrag, dimensionExtensionGapFromDrag, resizeDimensionPreservingOrientation } from '../src/dimension-extensions.mjs';
 import { GOST_LINE_PATTERNS, normalizeGostDashPattern } from '../src/line-types.mjs';
 import { scaledArrowHeadLength } from '../src/arrow-scaling.mjs';
-import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBottomAtPoint, cutCircleNotchWithoutBottomAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, cutClosedContourByStraightPass, cutOpenPathByStraightPass, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
+import { resolveInsideOutCutTargets } from '../src/cutout-targets.mjs';
+import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBottomAtPoint, cutCircleNotchWithoutBottomAtPoint, cutOpenPathGapAtPoint, cutClosedBoundaryGapAtPoint, cutClosedContourByStraightPass, cutOpenPathByStraightPass, cutInnerVoidToExteriorStraightPass, splitOpenPathAtPoint, splitClosedPolygonAtPoints, createRectangularPocket, createCircularCutout, createObroundCutout } from '../src/cutouts.mjs';
 
 (() => {
   'use strict';
@@ -934,6 +935,47 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     state.selectedIds=replacements.map(o=>o.id);
     return true;
   }
+  function replaceObjectSetWithPaths(sourceIds,paths,{closed=false,name='Контур после выреза',straightPassMeta=null}={}){
+    const ids=new Set((sourceIds||[]).map(String));
+    const sources=state.objects.filter(o=>ids.has(String(o.id)));
+    if(!sources.length||!Array.isArray(paths)||!paths.length)return null;
+    const indexes=state.objects.map((o,i)=>ids.has(String(o.id))?i:-1).filter(i=>i>=0);
+    const firstIndex=Math.min(...indexes),insertAt=state.objects.slice(0,firstIndex).filter(o=>!ids.has(String(o.id))).length;
+    const base=deep(sources[0]);
+    const replacements=paths.map((entry,i)=>{
+      const points=Array.isArray(entry)?entry:entry?.points;
+      const isClosed=Array.isArray(entry)?closed:!!entry?.closed;
+      if(!Array.isArray(points)||points.length<(isClosed?3:2))return null;
+      const obj={...deep(base),id:i===0?base.id:newId(),type:'polyline',points:points.map(p=>({x:mm(p.x),y:mm(p.y)})),closed:isClosed};
+      delete obj.x;delete obj.y;delete obj.x2;delete obj.y2;delete obj.r;delete obj.start;delete obj.end;delete obj.rx;delete obj.x3;delete obj.y3;
+      obj.name=`${name} ${i+1}`;
+      if(straightPassMeta){
+        obj.straightPassCut=true;
+        obj.straightPassMode=straightPassMeta.mode||'noBottom';
+        obj.straightPassSide=straightPassMeta.side||'inside';
+        obj.feature='straight-pass-cut-fragment';
+      }else{
+        delete obj.straightPassCut;delete obj.straightPassMode;delete obj.straightPassSide;
+        if(obj.feature==='circular-cutout'||obj.feature==='rectangular-pocket'||obj.feature==='obround-cutout')delete obj.feature;
+      }
+      return obj;
+    }).filter(Boolean);
+    if(!replacements.length)return null;
+    state.objects=state.objects.filter(o=>!ids.has(String(o.id)));
+    state.objects.splice(insertAt,0,...replacements);
+    return replacements;
+  }
+  function appPointInContour(point,contour){
+    if(!point||!Array.isArray(contour)||contour.length<3)return false;
+    let inside=false;
+    for(let i=0,j=contour.length-1;i<contour.length;j=i++){
+      const a=contour[j],b=contour[i],cross=(b.x-a.x)*(point.y-a.y)-(b.y-a.y)*(point.x-a.x);
+      const dot=(point.x-a.x)*(point.x-b.x)+(point.y-a.y)*(point.y-b.y);
+      if(Math.abs(cross)<=1e-7*Math.max(1,Math.hypot(b.x-a.x,b.y-a.y))&&dot<=1e-7)return true;
+      if((a.y>point.y)!==(b.y>point.y)&&point.x<(b.x-a.x)*(point.y-a.y)/(b.y-a.y)+a.x)inside=!inside;
+    }
+    return inside;
+  }
   function applySplitTool(point,clickedId=null){
     const clicked=clickedId?state.objects.find(o=>o.id===clickedId):null;
     const selected=getSelected().find(o=>appOpenPathPoints(o)||appClosedContourPoints(o));
@@ -1016,16 +1058,78 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     // This is what allows the same resulting geometry to be cut again and
     // again instead of becoming a one-operation-only object.
     const editableTargets=state.objects.filter(o=>!o.hidden&&!o.locked&&o.type!=='reference'&&!annotationTypes.has(o.type)&&!constructionTypes.has(o.type)&&layerFor(o)!=='annotation'&&layerFor(o)!=='construction'&&(!!appClosedContourPoints(o)||!!appOpenPathPoints(o)));
-    // Outward cuts are intentionally scoped to the selected inner contour(s):
-    // the same drag can cross a nearby outer profile, which must not be altered
-    // as a side effect when the user is expanding a hole boundary.
-    const targets=side==='outside'
-      ? getSelected().filter(o=>!o.hidden&&!o.locked&&!!appClosedContourPoints(o))
-      : editableTargets;
-    if(side==='outside'&&!targets.length){setMessage('Для выреза изнутри выдели внутренний контур отверстия/паза, затем протяни от пустоты внутри него наружу.');return false;}
+    const passSides=new Map();
+    let targets=editableTargets;
+    if(side==='outside'){
+      // Reconstruct real planar regions from both native closed objects and
+      // separate connected lines/arcs. This is essential for the common CAD
+      // case where a part outline is four independent line entities.
+      let regions=[];
+      try{regions=findClosedLoops(editableTargets,{tolerance:.02,curveSegments:384,maxSegments:20000});}
+      catch(error){setMessage(`Не удалось собрать замкнутую область для внутреннего выреза: ${error.message}`);return false;}
+      const holeHits=[];
+      for(const region of regions){
+        for(let index=0;index<(region.holes||[]).length;index++){
+          const ring=region.holes[index];
+          if(appPointInContour(start,ring))holeHits.push({region,index,ring,area:Math.abs(ring.reduce((sum,p,i)=>{const q=ring[(i+1)%ring.length];return sum+p.x*q.y-q.x*p.y;},0)/2)});
+        }
+      }
+      holeHits.sort((a,b)=>a.area-b.area);
+      if(holeHits.length){
+        const hit=holeHits[0],outerIds=hit.region.outerSourceIds||[],holeIds=hit.region.holeSourceIds?.[hit.index]||[];
+        const overlap=outerIds.some(id=>holeIds.includes(id));
+        if(overlap||!outerIds.length||!holeIds.length){setMessage('Внутренний контур найден, но его исходные линии неоднозначны. Раздели пересекающиеся контуры или замкни внешний и внутренний контуры отдельно.');return false;}
+        const tx=cutInnerVoidToExteriorStraightPass(hit.region.outer,hit.ring,start,end,width,{eps:1e-7,mode});
+        if(!tx.ok){setMessage(tx.reason||'Не удалось соединить внутренний контур с внешним краем');return false;}
+        const before=snapshot();
+        const outerPaths=[...(tx.outer.fragments||[]).map(points=>({points,closed:true})),...(tx.outer.openFragments||[]).map(points=>({points,closed:false}))];
+        const outerSaved=replaceObjectSetWithPaths(outerIds,outerPaths,{name:'Внешний контур после внутреннего выреза',straightPassMeta:{mode:tx.metadata.parentMode,side:'inside'}});
+        const holeSaved=replaceObjectSetWithPaths(holeIds,tx.hole.fragments||[],{closed:false,name:'Внутренний контур после выреза'});
+        if(!outerSaved||!holeSaved){restore(before);setMessage('Не удалось сохранить соединённую геометрию выреза. Исходные контуры восстановлены.');return false;}
+        state.selectedIds=[...outerSaved,...holeSaved].map(o=>o.id);
+        commit(before);renderAll();
+        setMessage(`Вырез из отверстия наружу выполнен: внешний контур открыт, внутренняя дуга разомкнута и состыкована со стенками. Ширина ${mm(width)} мм · стенки ${mode==='noWalls'?'не добавлялись':'сохранены'} · конечная заглушка у отверстия удалена.`);
+        return true;
+      }
+
+      const materialRegions=regions.filter(region=>pointInRegion(start,region)).sort((a,b)=>a.area-b.area);
+      if(materialRegions.length){
+        const region=materialRegions[0],outerIds=region.outerSourceIds||[];
+        if(!outerIds.length){setMessage('Внутренняя область найдена, но не удалось определить исходные линии внешнего контура.');return false;}
+        const tx=cutClosedContourByStraightPass(region.outer,start,end,width,{eps:1e-7,rejectStartInside:true,autoReverseIfStartInside:true,side:'inside',mode});
+        if(!tx.ok){setMessage(tx.reason||'Не удалось выполнить вырез из материала наружу');return false;}
+        const before=snapshot(),paths=[...(tx.fragments||[]).map(points=>({points,closed:true})),...(tx.openFragments||[]).map(points=>({points,closed:false}))];
+        const saved=replaceObjectSetWithPaths(outerIds,paths,{name:'Контур после выреза изнутри',straightPassMeta:{mode,side:'inside'}});
+        if(!saved){restore(before);setMessage('Не удалось заменить исходные линии результатом выреза.');return false;}
+        state.selectedIds=saved.map(o=>o.id);commit(before);renderAll();
+        setMessage(`Вырез изнутри наружу выполнен по замкнутой области из ${outerIds.length} исходных объектов. Ширина ${mm(width)} мм · направление автоматически согласовано.`);
+        return true;
+      }
+
+      // For a selected isolated closed profile, use its interior as the solid
+      // side. A standalone loop cannot be treated as a hole without a parent.
+      const selectedClosed=getSelected().filter(o=>!o.hidden&&!o.locked&&!!appClosedContourPoints(o));
+      if(selectedClosed.length){
+        const source=selectedClosed[0],contour=appClosedContourPoints(source);
+        const tx=cutClosedContourByStraightPass(contour,start,end,width,{eps:1e-7,rejectStartInside:true,autoReverseIfStartInside:true,side:'inside',mode});
+        if(!tx.ok){setMessage(tx.reason||'Не удалось выполнить вырез изнутри выбранного контура');return false;}
+        const before=snapshot();
+        if(!replaceWithContourResults(source,tx.fragments||[],tx.openFragments||[],{straightPassCut:true,mode,side:'inside'})){restore(before);setMessage('Не удалось сохранить вырез на выбранном контуре');return false;}
+        commit(before);renderAll();setMessage(`Вырез изнутри наружу выполнен. Ширина ${mm(width)} мм.`);return true;
+      }
+
+      // Previous pass-cut fragments stay editable and can be extended by a
+      // further pass from the inside. Ordinary unrelated open lines are not
+      // turned into artificial walls.
+      const selectedOpenPasses=getSelected().filter(o=>!o.hidden&&!o.locked&&!!appOpenPathPoints(o)&&
+        (o.straightPassCut===true||o.feature==='straight-pass-cut-fragment'||/— открытый участок \d+$/.test(o.name||'')));
+      if(selectedOpenPasses.length){targets=selectedOpenPasses;for(const item of selectedOpenPasses)passSides.set(item.id,item.straightPassSide||'inside');}
+      else{setMessage('Не нашёл замкнутую область под начальной точкой. Начни внутри материала или отверстия; линии детали должны образовывать замкнутый контур.');return false;}
+    }
     if(!targets.length){setMessage('На чертеже нет доступной геометрии для проходного выреза.');return false;}
     const before=snapshot(),successes=[],failures=[];
     for(const source of targets){
+      const passSide=passSides.get(source.id)||side;
       const contour=appClosedContourPoints(source);
       if(!contour){
         const path=appOpenPathPoints(source);if(!path||path.length<2)continue;
@@ -1033,15 +1137,15 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
         // Keep ordinary open lines/curves as simple line gaps: they are not
         // closed material boundaries and must not grow artificial walls.
         const isPreviousPass=source.straightPassCut===true||source.feature==='straight-pass-cut-fragment'||/— открытый участок \d+$/.test(source.name||'');
-        const passSide=source.straightPassSide||side;
+        const pathSide=source.straightPassSide||passSide;
         const tx=cutOpenPathByStraightPass(path,start,end,width,{
-          eps:1e-7,mode,side:passSide,reconstructContour:isPreviousPass,
+          eps:1e-7,mode,side:pathSide,reconstructContour:isPreviousPass,
         });
         if(!tx.ok){if(!/не пересекает оставшиеся участки контура/.test(tx.reason||''))failures.push(`${source.name||source.type}: ${tx.reason||'пропущен'}`);continue;}
         const idsBefore=new Set(state.objects.map(o=>o.id));
         const rebuilt=tx.operation==='repeatable-straight-pass-cut-open-contour';
         const saved=rebuilt
-          ?replaceWithContourResults(source,tx.fragments||[],tx.openFragments||[],{straightPassCut:true,mode,side:passSide})
+          ?replaceWithContourResults(source,tx.fragments||[],tx.openFragments||[],{straightPassCut:true,mode,side:pathSide})
           :replaceWithOpenFragments(source,tx.fragments);
         if(!saved){failures.push(`${source.name||source.type}: не удалось сохранить повторный вырез`);continue;}
         const replacementIds=state.objects.filter(o=>o.id===source.id||!idsBefore.has(o.id)).map(o=>o.id);
@@ -1050,15 +1154,15 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
         continue;
       }
       if(contour.length<3)continue;
-      const tx=cutClosedContourByStraightPass(contour,start,end,width,{eps:1e-7,rejectStartInside:true,autoReverseIfStartInside:true,side,mode});
+      const tx=cutClosedContourByStraightPass(contour,start,end,width,{eps:1e-7,rejectStartInside:true,autoReverseIfStartInside:true,side:passSide,mode});
       if(!tx.ok){
         if(!/не пересекает выбранный контур|не удалил материал контура/.test(tx.reason||''))failures.push(`${source.name||source.type}: ${tx.reason||'пропущен'}`);
         continue;
       }
       const idsBefore=new Set(state.objects.map(o=>o.id));
-      if(!replaceWithContourResults(source,tx.fragments,tx.openFragments||[],{straightPassCut:true,mode,side})){failures.push(`${source.name||source.type}: не удалось сохранить результат`);continue;}
+      if(!replaceWithContourResults(source,tx.fragments,tx.openFragments||[],{straightPassCut:true,mode,side:passSide})){failures.push(`${source.name||source.type}: не удалось сохранить результат`);continue;}
       const replacementIds=state.objects.filter(o=>o.id===source.id||!idsBefore.has(o.id)).map(o=>o.id);
-      successes.push({sourceId:source.id,ids:replacementIds,count:tx.fragments.length+(tx.openFragments||[]).length,closed:tx.fragments.length,open:(tx.openFragments||[]).length,removedArea:tx.metadata.removedArea,directionReversed:!!tx.metadata.directionReversed});
+      successes.push({sourceId:source.id,ids:replacementIds,count:tx.fragments.length+(tx.openFragments||[]).length,closed:tx.fragments.length,open:(tx.openFragments||[]).length,removedArea:tx.metadata.removedArea,directionReversed:!!tx.metadata.directionReversed,side:passSide});
     }
     previewLayer.innerHTML='';
     if(!successes.length){setMessage(failures[0]||'Полоса не пересекла доступные контуры или открытые участки. Попробуй другую траекторию или ширину.');return false;}
@@ -1265,7 +1369,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       setMessage(`Найдено областей: ${regions.length}; внутренних отверстий: ${holeCount}; угол ${angle}°; штриховок создано: ${created.length}`);
     }catch(error){setMessage(error?.message||'Не удалось создать штриховку для найденных областей');}
   }
-  function selectTool(tool){if(tool!=='straightCut'&&state.straightCutDraft){state.straightCutDraft=null;previewLayer.innerHTML='';}if(state.duplicatePlacement&&tool!=='select'){state.duplicatePlacement=null;previewLayer.innerHTML='';}state.tool=tool;if(!['selectRegion','hatch'].includes(tool))state.selectedRegion=null;if(tool!=='select')state.referenceCalibration=null;if(tool!=='moveFace'){state.faceSelection=null;state.faceHover=null;}state.points=[];state.freehandDraft=null;state.splitPending=null;previewLayer.innerHTML='';if($('snapIndicatorLayer'))$('snapIndicatorLayer').innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор объектов: щелчок — выбрать объект, Shift — добавить к выбору, рамка — выделить несколько объектов. Для выбора замкнутой территории используйте отдельный инструмент «Выбор области».',selectRegion:'Выбор области: щёлкните внутри замкнутого контура или внутри одной из областей пересекающейся геометрии. Область подсветится; затем нажмите «Заштриховать выбранную область». Угол штриховки берётся только из поля «Угол» и не зависит от места щелчка.',cutoutNoWalls:'Вырез без стенок: удаляется участок границы без боковых и нижней линий. Выделите несколько объектов и щёлкните один раз — каждый получит вырез у ближайшей к курсору границы.',cutoutNoBottom:'Вырез без нижней стенки: сохраняются обе боковые линии паза, но нижняя соединительная линия отсутствует. При нескольких выделенных объектах один щелчок применяет вырез ко всем по ближайшей точке границы.',straightCut:'Прямой проходной вырез: свободно ведите прямую полосу под любым углом — снизу вверх, сверху вниз, слева направо или по диагонали. Если жест начинается внутри одного из пересекаемых контуров и заканчивается снаружи, направление для этого контура автоматически разворачивается, чтобы вход остался со стороны начала жеста. Режим «Со всеми стенками» оставляет две параллельные боковые линии и поперечную стенку на глухом конце; «Без нижней стенки» оставляет открытый конец; «Без стенок» удаляет только исходную границу.',split:'Разделить объект: по открытой линии щёлкните один раз в любом месте, в том числе точно посередине. По замкнутому контуру щёлкните две точки границы — объект разделится на две самостоятельные замкнутые части.',cutout:'Полный вырез: на замкнутом контуре остаются две боковые стенки и нижняя соединительная линия. На открытой линии удаляется участок заданной ширины. При нескольких выделенных объектах один щелчок применяется ко всем по ближайшей точке.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',arrowLine:'Стрелка 1: как отрезок — первая точка пустая, вторая с наконечником. Работают Shift, Ortho, OSNAP и линейка.',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная линия: две точки',xline:'Бесконечная прямая: укажите две точки, задающие направление; линия проходит через весь лист',ray:'Луч: укажите начальную точку и направление; луч продолжается до границы листа',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус либо диаметр (выберите режим в настройках геометрии)',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',moveFace:'Перемещение грани: наведите курсор на сторону замкнутого многоугольника и перетащите её перпендикулярно. Соседние вершины сохранят направления соседних граней. Щелчок выбирает грань для точного смещения в поле слева. Shift — шаг 0,5 мм.',polygon:'Правильный многоугольник: центр и размер. «По граням» — щёлкните на расстоянии от центра до середины стороны; программа построит точный размер между параллельными сторонами. «По вершинам» — щёлкните по радиусу до вершины.',star6:'Шестиконечная звезда: укажите центр, затем радиус до вершины. Создаётся один замкнутый внешний контур из 12 вершин без внутренних пересекающихся линий. Звезда редактируется, перемещается и дублируется как единый объект.',arc3:'Дуга по трём точкам: укажите начало, точку через которую должна пройти дуга, и конец. Можно построить как малую, так и большую дугу.',trim:'Усечь кривую: щёлкните по удаляемому участку между соседними пересечениями. Поддерживаются отрезки, окружности, дуги, прямоугольники, эллипсы и замкнутые полилинии.',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Добавить текст: выберите инструмент (или нажмите T), затем щёлкните по листу. Двойной щелчок по пустому месту также откроет редактор надписи',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Штриховка области: выберите рисунок, расстояние и угол (быстрые углы с шагом 15° или точный ввод), затем щёлкните внутри замкнутого контура. Линии обрезаются по границе и не проходят через отверстия. Можно щёлкать по нескольким областям подряд.',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
+  function selectTool(tool){if(tool!=='straightCut'&&state.straightCutDraft){state.straightCutDraft=null;previewLayer.innerHTML='';}if(state.duplicatePlacement&&tool!=='select'){state.duplicatePlacement=null;previewLayer.innerHTML='';}state.tool=tool;if(!['selectRegion','hatch'].includes(tool))state.selectedRegion=null;if(tool!=='select')state.referenceCalibration=null;if(tool!=='moveFace'){state.faceSelection=null;state.faceHover=null;}state.points=[];state.freehandDraft=null;state.splitPending=null;previewLayer.innerHTML='';if($('snapIndicatorLayer'))$('snapIndicatorLayer').innerHTML='';document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));const names={select:'Выбор объектов: щелчок — выбрать объект, Shift — добавить к выбору, рамка — выделить несколько объектов. Для выбора замкнутой территории используйте отдельный инструмент «Выбор области».',selectRegion:'Выбор области: щёлкните внутри замкнутого контура или внутри одной из областей пересекающейся геометрии. Область подсветится; затем нажмите «Заштриховать выбранную область». Угол штриховки берётся только из поля «Угол» и не зависит от места щелчка.',cutoutNoWalls:'Вырез без стенок: удаляется участок границы без боковых и нижней линий. Выделите несколько объектов и щёлкните один раз — каждый получит вырез у ближайшей к курсору границы.',cutoutNoBottom:'Вырез без нижней стенки: сохраняются обе боковые линии паза, но нижняя соединительная линия отсутствует. При нескольких выделенных объектах один щелчок применяет вырез ко всем по ближайшей точке границы.',straightCut:'Прямой проходной вырез: свободно ведите полосу под любым углом. В режиме «Снаружи внутрь» обрабатываются пересечённые внешние контуры. В режиме «Изнутри наружу» начните жест в отверстии/пазе или внутри детали: подходящий контур определяется автоматически, предварительное выделение не обязательно. Для внутреннего отверстия пустота расширяется в материал; для внешнего профиля строится выходной паз от внутренней точки к краю. Режим «Со всеми стенками» оставляет две боковые и торцевую стенку; остальные режимы позволяют убрать торец или все новые стенки.',split:'Разделить объект: по открытой линии щёлкните один раз в любом месте, в том числе точно посередине. По замкнутому контуру щёлкните две точки границы — объект разделится на две самостоятельные замкнутые части.',cutout:'Полный вырез: на замкнутом контуре остаются две боковые стенки и нижняя соединительная линия. На открытой линии удаляется участок заданной ширины. При нескольких выделенных объектах один щелчок применяется ко всем по ближайшей точке.',cutoutInner:'Внутренний контур: щёлкните в центре будущего отверстия или паза.',eraser:'Ластик: нажмите или проведите по объектам, чтобы стереть их. Заблокированные объекты защищены.',line:'Отрезок: две точки. Shift фиксирует угол с заданным шагом',arrowLine:'Стрелка 1: как отрезок — первая точка пустая, вторая с наконечником. Работают Shift, Ortho, OSNAP и линейка.',freehand:'Свободная линия: зажмите левую кнопку и ведите курсор; линия сгладится автоматически',ruler:'Линейка: укажите начало и конец линейки; затем выберите привязку параллельно или перпендикулярно',construction:'Вспомогательная линия: две точки',xline:'Бесконечная прямая: укажите две точки, задающие направление; линия проходит через весь лист',ray:'Луч: укажите начальную точку и направление; луч продолжается до границы листа',centerline:'Осевая линия: две точки',point:'Точка: щёлкните по листу',section:'Обозначение разреза: две точки линии сечения',techReq:'Технические требования: точка вставки и многострочный текст',polyline:'Ломаная: точки; двойной щелчок или Enter — завершить',spline:'Сплайн: точки; двойной щелчок или Enter — завершить',rect:'Прямоугольник: два противоположных угла',roundRect:'Скруглённый прямоугольник: два угла; радиус задаётся параметром',circle:'Окружность: центр и радиус либо диаметр (выберите режим в настройках геометрии)',arc:'Дуга: центр, начало, конец',ellipse:'Эллипс: два угла габаритной рамки',moveFace:'Перемещение грани: наведите курсор на сторону замкнутого многоугольника и перетащите её перпендикулярно. Соседние вершины сохранят направления соседних граней. Щелчок выбирает грань для точного смещения в поле слева. Shift — шаг 0,5 мм.',polygon:'Правильный многоугольник: центр и размер. «По граням» — щёлкните на расстоянии от центра до середины стороны; программа построит точный размер между параллельными сторонами. «По вершинам» — щёлкните по радиусу до вершины.',star6:'Шестиконечная звезда: укажите центр, затем радиус до вершины. Создаётся один замкнутый внешний контур из 12 вершин без внутренних пересекающихся линий. Звезда редактируется, перемещается и дублируется как единый объект.',arc3:'Дуга по трём точкам: укажите начало, точку через которую должна пройти дуга, и конец. Можно построить как малую, так и большую дугу.',trim:'Усечь кривую: щёлкните по удаляемому участку между соседними пересечениями. Поддерживаются отрезки, окружности, дуги, прямоугольники, эллипсы и замкнутые полилинии.',breakline:'Линия обрыва: две точки',dimAuto:'Авторазмер: две точки; тип определяется направлением',dimension:'Линейный размер: две точки',dimH:'Горизонтальный размер: две точки',dimV:'Вертикальный размер: две точки',dimRad:'Радиальный размер: центр и точка на окружности',dimDia:'Диаметральный размер: центр и точка на окружности',dimAngle:'Угловой размер: вершина и две точки на сторонах угла',measure:'Измерение: две точки',text:'Добавить текст: выберите инструмент (или нажмите T), затем щёлкните по листу. Двойной щелчок по пустому месту также откроет редактор надписи',leader:'Выноска: точка объекта, излом, конец текста',centerMark:'Обозначение центра: щёлкните по центру',hatch:'Штриховка области: выберите рисунок, расстояние и угол (быстрые углы с шагом 15° или точный ввод), затем щёлкните внутри замкнутого контура. Линии обрезаются по границе и не проходят через отверстия. Можно щёлкать по нескольким областям подряд.',roughness:'Шероховатость: точка размещения',tolerance:'Допуск формы: точка размещения',weld:'Обозначение сварки: точка размещения',table:'Таблица: точка вставки'};setMessage(names[tool]||'Готово');$('canvasHint').textContent=names[tool]||'Выберите инструмент';$('canvasHint').classList.toggle('hide',tool==='select');}
   function tangentPointsFrom(point,object){
     if(!point||!object||!['circle','arc'].includes(object.type))return [];
     const cx=Number(object.x),cy=Number(object.y),r=object.type==='circle'?Math.hypot(Number(object.x2)-cx,Number(object.y2)-cy):Number(object.r)||0;
@@ -1725,7 +1829,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       previewLayer.innerHTML='';e.preventDefault();e.stopPropagation();
       try{svg.setPointerCapture(e.pointerId);}catch(_){}
       setMessage(state.straightCutDraft.side==='outside'
-        ?`Изнутри наружу: выделенный внутренний контур будет расширен от отверстия в окружающий материал. Ширина ${mm(width)} мм.`
+        ?`Изнутри наружу: контур будет определён по точке начала автоматически; можно заранее выделить нужное отверстие. Ширина ${mm(width)} мм.`
         :`Проведи прямой проход снаружи внутрь под любым углом. Ширина ${mm(width)} мм.`);return;
     }
     if(state.duplicatePlacement&&e.button===0){const p=pointFromEvent(e,true);state.duplicatePlacement.cursor=p;state.duplicatePlacement.dragging=true;renderDuplicatePreview(p);e.preventDefault();e.stopPropagation();try{svg.setPointerCapture(e.pointerId);}catch(_){}return;}if(state.tool==='eraser'){state.erasing={seen:new Set(),historyBefore:snapshot()};eraseObjectAtEvent(e);e.preventDefault();return;}
