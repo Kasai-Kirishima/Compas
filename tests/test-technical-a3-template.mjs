@@ -17,11 +17,17 @@ assert.ok(!lab4.includes('width="185" height="287"'), 'Lab4 page frame is drawn 
 
 const lab8 = api.markup('A3L', { title:'Корпус', code:'8.090220 АР ХХ ХХ 01', company:'ШЦМГУ', developer:'Кушвид О.', checker:'Базиль Б.', scale:'1:1' }, 'lab8-reference-template');
 for (const value of ['Корпус','Вариант 8','8.090220 АР ХХ ХХ 01','ШЦМГУ','Кушвид О.','Базиль Б.']) assert.ok(lab8.includes(value));
-assert.ok(lab8.includes('font-size="2"') && lab8.includes('font-size="2.35"'), 'Lab8 lettering is enlarged');
-assert.ok(lab8.includes('x1="243"') && lab8.includes('x2="243"'), 'Lab8 role column is 13 mm wide');
+assert.ok(lab8.includes('font-size="10.5"') && lab8.includes('font-size="6"'), 'Lab8 upper-left code and 1:1 scale are enlarged');
+assert.ok(lab8.includes('data-template-width-factor="0.64"'), 'upper-left code uses a condensed width like the prototype lettering');
+assert.ok(lab8.includes('x1="247"') && lab8.includes('x2="247"'), 'Lab8 role column matches the 17 mm prototype width');
 assert.ok(lab8.includes('Т. контр.') && lab8.includes('Н. контр.'), 'T/N control labels remain in the merged role column');
 assert.ok(lab8.includes('#2147d0'));
 assert.ok(lab8.includes('width="185" height="55"'));
+assert.ok(lab8.includes('x="23.5" y="5" width="70" height="14"'), 'upper-left designation cell aligns with the second archive column');
+assert.ok(lab8.includes('x1="11.5"') && lab8.includes('x2="47.5"'), 'left archive strip matches the wider prototype columns');
+assert.ok(lab8.includes('font-size="3.3"'), 'vertical archive labels are enlarged for legibility');
+assert.ok(lab8.includes('font-size="3.1"'), 'developer/checker names are enlarged');
+assert.ok(lab8.includes('font-size="2.7"'), 'table headers are enlarged');
 assert.ok(lab8.includes('data-template-text-id='));
 assert.ok(!/>(?:None|null|undefined)<\/text>/i.test(lab8));
 
@@ -37,6 +43,7 @@ assert.match(app,/developer:'Кушвид О\.'/);
 assert.match(app,/checker:'Базиль Б\.'/);
 const frame = app.slice(app.indexOf('function renderSheetFrame'), app.indexOf('function svgEl', app.indexOf('function renderSheetFrame')));
 assert.ok(frame.includes("stroke:'#2147d0'"));
+assert.ok(frame.includes("x:47.5,y:5,width:Math.max(1,d.w-52.5)"), 'Lab8 main drawing frame begins after the expanded left archive strip');
 assert.ok(frame.includes("const isLab4=state.titleForm==='lab4-reference-template'"));
 assert.ok(frame.includes("const isLab8=state.titleForm==='lab8-reference-template'"));
 console.log('Lab4/Lab8 template geometry passed: A3 portrait and landscape layouts, reference title blocks, and legacy renderer compatibility.');

@@ -180,7 +180,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       const k=Math.min(d.w/210,d.h/297);
       add(sheetFrameLayer,'rect',{x:20*k,y:5*k,width:185*k,height:287*k,fill:'none',stroke:'#000000','stroke-width':.5,'vector-effect':'non-scaling-stroke'});
     }else if(isLab8){
-      add(sheetFrameLayer,'rect',{x:20,y:5,width:Math.max(1,d.w-25),height:Math.max(1,d.h-10),fill:'none',stroke:'#2147d0','stroke-width':.45,'vector-effect':'non-scaling-stroke'});
+      add(sheetFrameLayer,'rect',{x:47.5,y:5,width:Math.max(1,d.w-52.5),height:Math.max(1,d.h-10),fill:'none',stroke:'#2147d0','stroke-width':.45,'vector-effect':'non-scaling-stroke'});
     }else if(isGostPreset){
       // The editable Form 1 markup owns its exact frame geometry; do not draw it twice.
     }else if(isLegacyLab5||state.titleForm==='technical-a3-template'){
@@ -1528,7 +1528,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     const sheetSize=dimensions(),protectedZones=[];
     const activeForm=state.titleForm;
     if(activeForm==='lab4-reference-template'&&state.format==='A3P')protectedZones.push({x:18,y:325,w:278,h:90},{x:18,y:3,w:140,h:38});
-    else if(activeForm==='lab8-reference-template'&&state.format==='A3L')protectedZones.push({x:220,y:227,w:200,h:70},{x:18,y:3,w:75,h:18});
+    else if(activeForm==='lab8-reference-template'&&state.format==='A3L')protectedZones.push({x:220,y:227,w:200,h:70},{x:22,y:3,w:75,h:18});
     else if(activeForm==='lab5-a4-reference-template'&&state.format==='A4P')protectedZones.push({x:18,y:232,w:190,h:65},{x:18,y:3,w:95,h:23});
     else if(['lab5-gost-a3-landscape','technical-gost-a3-landscape','lab5-gost-a3-portrait','technical-gost-a3-portrait'].includes(activeForm)){
       protectedZones.push({x:sheetSize.w-195,y:sheetSize.h-65,w:195,h:65},{x:sheetSize.w-22,y:2,w:20,h:75});

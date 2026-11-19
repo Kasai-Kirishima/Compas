@@ -1,3 +1,9 @@
+## 1.5.58 — Lab 8 typography and prototype alignment
+- Increased the vertical left-strip labels and small title-block captions for legibility.
+- Increased the `1:1` scale value to 6 mm text height.
+- Repositioned and resized the upper-left drawing designation to keep it inside its cell while preserving its near-full-width appearance.
+- Rechecked the left archive strip, upper designation cell, title-block row grid, main title, variant, company label, and footer against the supplied Lab 8 reference.
+
 ## 1.5.56 — fixed inside-to-outside pass cut
 - Added an application-style regression test that reconstructs a part perimeter from four separate line entities, detects a separate circular bore, and joins the cut walls to the remaining bore arc.
 - A release exactly on the outer profile is now accepted and nudged slightly past the boundary along the same drag vector; releases that stop inside the material are still rejected with a clear prompt.

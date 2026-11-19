@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.57
+# CAD Geometry Core 1.5.58
 
 2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
 
@@ -64,5 +64,10 @@ Arrow 1: the filled arrowhead grows or shrinks proportionally with the line weig
 
 Инструмент автоматически собирает замкнутую область даже из отдельных соединённых отрезков/дуг. Если жест начинается внутри отверстия, внешний контур открывается к отверстию, соответствующий участок внутренней дуги удаляется, а боковые стенки соединяются с ней. Для этого протяни линию из отверстия за внешний край детали.
 
-### Lab 8 A3 landscape title block update (1.5.57)
+### Lab 8 A3 landscape title block update (1.5.58)
 The Lab 8 title block uses larger lettering. The role column is widened to 13 mm and the name field is merged to 27 mm, so `Т. контр.` and `Н. контр.` no longer overlap adjacent cells. The default name rows are `Кушвид О.` (Разраб.) and `Базиль Б.` (Пров.).
+
+### ЛР8 — финальная сверка шрифта и расположения (1.5.58)
+- Увеличены надписи в левой вертикальной полосе, мелкие заголовки таблицы и значения масштаба `1:1`.
+- Текст обозначения в верхнем левом поле центрирован и уменьшен по высоте относительно предыдущего черновика, чтобы не выходить за границу прямоугольника.
+- Сохранена геометрия рамки по исходному прототипу: две левые колонки, верхняя ячейка обозначения, нижний правый штамп и интервалы служебных полей.

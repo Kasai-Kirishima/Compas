@@ -23,7 +23,7 @@
     const h=Math.max(1.8,Number(over.size??size)||2.25);
     const a=over.anchor||anchor;
     const r=Number.isFinite(Number(over.rotation))?Number(over.rotation):rotate;
-    const widthFactor=Math.max(.25,Math.min(3,Number(over.widthFactor)||1));
+    const widthFactor=Math.max(.25,Math.min(3,Number(over.widthFactor??opts.widthFactor)||1));
     const slanted=typeof over.slanted==='boolean'?over.slanted:!!opts.slanted;
     const font=over.font||opts.fontFamily||'GOST type B,Arial,sans-serif';
     const color=over.color||opts.color||TEXT;
@@ -478,92 +478,91 @@
   // A3 drawing sheet reconstructed from the user's technical drawing sample.
   // The central field is empty; all title-block lettering remains editable in the app.
   function technicalA3Template(w,h,d={}){
-    const BLUE='#2147d0', INK='#111111';
-    const ln=(x1,y1,x2,y2,sw=.32)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${BLUE}" stroke-width="${sw}" fill="none"/>`;
+    const BLUE='#2147d0', INK='#111111', GRID='#333333';
+    const ln=(x1,y1,x2,y2,sw=.32,color=BLUE)=>`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${sw}" fill="none"/>`;
     const rc=(x,y,width,height,sw=.45)=>`<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="none" stroke="${BLUE}" stroke-width="${sw}"/>`;
-    const tx=(x,y,value,size=2.2,anchor='start',rotate=0)=>txt(x,y,value,size,anchor,rotate,{
-      slanted:true,italic:true,fontFamily:"'GOST type B','ISO 3098','DejaVu Sans',Arial,sans-serif",color:INK
+    const tx=(x,y,value,size=2.6,anchor='start',rotate=0,widthFactor=1)=>txt(x,y,value,size,anchor,rotate,{
+      slanted:true,italic:true,widthFactor,fontFamily:"'GOST type B','ISO 3098','DejaVu Sans',Arial,sans-serif",color:INK
     });
-    const frameX=20, frameY=5, frameW=w-25, frameH=h-10;
-    let out='';
-    // The blue drawing frame is rendered on the dedicated sheet-frame layer,
-    // so it remains visible when the title-block/template layer is hidden.
 
-    // Archival / reference fields in the left margin, matching the sample's interrupted strip.
-    const ax0=7.5,ax1=13.75,ax2=20;
+    // Left archive strip and main drawing field follow the supplied Lab 8 prototype.
+    // The left cells are 12 mm + 24 mm wide; the main drawing frame starts at 48 mm.
+    let out='';
+    const ax0=11.5, ax1=23.5, ax2=47.5;
     const baseBands=[
       [5,65,'Перше застос.'],[65,125,'Довідковий №'],
       [145,180,'Підпис і дата'],[180,206,'Інв. № дубл.'],[206,231,'Зам. інв. №'],
-      [231,256,'Підпис і дата'],[256,292,'Інв. № ориг.']
+      [231,256,'Підпис і дата'],[256,287,'Інв. № ориг.']
     ];
-    // Preserve the standard 20 mm binding strip while distributing its cells
-    // over the full usable height of A4/A3/A2 portrait or landscape sheets.
     const bandScale=(h-10)/287;
     const bands=baseBands.map(([a,b,label])=>[5+(a-5)*bandScale,5+(b-5)*bandScale,label]);
-    bands.forEach(([a,b,label],i)=>{
+    bands.forEach(([a,b,label])=>{
       out+=ln(ax0,a,ax2,a,.32)+ln(ax0,b,ax2,b,.42);
       out+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.28);
-      out+=tx((ax0+ax1)/2,(a+b)/2+1.1,label,2.0,'middle',-90);
+      out+=tx((ax0+ax1)/2,(a+b)/2+1.1,label,3.3,'middle',-90);
     });
 
-    // Small document-designation cell at the upper-left corner of the drawing field.
+    // Upper-left designation cell: larger lettering to match the reference image.
     const code=String(d.code||'8.090220 АР ХХ ХХ 01');
-    out+=rc(20,5,70,14,.42);
-    out+=tx(55,12.7,code,3.15,'middle',180);
+    const codeX=23.5, codeW=70;
+    out+=rc(codeX,5,codeW,14,.42);
+    out+=tx(codeX+codeW/2,9.8,code,10.5,'middle',180,.64);
 
-    // Main inscription: fixed 185 x 55 mm, anchored 5 mm from right and bottom edges.
+    // Main title block keeps the reference's 185 x 55 mm footprint.
     const bx=w-190, by=h-60, right=bx+185;
     out+=rc(bx,by,185,55,.52);
-    // The revision header keeps its five narrow columns. Below it, the role/name
-    // area is merged into readable fields: 13 mm for the role, 27 mm for the name,
-    // then 15 mm for signature and 10 mm for date. This prevents T./N. control
-    // labels from spilling into adjacent cells when the lettering is enlarged.
+
+    // Left-hand approval table: three 5 mm blank rows, one 5 mm header row,
+    // then five 7 mm role rows, matching the supplied prototype.
     const headerXs=[bx+7,bx+17,bx+40,bx+55,bx+65];
-    headerXs.forEach(x=>out+=ln(x,by,x,by+30,.27));
-    [5,10,15,20,25,30].forEach(n=>out+=ln(bx,by+n,bx+65,by+n,.24));
-    const bodyXs=[bx+13,bx+40,bx+55,bx+65];
-    bodyXs.forEach(x=>out+=ln(x,by+30,x,by+55,.27));
-    [35,40,45,50,55].forEach(n=>out+=ln(bx,by+n,bx+65,by+n,.24));
-    const headerY=by+28.25;
+    headerXs.forEach(x=>out+=ln(x,by,x,by+20,.27));
+    [5,10,15].forEach(n=>out+=ln(bx,by+n,bx+65,by+n,.22,GRID));
+    out+=ln(bx,by+15,bx+65,by+15,.28,BLUE);
+    // Header baseline and role/name column grid.
+    out+=ln(bx,by+20,bx+65,by+20,.28,BLUE);
+    const bodyXs=[bx+17,bx+40,bx+55,bx+65];
+    bodyXs.forEach(x=>out+=ln(x,by+20,x,by+55,.27));
+    [27,34,41,48,55].forEach(n=>out+=ln(bx,by+n,bx+65,by+n,.22,GRID));
+    const headerY=by+18.25;
     [['Зм.',bx,bx+7],['Арк.',bx+7,bx+17],['№ докум.',bx+17,bx+40],['Підп.',bx+40,bx+55],['Дата',bx+55,bx+65]].forEach(([label,a,b])=>{
-      out+=tx((a+b)/2,headerY,label,1.95,'middle');
+      out+=tx((a+b)/2,headerY,label,2.7,'middle');
     });
     const roles=['Разраб.','Пров.','Т. контр.','Н. контр.','Утв.'];
     const roleValues=[d.developer||'Кушвид О.',d.checker||'Базиль Б.',d.technical||'',d.normative||'',d.approved||''];
     roles.forEach((role,i)=>{
-      const baseline=by+33.3+i*5;
-      out+=tx(bx+1,baseline,role,2.0,'start');
-      if(roleValues[i])out+=tx(bx+14.5,baseline,roleValues[i],2.35,'start');
+      const baseline=by+24.8+i*7;
+      out+=tx(bx+1,baseline,role,2.9,'start');
+      if(roleValues[i])out+=tx(bx+18.5,baseline,roleValues[i],3.1,'start');
     });
 
-    // Central designation, detail name and variant fields.
+    // Main title, drawing designation and variant retain their original positions.
     const midX=bx+135;
     out+=ln(bx+65,by+15,right,by+15,.35);
     out+=ln(bx+65,by+35,bx+135,by+35,.35);
-    out+=tx(bx+125,by+9.5,code,5.25,'middle');
+    out+=tx(bx+125,by+9.5,code,5.8,'middle');
     out+=tx(bx+100,by+28.4,d.title||'Корпус',9.2,'middle');
     out+=tx(bx+100,by+48.6,'Вариант 8',7.35,'middle');
 
-    // Right-hand data cells: literature, mass, scale, sheet captions and organisation.
+    // Right-side cells; scale value is deliberately legible, unlike the tiny source placeholder.
     out+=ln(midX,by+15,midX,by+55,.3);
     out+=ln(bx+150,by+15,bx+150,by+35,.25);
     out+=ln(bx+167,by+15,bx+167,by+35,.25);
     out+=ln(midX,by+20,right,by+20,.22);
-    out+=tx(bx+142.5,by+18.4,'Літ.',1.95,'middle');
-    out+=tx(bx+158.5,by+18.4,'Маса',1.95,'middle');
-    out+=tx(bx+176,by+18.4,'Масштаб',1.85,'middle');
-    out+=tx(bx+142.5,by+30.5,String(d.liter||''),2.35,'middle');
-    out+=tx(bx+158.5,by+30.5,String(d.mass||''),2.35,'middle');
-    out+=tx(bx+176,by+30.5,String(d.scale||'1:1'),2.35,'middle');
+    out+=tx(bx+142.5,by+18.4,'Літ.',2.8,'middle');
+    out+=tx(bx+158.5,by+18.4,'Маса',2.8,'middle');
+    out+=tx(bx+176,by+18.4,'Масштаб',3.2,'middle');
+    out+=tx(bx+142.5,by+30.5,String(d.liter||''),3.0,'middle');
+    out+=tx(bx+158.5,by+30.5,String(d.mass||''),3.0,'middle');
+    out+=tx(bx+176,by+30.5,String(d.scale||'1:1'),6.0,'middle');
     out+=ln(midX,by+35,right,by+35,.25)+ln(midX,by+40,right,by+40,.25);
     out+=ln(bx+160,by+35,bx+160,by+40,.22);
-    out+=tx(bx+147.5,by+38.5,'Арк.',1.85,'middle');
-    out+=tx(bx+172.5,by+38.5,'Аркушів',1.85,'middle');
-    out+=tx(bx+160,by+50.8,d.company||'ШЦМГУ',4.55,'middle');
+    out+=tx(bx+147.5,by+38.5,'Арк.',2.6,'middle');
+    out+=tx(bx+172.5,by+38.5,'Аркушів',2.9,'middle');
+    out+=tx(bx+160,by+50.8,d.company||'ШЦМГУ',6.0,'middle');
 
-    // Footer captions below the frame.
-    out+=tx(bx+92,h-1.15,'Копіював',1.9,'middle');
-    out+=tx(w-5,h-1.15,'Формат '+String(formatLabel(w,h)),1.8,'end');
+    // Footer labels below the blue frame, as in the user's prototype.
+    out+=tx(bx+92,h-1.15,'Копіював',2.45,'middle');
+    out+=tx(w-5,h-1.15,'Формат '+String(formatLabel(w,h)),2.35,'end');
     return out;
   }
   function formatLabel(w,h){return (Math.max(w,h)===420?'А3':(Math.max(w,h)===297?'А4':(Math.max(w,h)===594?'А2':(Math.max(w,h)===841?'А1':'А0'))));}
