@@ -1,4 +1,11 @@
-# CAD Geometry Core 1.5.52
+# CAD Geometry Core 1.5.53
+
+- Added bidirectional 2D cutouts: edge notches and straight pass-cuts can now cut inward from an external profile or outward from an inner hole/pocket boundary.
+- Added the **Изнутри наружу** direction option. For straight pass-cuts, select the inner closed contour first; only selected inner contours are modified to protect surrounding outer profiles.
+- Added outward geometry handling for polygon, circular and sampled curved boundaries, with wall modes (all walls, no bottom wall, and no walls) preserved.
+- Preserved the cut direction on repeated passes through previously opened contours and in saved object metadata.
+- Added regression tests for outward notch, blind and through pass-cuts, reverse drag direction, repeated passes, and editor selection safety.
+
 
 - Added the full-walls mode to the straight pass-cut tool and made it the default. Blind cuts retain both parallel side walls plus the transverse end wall.
 - Added the transverse end wall to the live pass-cut preview.

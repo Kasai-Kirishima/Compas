@@ -53,6 +53,26 @@ assert.equal(cutCircleNotchAtPoint(ring,{x:50,y:0},120,12,{hitTolerance:2}).ok,f
 assert.equal(cutCircleNotchAtPoint(ring,{x:50,y:0},20,50,{hitTolerance:2}).ok,false, 'Depth reaching the centre must be rejected');
 assert.equal(cutCircleNotchAtPoint(new Circle({x:0,y:0},50,{locked:true}),{x:50,y:0},20,12,{hitTolerance:2}).ok,false);
 
+// An internal hole edge can be cut outward into the surrounding material.
+const internalCircle = new Circle({x:0,y:0},25,{id:'inner-hole'});
+const outwardCircle = cutCircleNotchAtPoint(internalCircle,{x:25,y:0},8,10,{hitTolerance:1,direction:'outside'});
+assert.equal(outwardCircle.ok,true,outwardCircle.reason);
+assert.equal(outwardCircle.metadata.direction,'outside');
+assert.ok(outwardCircle.metadata.newArea>outwardCircle.metadata.oldArea,'An outward hole cut expands the enclosed void area');
+assert.ok(outwardCircle.add[0].vertices.some(p=>Math.hypot(p.x,p.y)>34.9),'The outward notch reaches beyond the original circle radius');
+const outwardCircleOpen=cutCircleNotchWithoutBottomAtPoint(internalCircle,{x:25,y:0},8,10,{hitTolerance:1,direction:'outside'});
+assert.equal(outwardCircleOpen.ok,true,outwardCircleOpen.reason);
+assert.equal(outwardCircleOpen.metadata.direction,'outside');
+assert.equal(outwardCircleOpen.metadata.bottomWallRemoved,true);
+const outwardPolygon=cutPolygonNotchAtPoint(rect,{x:50,y:0},20,8,{hitTolerance:1,direction:'outside'});
+assert.equal(outwardPolygon.ok,true,outwardPolygon.reason);
+assert.ok(outwardPolygon.metadata.newArea>outwardPolygon.metadata.oldArea,'A polygon inner boundary can grow outward');
+assert.ok(outwardPolygon.add[0].vertices.some(p=>Math.abs(p.y+8)<1e-7),'Outward polygon cut extends beyond the original lower edge');
+const sampledInner=new Polygon(Array.from({length:128},(_,i)=>({x:30*Math.cos(i*Math.PI/64),y:30*Math.sin(i*Math.PI/64)})));
+const sampledOutward=cutPolygonNotchAtPoint(sampledInner,{x:30,y:0},12,9,{hitTolerance:2,direction:'outside'});
+assert.equal(sampledOutward.ok,true,sampledOutward.reason);
+assert.ok(sampledOutward.metadata.newArea>sampledOutward.metadata.oldArea,'Outward cuts also work on multi-edge sampled circles');
+
 // Third edge-cutout mode: side walls remain but the bottom/base line is removed.
 const openBaseRect=cutPolygonNotchWithoutBottomAtPoint(rect,{x:50,y:0},20,10,{hitTolerance:2,minWeb:1});
 assert.equal(openBaseRect.ok,true);

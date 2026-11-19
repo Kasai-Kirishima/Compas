@@ -5,7 +5,7 @@ const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 
-assert.equal(pkg.version, '1.5.52');
+assert.equal(pkg.version, '1.5.53');
 assert.match(html, /data-tool="arrowLine"[^>]*>.*?Стрелка 1/s, 'Arrow 1 must be available as a ribbon command or geometry tile');
 assert.ok((html.match(/data-tool="arrowLine"/g) || []).length >= 2, 'Arrow 1 must be available in both ribbon and tool panel');
 assert.match(app, /arrowLine:'Стрелка 1:[^']*первая точка пустая, вторая с наконечником/s);

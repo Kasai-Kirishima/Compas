@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.52
+# CAD Geometry Core 1.5.53
 
 2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
 
@@ -29,7 +29,7 @@ Legacy template IDs remain in the renderer so older `.kcad` documents can still 
 
 - Line and **Arrow 1** (a segment-style tool with an open first end and one filled arrowhead at the second end), ray, infinite construction line, circle by radius/diameter, arc, rectangle, polyline, spline.
 - OSNAP: endpoint, midpoint, center, intersection, quadrant and tangent; Ortho (F8).
-- Offset, Trim, Mirror, supported Fillet operations, hatch with shared angle/spacing. The straight pass-cut tool now offers all walls (default), no bottom wall, and no walls.
+- Offset, Trim, Mirror, supported Fillet operations, hatch with shared angle/spacing. The straight pass-cut tool now offers all walls (default), no bottom wall, and no walls. Cutouts support both **outside-to-inside** notches on external profiles and **inside-to-outside** cuts from selected hole/pocket contours; straight passes support all three wall modes in both directions.
 - Main/thin/center line roles and weights; dimensions, center marks and editable title-block text.
 - SVG, DXF, PDF/print and image export.
 

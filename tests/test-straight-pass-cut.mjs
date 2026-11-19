@@ -293,4 +293,25 @@ assert.equal(circleReverse.ok, true, circleReverse.reason);
 assert.equal(circleReverse.metadata.directionReversed, true);
 assert.equal(circleReverse.metadata.blindEnd, true);
 
+// An internal circle/pocket can be expanded outward from the void into
+// surrounding material, with all three wall modes supported.
+const innerHole = circle(0, 0, 20);
+for (const mode of ['walls', 'noBottom', 'noWalls']) {
+  const outward = cutClosedContourByStraightPass(innerHole,{x:0,y:0},{x:36,y:0},4,{side:'outside',mode,autoReverseIfStartInside:true});
+  assert.equal(outward.ok,true,`outward hole pass (${mode}): ${outward.reason}`);
+  assert.equal(outward.metadata.side,'outside');
+  assert.ok(outward.metadata.newArea>outward.metadata.oldArea,'Outward pass expands the internal void boundary');
+  assert.equal(outward.metadata.blindEnd,true);
+  if (mode==='walls') assert.equal(outward.fragments.length,1);
+  if (mode==='noBottom') assert.equal(outward.openFragments.length,1);
+  if (mode==='noWalls') assert.equal(outward.metadata.sideWallsRemoved,true);
+}
+// Dragging from outside toward the hole is accepted too; the local side is
+// reversed so the resulting cut still grows outward from the internal loop.
+const outwardReverse = cutClosedContourByStraightPass(innerHole,{x:36,y:0},{x:0,y:0},4,{side:'outside',mode:'walls',autoReverseIfStartInside:true});
+assert.equal(outwardReverse.ok,true,outwardReverse.reason);
+assert.equal(outwardReverse.metadata.directionReversed,true);
+assert.equal(outwardReverse.metadata.side,'outside');
+assert.ok(outwardReverse.metadata.newArea>outwardReverse.metadata.oldArea);
+
 console.log('Straight pass-cut tests passed: full walls, open-bottom walls, no-walls gaps, blind and through cuts, repeated second/third passes on the same open result, two-circle path, arbitrary-angle passes in 17 directions, reverse drag direction, exact parallel walls and invalid paths.');

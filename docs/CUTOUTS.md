@@ -9,6 +9,27 @@ The core supports four related 2D drafting workflows:
 
 These tools edit 2D linework. They do not perform 3D solid Boolean subtraction and do not infer material removal in a filled CAD solid.
 
+## Cut direction: inward and outward
+
+Closed-boundary notch helpers accept `direction: 'inside' | 'outside'` (default: `inside`).
+
+- `inside` creates the usual notch from an external profile edge toward the inside of the contour.
+- `outside` expands an internal boundary (for example, a hole or pocket outline) outward into the surrounding material. The result is still an editable 2D closed/open contour. For a circle, the notch floor uses `radius + depth`; for a polygon the local edge normals are reversed and the generated outer floor is checked to remain outside the original contour.
+
+Example for a hole circle:
+
+```js
+const hole = new Circle({ x: 0, y: 0 }, 25);
+const tx = cutCircleNotchAtPoint(hole, { x: 25, y: 0 }, 8, 10, {
+  hitTolerance: 2,
+  direction: 'outside'
+});
+if (!tx.ok) throw new Error(tx.reason);
+// tx.metadata.newArea is greater than tx.metadata.oldArea.
+```
+
+The editor exposes this as **Направление выреза → Изнутри наружу**. For a one-click edge notch, click the inner boundary or select the relevant inner contour. For a straight pass, select the inner closed contour first; outward pass mode intentionally processes selected closed contours only, so an adjacent outer profile is not modified accidentally. Drag from the empty area inside the selected hole/pocket through its boundary into the surrounding material. The tool accepts the reverse drag direction too and locally orients the pass from the void side toward the material side.
+
 ## Three edge-cutout modes in the main editor
 
 The main editor exposes three separate tools:
@@ -107,7 +128,7 @@ For a standards-oriented drawing, keep inner hole contours as separate closed en
 ## Main editor workflow
 
 1. Open the **Редактирование → Вырез и отверстия** section.
-2. For an edge notch, set width/depth/minimum web, choose **Вырез / разрез**, then click a closed profile (rectangle, rounded rectangle, circle, ellipse, closed polyline, closed spline, or closed freehand contour) to cut inward. You can also click an open line, arc, construction/centre line, or open polyline to remove a gap of the chosen width.
+2. For an edge notch, set width/depth/minimum web, choose the direction, then click a closed profile (rectangle, rounded rectangle, circle, ellipse, closed polyline, closed spline, or closed freehand contour). Use **Внутрь** for an external boundary or **Изнутри наружу** for an inner hole/pocket boundary. You can also click an open line, arc, construction/centre line, or open polyline to remove a gap of the chosen width.
 3. For an internal contour, choose rectangle/circle/slot, press **Разместить внутренний контур**, then click its centre.
 4. Use Undo if the result is not suitable.
 
@@ -136,7 +157,7 @@ The demo's internal-contour button now enters placement mode. The next click set
 
 ## Straight pass-cut across multiple profiles
 
-Use **Прямой проходной вырез** for a long, straight slot that crosses several separate circles or closed profiles in one drag. Set the slot width in **Ширина выреза / разреза**, choose the tool, press the left mouse button and drag in a straight line along the desired path at any angle. It works from the top, bottom, left, right, or diagonally. For each intersected profile independently, if the drag starts inside that profile and ends outside it, the engine reverses the local direction automatically; the open entry remains on the side where the drag began. The exact pointer vector defines the pass axis; a live angle label and direction arrow are shown in the preview. The exact drag segment is swept into a rectangle of constant width; every visible, unlocked closed object on the geometry layer that intersects this corridor is processed automatically. No separate multi-selection is required. Lock or hide profiles that must be protected.
+Use **Прямой проходной вырез** for a long, straight slot that crosses several separate circles or closed profiles in one drag. Set the slot width in **Ширина выреза / разреза**, choose the tool, press the left mouse button and drag in a straight line along the desired path at any angle. It works from the top, bottom, left, right, or diagonally. In **Снаружи внутрь**, all visible, unlocked closed profiles intersected by the strip are processed; a drag started inside a profile is locally reversed where required. In **Изнутри наружу**, first select the inner closed contour(s), then drag from the empty area inside the hole/pocket outward through its boundary. Only the selected inner contours are modified, avoiding accidental cuts to adjacent outer profiles. The exact pointer vector defines the pass axis; a live angle label and direction arrow are shown in the preview. The exact drag segment is swept into a rectangle of constant width.
 
 The straight pass tool offers three modes:
 

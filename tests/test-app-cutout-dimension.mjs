@@ -8,8 +8,12 @@ assert.match(html, /type="module" src="js\/app\.js"/, 'Main editor must load as 
 assert.match(html, /data-tool="cutout"/, 'The main editor must expose an edge-cutout tool');
 assert.match(html, /id="placeInnerCutoutBtn"/, 'The main editor must expose inner-contour placement');
 assert.match(html, /id="cutoutShape"[\s\S]*value="slot"/, 'Inner-contour selector must include an obround slot');
+assert.match(html, /id="cutoutDirection"[\s\S]*value="inside" selected[\s\S]*value="outside"/, 'Cutout controls must expose both inward and outward directions');
 assert.match(app, /cutPolygonNotchAtPoint/, 'Edge-cutout tool must call the polygon cutout engine');
 assert.match(app, /cutCircleNotchAtPoint/, 'Edge-cutout tool must call the circular boundary cutout engine');
+assert.match(app, /direction=\$\('cutoutDirection'\)\?\.value\|\|'inside'/, 'Edge cutouts must read the selected direction');
+assert.match(app, /cutCircleNotchAtPoint\(circle,point,width,depth,\{hitTolerance:tolerance,minWeb,direction\}\)/, 'Circular cuts must apply outward direction on inner contours');
+assert.match(app, /cutPolygonNotchAtPoint\(polygon,point,width,depth,\{hitTolerance:tolerance,minWeb,direction\}\)/, 'Polygon cuts must apply outward direction on inner contours');
 assert.match(app, /source\.type==='circle'[\s\S]*cutCircleNotchAtPoint/, 'Main editor must route circular selections to circular notch geometry');
 assert.match(app, /cutOpenPathGapAtPoint/, 'The edge-cutout tool must remove a width-defined gap from open geometry');
 assert.match(app, /function appOpenPathPoints/, 'Open lines, arcs and polylines must be converted to editable paths');

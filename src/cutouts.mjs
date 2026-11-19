@@ -77,6 +77,7 @@ function isSimplePolygon(vertices, eps = 1e-8) {
 export function cutPolygonNotch(polygon, edgeIndex, width, depth, {
   centerOffset = 0,
   minWeb = 0,
+  direction = 'inside',
   eps = 1e-7,
   style = polygon?.style,
 } = {}) {
@@ -86,6 +87,7 @@ export function cutPolygonNotch(polygon, edgeIndex, width, depth, {
     throw new RangeError('Неправильний індекс ребра багатокутника');
   }
   positive(width, 'Ширина вирізу'); positive(depth, 'Глибина вирізу');
+  if (!['inside', 'outside'].includes(direction)) throw new RangeError('Неподдерживаемое направление выреза');
   if (!Number.isFinite(centerOffset) || !Number.isFinite(minWeb) || minWeb < 0) {
     throw new TypeError('centerOffset має бути числом, а minWeb — невід’ємним числом');
   }
@@ -98,15 +100,25 @@ export function cutPolygonNotch(polygon, edgeIndex, width, depth, {
   if (Math.abs(area) <= eps) return { ok: false, reason: 'Контур має нульову площу' };
   // For CCW winding, polygon interior is to the left of every directed edge.
   const inward = area > 0 ? { x: -u.y, y: u.x } : { x: u.y, y: -u.x };
+  const normal = direction === 'outside' ? mul(inward, -1) : inward;
   const centerS = edgeLength / 2 + centerOffset;
   const s0 = centerS - width / 2, s1 = centerS + width / 2;
   if (s0 < minWeb - eps || s1 > edgeLength - minWeb + eps) {
     return { ok: false, reason: 'Виріз не поміщається на вибраному ребрі або порушує мінімальну перемичку' };
   }
   const p0 = add(a, mul(u, s0)), p1 = add(a, mul(u, s1));
-  const q0 = add(p0, mul(inward, depth)), q1 = add(p1, mul(inward, depth));
-  if (!pointInPolygon(q0, vertices, eps) || !pointInPolygon(q1, vertices, eps)) {
-    return { ok: false, reason: 'Задана глибина виходить за межі контуру деталі' };
+  const q0 = add(p0, mul(normal, depth)), q1 = add(p1, mul(normal, depth));
+  const q0Inside = pointInPolygon(q0, vertices, eps), q1Inside = pointInPolygon(q1, vertices, eps);
+  if (direction === 'inside' ? (!q0Inside || !q1Inside) : (q0Inside || q1Inside)) {
+    return { ok: false, reason: direction === 'inside'
+      ? 'Заданная глубина выходит за пределы контура детали'
+      : 'Внешний вырез пересекает контур повторно; уменьши глубину или выбери другое место' };
+  }
+  if (direction === 'outside') {
+    for (let i = 1; i < 8; i++) {
+      const sample = add(q0, mul(sub(q1, q0), i / 8));
+      if (pointInPolygon(sample, vertices, eps)) return { ok: false, reason: 'Внешняя стенка выреза пересекает контур детали' };
+    }
   }
   const result = [];
   for (let i = 0; i < vertices.length; i++) {
@@ -115,8 +127,13 @@ export function cutPolygonNotch(polygon, edgeIndex, width, depth, {
   }
   if (!isSimplePolygon(result, eps)) return { ok: false, reason: 'Такий виріз створює самоперетин контуру' };
   const newArea = signedArea(result);
-  if (Math.abs(newArea) >= Math.abs(area) - eps || Math.sign(newArea) !== Math.sign(area)) {
-    return { ok: false, reason: 'Виріз не зменшив площу контуру коректним способом' };
+  const areaChangedCorrectly = direction === 'inside'
+    ? Math.abs(newArea) < Math.abs(area) - eps
+    : Math.abs(newArea) > Math.abs(area) + eps;
+  if (!areaChangedCorrectly || Math.sign(newArea) !== Math.sign(area)) {
+    return { ok: false, reason: direction === 'inside'
+      ? 'Вырез не уменьшил площадь контура корректным способом'
+      : 'Внешний вырез не увеличил область внутреннего контура корректным способом' };
   }
   const replacement = new Polygon(result, {
     style: style ?? polygon.style,
@@ -129,9 +146,9 @@ export function cutPolygonNotch(polygon, edgeIndex, width, depth, {
     operation: 'cutout',
     remove: [polygon.id],
     add: [replacement],
-    removed: { polygonId: polygon.id, edgeIndex, width, depth, centerOffset },
+    removed: { polygonId: polygon.id, edgeIndex, width, depth, centerOffset, direction },
     metadata: {
-      oldArea: Math.abs(area), newArea: Math.abs(newArea), removedArea: Math.abs(area) - Math.abs(newArea),
+      oldArea: Math.abs(area), newArea: Math.abs(newArea), removedArea: direction === 'inside' ? Math.abs(area) - Math.abs(newArea) : Math.abs(newArea) - Math.abs(area), direction,
       notch: { mouthStart: p0, innerStart: q0, innerEnd: q1, mouthEnd: p1 },
     },
   };
@@ -147,6 +164,7 @@ export function cutPolygonNotch(polygon, edgeIndex, width, depth, {
 export function cutCircleNotchAtPoint(circle, point, width, depth, {
   hitTolerance = Infinity,
   minWeb = 0,
+  direction = 'inside',
   segmentsPerTurn = 360,
   eps = 1e-7,
   style = circle?.style,
@@ -158,6 +176,7 @@ export function cutCircleNotchAtPoint(circle, point, width, depth, {
   }
   positive(width, 'Ширина вирізу');
   positive(depth, 'Глибина вирізу');
+  if (!['inside', 'outside'].includes(direction)) throw new RangeError('Неподдерживаемое направление выреза');
   if ((hitTolerance !== Infinity && (!Number.isFinite(hitTolerance) || hitTolerance < 0)) ||
       !Number.isFinite(minWeb) || minWeb < 0 || !Number.isInteger(segmentsPerTurn) || segmentsPerTurn < 36) {
     throw new TypeError('Неправильні параметри допуску, перемички або точності дуги');
@@ -172,7 +191,7 @@ export function cutCircleNotchAtPoint(circle, point, width, depth, {
   if (width >= 2 * radius - eps) {
     return { ok: false, reason: 'Ширина выреза должна быть меньше диаметра окружности' };
   }
-  if (depth >= radius - eps) {
+  if (direction === 'inside' && depth >= radius - eps) {
     return { ok: false, reason: 'Глубина выреза не должна достигать центра окружности' };
   }
 
@@ -186,14 +205,14 @@ export function cutCircleNotchAtPoint(circle, point, width, depth, {
   const angle = Math.atan2(point.y - circle.center.y, point.x - circle.center.x);
   const a0 = angle - halfAngle;
   const a1 = angle + halfAngle;
-  const innerRadius = radius - depth;
+  const notchRadius = direction === 'inside' ? radius - depth : radius + depth;
   const pointAt = (r, a) => ({
     x: circle.center.x + r * Math.cos(a),
     y: circle.center.y + r * Math.sin(a),
   });
   const p0 = pointAt(radius, a0);
-  const q0 = pointAt(innerRadius, a0);
-  const q1 = pointAt(innerRadius, a1);
+  const q0 = pointAt(notchRadius, a0);
+  const q1 = pointAt(notchRadius, a1);
   const p1 = pointAt(radius, a1);
 
   const remainingSweep = 2 * Math.PI - openingSweep;
@@ -210,8 +229,11 @@ export function cutCircleNotchAtPoint(circle, point, width, depth, {
   }
   const oldArea = Math.PI * radius * radius;
   const newArea = Math.abs(signedArea(vertices));
-  if (!(newArea < oldArea - eps)) {
-    return { ok: false, reason: 'Не удалось корректно уменьшить площадь окружности' };
+  const areaChangedCorrectly = direction === 'inside' ? newArea < oldArea - eps : newArea > oldArea + eps;
+  if (!areaChangedCorrectly) {
+    return { ok: false, reason: direction === 'inside'
+      ? 'Не удалось корректно уменьшить площадь окружности'
+      : 'Не удалось корректно расширить внутренний контур окружности' };
   }
 
   const replacement = new Polygon(vertices, {
@@ -225,9 +247,9 @@ export function cutCircleNotchAtPoint(circle, point, width, depth, {
     operation: 'cutout',
     remove: [circle.id],
     add: [replacement],
-    removed: { circleId: circle.id, width, depth, angle, halfAngle },
+    removed: { circleId: circle.id, width, depth, angle, halfAngle, direction },
     metadata: {
-      oldArea, newArea, removedArea: oldArea - newArea, remainingArcLength,
+      oldArea, newArea, removedArea: direction === 'inside' ? oldArea - newArea : newArea - oldArea, remainingArcLength, direction,
       notch: { mouthStart: p0, innerStart: q0, innerEnd: q1, mouthEnd: p1 },
     },
   };
@@ -326,6 +348,7 @@ export function cutCircleNotchWithoutBottomAtPoint(circle, point, width, depth, 
 export function cutPolygonNotchAlongBoundaryAtPoint(polygon, point, width, depth, {
   hitTolerance = Infinity,
   minWeb = 0,
+  direction = 'inside',
   eps = 1e-7,
   style = polygon?.style,
 } = {}) {
@@ -333,6 +356,7 @@ export function cutPolygonNotchAlongBoundaryAtPoint(polygon, point, width, depth
   if (polygon.locked) return { ok: false, reason: 'Контур заблоковано' };
   if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) throw new TypeError('Точка вирізу має містити координати x та y');
   positive(width, 'Ширина вирізу'); positive(depth, 'Глубина выреза');
+  if (!['inside', 'outside'].includes(direction)) throw new RangeError('Неподдерживаемое направление выреза');
   if ((hitTolerance !== Infinity && (!Number.isFinite(hitTolerance) || hitTolerance < 0)) || !Number.isFinite(minWeb) || minWeb < 0) {
     throw new TypeError('Неправильні параметри допуску або перемички');
   }
@@ -376,15 +400,22 @@ export function cutPolygonNotchAlongBoundaryAtPoint(polygon, point, width, depth
     return area > 0 ? { x: -d.y / len, y: d.x / len } : { x: d.y / len, y: -d.x / len };
   };
   const p0 = mouth0.point, p1 = mouth1.point;
-  const n0 = inwardNormal(mouth0.edgeIndex), n1 = inwardNormal(mouth1.edgeIndex);
+  const directionSign = direction === 'outside' ? -1 : 1;
+  const n0 = mul(inwardNormal(mouth0.edgeIndex), directionSign), n1 = mul(inwardNormal(mouth1.edgeIndex), directionSign);
   const q0 = add(p0, mul(n0, depth)), q1 = add(p1, mul(n1, depth));
-  if (!pointInPolygon(q0, vertices, eps) || !pointInPolygon(q1, vertices, eps)) {
-    return { ok: false, reason: 'Заданная глубина выходит за пределы контура детали' };
+  const q0Inside = pointInPolygon(q0, vertices, eps), q1Inside = pointInPolygon(q1, vertices, eps);
+  if (direction === 'inside' ? (!q0Inside || !q1Inside) : (q0Inside || q1Inside)) {
+    return { ok: false, reason: direction === 'inside'
+      ? 'Заданная глубина выходит за пределы контура детали'
+      : 'Внешний вырез пересекает контур повторно; уменьши глубину или выбери другое место' };
   }
   // A straight bottom across a strongly concave region could leave the part.
   for (let i = 1; i < 8; i++) {
     const t = i / 8, sample = add(q0, mul(sub(q1, q0), t));
-    if (!pointInPolygon(sample, vertices, eps)) return { ok: false, reason: 'Вырез пересекает вогнутую границу контура' };
+    const inside = pointInPolygon(sample, vertices, eps);
+    if (direction === 'inside' ? !inside : inside) return { ok: false, reason: direction === 'inside'
+      ? 'Вырез пересекает вогнутую границу контура'
+      : 'Внешний вырез пересекает контур детали' };
   }
 
   const result = [p0, q0, q1, p1];
@@ -400,8 +431,11 @@ export function cutPolygonNotchAlongBoundaryAtPoint(polygon, point, width, depth
   retainedVertices.forEach(({ point: p }) => result.push(p));
   if (!isSimplePolygon(result, eps)) return { ok: false, reason: 'Такой вырез создаёт самопересечение контура' };
   const newArea = Math.abs(signedArea(result));
-  if (!(newArea < absArea - eps) || Math.sign(signedArea(result)) !== Math.sign(area)) {
-    return { ok: false, reason: 'Не удалось корректно уменьшить площадь контура' };
+  const areaChangedCorrectly = direction === 'inside' ? newArea < absArea - eps : newArea > absArea + eps;
+  if (!areaChangedCorrectly || Math.sign(signedArea(result)) !== Math.sign(area)) {
+    return { ok: false, reason: direction === 'inside'
+      ? 'Не удалось корректно уменьшить площадь контура'
+      : 'Не удалось корректно увеличить площадь внутреннего контура' };
   }
 
   const replacement = new Polygon(result, {
@@ -415,9 +449,9 @@ export function cutPolygonNotchAlongBoundaryAtPoint(polygon, point, width, depth
     operation: 'cutout',
     remove: [polygon.id],
     add: [replacement],
-    removed: { edgeIndex: nearest.edgeIndex, width, depth, start, end, alongBoundary: true },
+    removed: { edgeIndex: nearest.edgeIndex, width, depth, start, end, alongBoundary: true, direction },
     metadata: {
-      oldArea: absArea, newArea, removedArea: absArea - newArea, perimeter, remainingBoundary: perimeter - width,
+      oldArea: absArea, newArea, removedArea: direction === 'inside' ? absArea - newArea : newArea - absArea, perimeter, remainingBoundary: perimeter - width, direction,
       notch: { mouthStart: p0, innerStart: q0, innerEnd: q1, mouthEnd: p1 },
     },
   };
@@ -829,6 +863,7 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
   eps = 1e-7,
   rejectStartInside = true,
   autoReverseIfStartInside = false,
+  side = 'inside', // retained material side: contour interior or exterior (for a nested hole)
   mode = 'walls', // 'walls' | 'noBottom' | 'noWalls'
   preserveOpenEdges = [], // virtual closing edges for previously open pass-cut contours
 } = {}) {
@@ -846,6 +881,7 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
     }
   }
   positive(width, 'Ширина проходного выреза');
+  if (!['inside', 'outside'].includes(side)) throw new RangeError('Неподдерживаемая сторона проходного выреза');
   if (!['walls', 'noBottom', 'noWalls'].includes(mode)) throw new RangeError('Неподдерживаемый режим прямого проходного выреза');
   if (!Number.isFinite(eps) || eps <= 0) throw new TypeError('Допуск геометрии должен быть положительным числом');
 
@@ -861,16 +897,13 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
   if (Math.abs(area) <= eps) return { ok: false, reason: 'Площадь исходного контура слишком мала' };
   const startInside = pointInPolygon(start, clean, eps);
   const endInside = pointInPolygon(end, clean, eps);
-  if (rejectStartInside && startInside) {
-    // The UI accepts a drag from either side. If the user begins inside a
-    // profile and releases outside it, reverse the local pass direction so
-    // the opening is formed at the user's starting side rather than rejecting
-    // the operation. Through-cuts (both endpoints outside) are unchanged;
-    // a segment with both endpoints inside is still rejected as an internal
-    // pocket, which is a separate CAD operation.
+  if (side === 'inside' && rejectStartInside && startInside) {
+    // For an external material boundary, orient the operation from the
+    // outside toward the inside. A drag started inside the profile is reversed
+    // so the blind end remains at the user's starting point.
     if (autoReverseIfStartInside && !endInside) {
       const reversed = cutClosedContourByStraightPass(clean, end, start, width, {
-        eps, rejectStartInside: true, autoReverseIfStartInside: false, mode, preserveOpenEdges,
+        eps, rejectStartInside: true, autoReverseIfStartInside: false, side, mode, preserveOpenEdges,
       });
       if (!reversed.ok) return reversed;
       return {
@@ -885,6 +918,19 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
     return { ok: false, reason: endInside
       ? 'Обе точки прохода находятся внутри контура. Начни или закончи жест за пределами детали.'
       : 'Начни проход снаружи контура, чтобы получить ровный входящий паз' };
+  }
+  if (side === 'outside' && !startInside) {
+    // For an internal boundary (a hole/pocket contour), the retained material
+    // is on the polygon exterior. Orient the drag from the empty hole toward
+    // the surrounding material, reversing a gesture made in the other order.
+    if (autoReverseIfStartInside && endInside && !startInside) {
+      const reversed = cutClosedContourByStraightPass(clean, end, start, width, {
+        eps, rejectStartInside: false, autoReverseIfStartInside: false, side, mode, preserveOpenEdges,
+      });
+      if (!reversed.ok) return reversed;
+      return { ...reversed, metadata: { ...reversed.metadata, requestedStart: { ...start }, requestedEnd: { ...end }, directionReversed: true } };
+    }
+    return { ok: false, reason: 'Для выреза из отверстия начни жест внутри него и протяни наружу' };
   }
 
   const offset = (p, side) => ({ x: p.x + nx * half * side, y: p.y + ny * half * side });
@@ -942,7 +988,8 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
       const t0 = cuts[k], t1 = cuts[k + 1];
       if (t1 - t0 <= paramTol) continue;
       const p0 = pointAt(a, b, t0), p1 = pointAt(a, b, t1), mid = pointAt(a, b, (t0 + t1) / 2);
-      if (pointInPolygon(mid, clean, tol) && distance(p0, p1) > tol) boundaryPieces.push({ a: p1, b: p0 });
+      const retainedSide = side === 'inside' ? pointInPolygon(mid, clean, tol) : !pointInPolygon(mid, clean, tol);
+      if (retainedSide && distance(p0, p1) > tol) boundaryPieces.push(side === 'inside' ? { a: p1, b: p0 } : { a: p0, b: p1 });
     }
   }
 
@@ -989,11 +1036,13 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
 
   if (!loops.length) return { ok: false, reason: 'Не удалось собрать замкнутые части после прохода. Проверь направление и ширину.' };
   const wrongWinding = loops.some(loop => Math.sign(signedArea(loop)) !== orientationSign);
-  if (wrongWinding) return { ok: false, reason: 'Проход образовал внутреннюю полость вместо открытого паза. Начни линию за пределами детали.' };
+  if (wrongWinding) return { ok: false, reason: side === 'inside'
+    ? 'Проход образовал внутреннюю полость вместо открытого паза. Начни линию за пределами детали.'
+    : 'Проход из отверстия образовал самопересечение. Проверь направление и глубину.' };
   const oldArea = Math.abs(area), newArea = loops.reduce((sum, loop) => sum + Math.abs(signedArea(loop)), 0);
-  const removedArea = oldArea - newArea;
+  const removedArea = side === 'inside' ? oldArea - newArea : newArea - oldArea;
   if (!(removedArea > Math.max(tol * tol, oldArea * 1e-12))) {
-    return { ok: false, reason: 'Проход не удалил материал контура' };
+    return { ok: false, reason: side === 'inside' ? 'Проход не удалил материал контура' : 'Проход не расширил внутреннюю область контура' };
   }
 
   // Convert the conventional closed Boolean result into the requested open
@@ -1001,7 +1050,7 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
   // then only the generated cutter edges are removed. This keeps the circle's
   // remaining sampled arc unchanged and leaves the two pass walls mathematically
   // collinear with the requested drag axis.
-  const blindEnd = pointInPolygon(end, clean, tol);
+  const blindEnd = side === 'inside' ? pointInPolygon(end, clean, tol) : !pointInPolygon(end, clean, tol);
   const local = p => {
     const rx = p.x - start.x, ry = p.y - start.y;
     return { along: rx * ux + ry * uy, across: rx * nx + ry * ny };
@@ -1092,7 +1141,7 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
     openFragments,
     metadata: {
       oldArea, newArea, removedArea, fragmentCount: closedFragments.length, openFragmentCount: openFragments.length, passLength,
-      width, mode, start: { ...start }, end: { ...end },
+      width, mode, side, start: { ...start }, end: { ...end },
       sideWalls: [
         { start: offset(start, 1), end: offset(end, 1) },
         { start: offset(start, -1), end: offset(end, -1) },
@@ -1121,6 +1170,7 @@ export function cutClosedContourByStraightPass(vertices, start, end, width, {
 export function cutOpenPathByStraightPass(points, start, end, width, {
   eps = 1e-7,
   mode = 'noBottom',
+  side = 'inside',
   reconstructContour = false,
 } = {}) {
   if (!Array.isArray(points) || points.length < 2) {
@@ -1139,6 +1189,7 @@ export function cutOpenPathByStraightPass(points, start, end, width, {
   positive(width, 'Ширина повторного проходного выреза');
   if (!Number.isFinite(eps) || eps <= 0) throw new TypeError('Допуск геометрии должен быть положительным числом');
   if (!['walls', 'noBottom', 'noWalls'].includes(mode)) throw new RangeError('Неподдерживаемый режим повторного проходного выреза');
+  if (!['inside', 'outside'].includes(side)) throw new RangeError('Неподдерживаемая сторона повторного проходного выреза');
 
   // A no-bottom/no-walls pass is stored by the editor as an open boundary
   // path. Merely clipping that path (the legacy behaviour below) creates a
@@ -1164,6 +1215,7 @@ export function cutOpenPathByStraightPass(points, start, end, width, {
       eps,
       rejectStartInside: true,
       autoReverseIfStartInside: true,
+      side,
       mode,
       preserveOpenEdges: [previousOpenGap],
     });

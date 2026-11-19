@@ -925,6 +925,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
       if(passCutMeta.straightPassCut){
         obj.straightPassCut=true;
         obj.straightPassMode=passCutMeta.mode||'noBottom';
+        obj.straightPassSide=passCutMeta.side||'inside';
         obj.feature='straight-pass-cut-fragment';
       }
       return obj;
@@ -1008,13 +1009,20 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     const angleLabel=add(previewLayer,'text',{x:mid.x+nx*head*1.6,y:mid.y+ny*head*1.6,fill:'#075d73','font-size':3.2,'font-weight':600,'text-anchor':'middle','paint-order':'stroke','stroke':'white','stroke-width':.7,'stroke-linejoin':'round'});
     angleLabel.textContent=`${angle.toFixed(1)}°`;
   }
-  function applyStraightPassCut(start,end,width,mode='walls'){
+  function applyStraightPassCut(start,end,width,mode='walls',side='inside'){
     const len=Math.hypot(end.x-start.x,end.y-start.y);
-    if(len<Math.max(width*.75,.5)){setMessage('Проход слишком короткий. Протяни линию снаружи детали до нужной точки внутри или за ней.');return false;}
+    if(len<Math.max(width*.75,.5)){setMessage('Проход слишком короткий. Протяни линию через границу детали.');return false;}
     // Include open paths created by previous blind/no-bottom or no-walls cuts.
     // This is what allows the same resulting geometry to be cut again and
     // again instead of becoming a one-operation-only object.
-    const targets=state.objects.filter(o=>!o.hidden&&!o.locked&&o.type!=='reference'&&!annotationTypes.has(o.type)&&!constructionTypes.has(o.type)&&layerFor(o)!=='annotation'&&layerFor(o)!=='construction'&&(!!appClosedContourPoints(o)||!!appOpenPathPoints(o)));
+    const editableTargets=state.objects.filter(o=>!o.hidden&&!o.locked&&o.type!=='reference'&&!annotationTypes.has(o.type)&&!constructionTypes.has(o.type)&&layerFor(o)!=='annotation'&&layerFor(o)!=='construction'&&(!!appClosedContourPoints(o)||!!appOpenPathPoints(o)));
+    // Outward cuts are intentionally scoped to the selected inner contour(s):
+    // the same drag can cross a nearby outer profile, which must not be altered
+    // as a side effect when the user is expanding a hole boundary.
+    const targets=side==='outside'
+      ? getSelected().filter(o=>!o.hidden&&!o.locked&&!!appClosedContourPoints(o))
+      : editableTargets;
+    if(side==='outside'&&!targets.length){setMessage('Для выреза изнутри выдели внутренний контур отверстия/паза, затем протяни от пустоты внутри него наружу.');return false;}
     if(!targets.length){setMessage('На чертеже нет доступной геометрии для проходного выреза.');return false;}
     const before=snapshot(),successes=[],failures=[];
     for(const source of targets){
@@ -1025,14 +1033,15 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
         // Keep ordinary open lines/curves as simple line gaps: they are not
         // closed material boundaries and must not grow artificial walls.
         const isPreviousPass=source.straightPassCut===true||source.feature==='straight-pass-cut-fragment'||/— открытый участок \d+$/.test(source.name||'');
+        const passSide=source.straightPassSide||side;
         const tx=cutOpenPathByStraightPass(path,start,end,width,{
-          eps:1e-7,mode,reconstructContour:isPreviousPass,
+          eps:1e-7,mode,side:passSide,reconstructContour:isPreviousPass,
         });
         if(!tx.ok){if(!/не пересекает оставшиеся участки контура/.test(tx.reason||''))failures.push(`${source.name||source.type}: ${tx.reason||'пропущен'}`);continue;}
         const idsBefore=new Set(state.objects.map(o=>o.id));
         const rebuilt=tx.operation==='repeatable-straight-pass-cut-open-contour';
         const saved=rebuilt
-          ?replaceWithContourResults(source,tx.fragments||[],tx.openFragments||[],{straightPassCut:true,mode})
+          ?replaceWithContourResults(source,tx.fragments||[],tx.openFragments||[],{straightPassCut:true,mode,side:passSide})
           :replaceWithOpenFragments(source,tx.fragments);
         if(!saved){failures.push(`${source.name||source.type}: не удалось сохранить повторный вырез`);continue;}
         const replacementIds=state.objects.filter(o=>o.id===source.id||!idsBefore.has(o.id)).map(o=>o.id);
@@ -1041,13 +1050,13 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
         continue;
       }
       if(contour.length<3)continue;
-      const tx=cutClosedContourByStraightPass(contour,start,end,width,{eps:1e-7,rejectStartInside:true,autoReverseIfStartInside:true,mode});
+      const tx=cutClosedContourByStraightPass(contour,start,end,width,{eps:1e-7,rejectStartInside:true,autoReverseIfStartInside:true,side,mode});
       if(!tx.ok){
         if(!/не пересекает выбранный контур|не удалил материал контура/.test(tx.reason||''))failures.push(`${source.name||source.type}: ${tx.reason||'пропущен'}`);
         continue;
       }
       const idsBefore=new Set(state.objects.map(o=>o.id));
-      if(!replaceWithContourResults(source,tx.fragments,tx.openFragments||[],{straightPassCut:true,mode})){failures.push(`${source.name||source.type}: не удалось сохранить результат`);continue;}
+      if(!replaceWithContourResults(source,tx.fragments,tx.openFragments||[],{straightPassCut:true,mode,side})){failures.push(`${source.name||source.type}: не удалось сохранить результат`);continue;}
       const replacementIds=state.objects.filter(o=>o.id===source.id||!idsBefore.has(o.id)).map(o=>o.id);
       successes.push({sourceId:source.id,ids:replacementIds,count:tx.fragments.length+(tx.openFragments||[]).length,closed:tx.fragments.length,open:(tx.openFragments||[]).length,removedArea:tx.metadata.removedArea,directionReversed:!!tx.metadata.directionReversed});
     }
@@ -1058,7 +1067,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     const pieces=successes.reduce((sum,s)=>sum+s.count,0),split=successes.filter(s=>s.count>1).length,reversed=successes.filter(s=>s.directionReversed).length;
     const modeLabel=mode==='noWalls'?'без стенок':mode==='noBottom'?'без нижней стенки':'со всеми стенками';
     const recut=successes.filter(s=>s.wasOpen).length,wallsRebuilt=successes.filter(s=>s.wallsRebuilt).length;
-    setMessage(`Прямой проход (${modeLabel}) выполнен: затронуто объектов ${successes.length}, создано фрагментов ${pieces}${split?` · разделено на несколько частей ${split}`:''}${recut?` · повторно обработано открытых контуров ${recut}`:''}${wallsRebuilt?` · стенки построены повторно ${wallsRebuilt}`:''}${failures.length?` · пропущено ${failures.length}`:''}${reversed?` · направление автоматически адаптировано для ${reversed} контуров`:''}. ${mode==='noBottom'?'Боковые стенки прямые и параллельные, внутренний конец открыт.':mode==='noWalls'?'Новые боковые линии и торец не добавляются.':'Боковые стенки прямые и параллельные, глухой конец закрыт поперечной стенкой.'} Повторные вырезы на полученных фрагментах разрешены. Ширина ${mm(width)} мм.`);
+    setMessage(`Прямой проход (${side==='outside'?'изнутри наружу':'снаружи внутрь'}, ${modeLabel}) выполнен: затронуто объектов ${successes.length}, создано фрагментов ${pieces}${split?` · разделено на несколько частей ${split}`:''}${recut?` · повторно обработано открытых контуров ${recut}`:''}${wallsRebuilt?` · стенки построены повторно ${wallsRebuilt}`:''}${failures.length?` · пропущено ${failures.length}`:''}${reversed?` · направление автоматически адаптировано для ${reversed} контуров`:''}. ${mode==='noBottom'?'Боковые стенки прямые и параллельные, внутренний конец открыт.':mode==='noWalls'?'Новые боковые линии и торец не добавляются.':'Боковые стенки прямые и параллельные, глухой конец закрыт поперечной стенкой.'} Повторные вырезы на полученных фрагментах разрешены. Ширина ${mm(width)} мм.`);
     return true;
   }
   function applyEdgeCutout(point,clickedId=null,mode='walls'){
@@ -1069,7 +1078,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     if(clicked&&isEditable(clicked))targets=selected.some(o=>o.id===clicked.id)&&selected.length>1?selected:[clicked];
     else targets=selected;
     if(!targets.length){setMessage('Щёлкните по геометрии или заранее выделите один или несколько объектов.');return false;}
-    const width=Number($('cutoutNotchWidth').value),depth=Number($('cutoutNotchDepth').value),minWeb=Number($('cutoutMinWeb').value);
+    const width=Number($('cutoutNotchWidth').value),depth=Number($('cutoutNotchDepth').value),minWeb=Number($('cutoutMinWeb').value),direction=$('cutoutDirection')?.value||'inside';
     if(!Number.isFinite(width)||width<=0||!Number.isFinite(depth)||depth<=0||!Number.isFinite(minWeb)||minWeb<0){setMessage('Введите положительные ширину и глубину, а также неотрицательную перемычку.');return false;}
     const hitTolerance=clamp(7/Math.max(.25,state.zoom),1.5,9),batch=targets.length>1,before=snapshot(),successes=[],failures=[];
     // In a multi-selection batch, one click is the shared placement reference:
@@ -1096,13 +1105,13 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
         const radius=Math.hypot(source.x2-source.x,source.y2-source.y);
         const circle=new Circle({x:source.x,y:source.y},radius,{id:source.id,ownerId:source.id,locked:source.locked,style:{stroke:source.color||'#20252a',lineWidth:source.width||state.gost.mainLine,lineDash:[]}});
         tx=mode==='noBottom'
-          ?cutCircleNotchWithoutBottomAtPoint(circle,point,width,depth,{hitTolerance:tolerance,minWeb})
-          :cutCircleNotchAtPoint(circle,point,width,depth,{hitTolerance:tolerance,minWeb});
+          ?cutCircleNotchWithoutBottomAtPoint(circle,point,width,depth,{hitTolerance:tolerance,minWeb,direction})
+          :cutCircleNotchAtPoint(circle,point,width,depth,{hitTolerance:tolerance,minWeb,direction});
       }else{
         const polygon=appContourToPolygon(source);
         tx=mode==='noBottom'
-          ?cutPolygonNotchWithoutBottomAtPoint(polygon,point,width,depth,{hitTolerance:tolerance,minWeb})
-          :cutPolygonNotchAtPoint(polygon,point,width,depth,{hitTolerance:tolerance,minWeb});
+          ?cutPolygonNotchWithoutBottomAtPoint(polygon,point,width,depth,{hitTolerance:tolerance,minWeb,direction})
+          :cutPolygonNotchAtPoint(polygon,point,width,depth,{hitTolerance:tolerance,minWeb,direction});
       }
       if(!tx.ok){failures.push(tx.reason||'не удалось выполнить вырез');continue;}
       if(mode==='noBottom'){
@@ -1119,7 +1128,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     state.selectedIds=[...new Set(successes.flatMap(x=>state.objects.filter(o=>o.id===x.id).map(o=>o.id)))];
     commit(before);renderAll();
     const modeLabel=mode==='noWalls'?'Вырез без стенок':mode==='noBottom'?'Вырез без нижней стенки':'Полный вырез (боковые и нижняя стенки)';
-    setMessage(`${modeLabel}: обработано объектов ${successes.length}${batch?' · пакетный режим':''}${failures.length?` · пропущено ${failures.length}`:''}. При нескольких выбранных объектах один щелчок проецируется на ближайшую границу каждого объекта. Можно продолжать вырезать этот же контур и другие выбранные объекты.`);
+    setMessage(`${modeLabel} (${direction==='outside'?'изнутри наружу':'внутрь контура'}): обработано объектов ${successes.length}${batch?' · пакетный режим':''}${failures.length?` · пропущено ${failures.length}`:''}. При нескольких выбранных объектах один щелчок проецируется на ближайшую границу каждого объекта. Можно продолжать вырезать этот же контур и другие выбранные объекты.`);
     return true;
   }
   function cutoutPrimitivesToAppObjects(primitives,shape){
@@ -1712,10 +1721,12 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     if(state.tool==='straightCut'&&e.button===0){
       const p=pointFromEvent(e,true),width=Number($('cutoutNotchWidth').value);
       if(!Number.isFinite(width)||width<=0){setMessage('Задай положительную ширину проходного выреза');return;}
-      state.straightCutDraft={start:p,current:p,pointerId:e.pointerId,width,mode:$('straightCutMode')?.value||'walls'};
+      state.straightCutDraft={start:p,current:p,pointerId:e.pointerId,width,mode:$('straightCutMode')?.value||'walls',side:$('cutoutDirection')?.value||'inside'};
       previewLayer.innerHTML='';e.preventDefault();e.stopPropagation();
       try{svg.setPointerCapture(e.pointerId);}catch(_){}
-      setMessage(`Проведи прямой проход под любым углом и отпусти в нужной точке. Ширина ${mm(width)} мм.`);return;
+      setMessage(state.straightCutDraft.side==='outside'
+        ?`Изнутри наружу: выделенный внутренний контур будет расширен от отверстия в окружающий материал. Ширина ${mm(width)} мм.`
+        :`Проведи прямой проход снаружи внутрь под любым углом. Ширина ${mm(width)} мм.`);return;
     }
     if(state.duplicatePlacement&&e.button===0){const p=pointFromEvent(e,true);state.duplicatePlacement.cursor=p;state.duplicatePlacement.dragging=true;renderDuplicatePreview(p);e.preventDefault();e.stopPropagation();try{svg.setPointerCapture(e.pointerId);}catch(_){}return;}if(state.tool==='eraser'){state.erasing={seen:new Set(),historyBefore:snapshot()};eraseObjectAtEvent(e);e.preventDefault();return;}
     const extensionGapHandle=e.target.closest?.('[data-dimension-extension-gap-handle]');if(extensionGapHandle&&state.tool==='select'){const objGroup=extensionGapHandle.closest('.drawing-object[data-id]');if(objGroup){beginDimensionExtensionGapDrag(e,objGroup.getAttribute('data-id'),extensionGapHandle.getAttribute('data-dimension-extension-gap-handle'));return;}}
@@ -1881,7 +1892,7 @@ import { cutPolygonNotchAtPoint, cutCircleNotchAtPoint, cutPolygonNotchWithoutBo
     if(state.points.length||state.splitPending)drawPreview(p);
   }
   function finishPan(pointerId=null){if(!state.pan||(pointerId!==null&&state.pan.pointerId!==pointerId))return false;state.pan=null;drawingArea.classList.remove('dragging');state.dirty=true;$('saveState').textContent='Изменён вид чертежа';persistAutosave();return true;}
-  function onPointerUp(e){if(state.pan){if(e&&state.pan.pointerId!==e.pointerId)return;const pan=state.pan;finishPan(e?.pointerId??null);if(pan.button===2&&!pan.moved&&(state.tool==='polyline'||state.tool==='spline'))finishPath();return;}if(state.dimensionExtensionDrag){const drag=state.dimensionExtensionDrag;if(e&&drag.pointerId!==e.pointerId)return;state.dimensionExtensionDrag=null;drawingArea.classList.remove('moving-dimension-extension');if(e?.type==='pointercancel'){restore(drag.historyBefore);setMessage('Изменение ножки отменено');return;}if(drag.changed){recordHistory(drag.historyBefore);setMessage(`${drag.part==='front'?'Начало':'Продолжение'} ${drag.end==='start'?'первой':'второй'} ножки изменено отдельно`);}else setMessage('Длина ножки не изменена');renderAll();return;}if(state.faceDrag){if(e&&state.faceDrag.pointerId!==e.pointerId)return;const drag=state.faceDrag;state.faceDrag=null;drawingArea.classList.remove('moving-face');if(e?.type==='pointercancel'){const object=state.objects.find(o=>o.id===drag.id);if(object)Object.assign(object,deep(drag.originalObject));renderAll();setMessage('Перемещение грани отменено');return;}if(drag.valid)recordHistory(drag.historyBefore);else{const object=state.objects.find(o=>o.id===drag.id);if(object)Object.assign(object,deep(drag.originalObject));}renderAll();setMessage(drag.valid?`Грань перемещена на ${drag.validOffset.toFixed(2)} мм`:'Грань выбрана. Введите точное смещение и нажмите «Применить»');return;}if(state.straightCutDraft){if(e&&state.straightCutDraft.pointerId!==e.pointerId)return;const draft=state.straightCutDraft;state.straightCutDraft=null;if(e?.type==='pointercancel'){previewLayer.innerHTML='';setMessage('Прямой проход отменён');return;}applyStraightPassCut(draft.start,pointFromEvent(e,true),draft.width,draft.mode);return;}if(state.duplicatePlacement?.dragging){const cursor=state.duplicatePlacement.cursor||state.duplicatePlacement.anchor;finishDuplicatePlacement(cursor);return;}if(state.erasing){const r=state.erasing;state.erasing=null;if(r.seen.size)recordHistory(r.historyBefore);setMessage(r.seen.size?`Стерто объектов: ${r.seen.size}`:'Объектов под ластиком нет');renderAll();return;}if(state.dimensionLabelDrag){const r=state.dimensionLabelDrag;state.dimensionLabelDrag=null;const o=state.objects.find(x=>x.id===r.id);if(o&&(Math.abs(o.labelDx-r.labelDx)>.001||Math.abs(o.labelDy-r.labelDy)>.001))recordHistory(r.historyBefore);renderAll();setMessage('Положение размерного числа изменено');return;}if(state.freehandDraft){const pts=state.freehandDraft;state.freehandDraft=null;previewLayer.innerHTML='';if(pts.length>1){const smooth=Number($('freehandSmooth').value)||0;addObject({type:'freehand',points:deep(pts),smooth,layer:'geometry',width:clamp(Number($('freehandWidth').value)||state.gost.thinLine,.05,3)});}else setMessage('Свободная линия слишком короткая');return;}if(state.rotateDrag){const r=state.rotateDrag;state.rotateDrag=null;drawingArea.classList.remove('rotating');if(Math.abs(r.delta)>.0001){recordHistory(r.historyBefore);setMessage(`Поворот завершён: ${(r.delta*180/Math.PI).toFixed(1)}°`);}else setMessage('Поворот отменён');renderAll();return;}if(state.resize){const r=state.resize;state.resize=null;drawingArea.classList.remove('resizing');const changed=JSON.stringify(r.originals)!==JSON.stringify(r.ids.map(id=>state.objects.find(o=>o.id===id)).filter(Boolean));if(changed)recordHistory(r.historyBefore);renderAll();setMessage(changed?'Размер выбранных объектов изменён':'Размер не изменён');return;}if(state.drag){if(state.drag.moved){recordHistory(state.drag.historyBefore);setMessage('Объекты перемещены');}state.drag=null;}if(state.selectionRect){const r=state.selectionRect,a=r.start,b=r.current||r.start,minX=Math.min(a.x,b.x),maxX=Math.max(a.x,b.x),minY=Math.min(a.y,b.y),maxY=Math.max(a.y,b.y);const ids=state.objects.filter(o=>{const bb=objectBounds(o);return bb&&bb.x>=minX&&bb.y>=minY&&bb.x+bb.w<=maxX&&bb.y+bb.h<=maxY;}).map(o=>o.id);state.selectedIds=r.initial.concat(ids).filter((id,i,a)=>a.indexOf(id)===i);state.selectionRect=null;previewLayer.innerHTML='';renderAll();setMessage(`Выделено объектов: ${state.selectedIds.length}`);}}
+  function onPointerUp(e){if(state.pan){if(e&&state.pan.pointerId!==e.pointerId)return;const pan=state.pan;finishPan(e?.pointerId??null);if(pan.button===2&&!pan.moved&&(state.tool==='polyline'||state.tool==='spline'))finishPath();return;}if(state.dimensionExtensionDrag){const drag=state.dimensionExtensionDrag;if(e&&drag.pointerId!==e.pointerId)return;state.dimensionExtensionDrag=null;drawingArea.classList.remove('moving-dimension-extension');if(e?.type==='pointercancel'){restore(drag.historyBefore);setMessage('Изменение ножки отменено');return;}if(drag.changed){recordHistory(drag.historyBefore);setMessage(`${drag.part==='front'?'Начало':'Продолжение'} ${drag.end==='start'?'первой':'второй'} ножки изменено отдельно`);}else setMessage('Длина ножки не изменена');renderAll();return;}if(state.faceDrag){if(e&&state.faceDrag.pointerId!==e.pointerId)return;const drag=state.faceDrag;state.faceDrag=null;drawingArea.classList.remove('moving-face');if(e?.type==='pointercancel'){const object=state.objects.find(o=>o.id===drag.id);if(object)Object.assign(object,deep(drag.originalObject));renderAll();setMessage('Перемещение грани отменено');return;}if(drag.valid)recordHistory(drag.historyBefore);else{const object=state.objects.find(o=>o.id===drag.id);if(object)Object.assign(object,deep(drag.originalObject));}renderAll();setMessage(drag.valid?`Грань перемещена на ${drag.validOffset.toFixed(2)} мм`:'Грань выбрана. Введите точное смещение и нажмите «Применить»');return;}if(state.straightCutDraft){if(e&&state.straightCutDraft.pointerId!==e.pointerId)return;const draft=state.straightCutDraft;state.straightCutDraft=null;if(e?.type==='pointercancel'){previewLayer.innerHTML='';setMessage('Прямой проход отменён');return;}applyStraightPassCut(draft.start,pointFromEvent(e,true),draft.width,draft.mode,draft.side||'inside');return;}if(state.duplicatePlacement?.dragging){const cursor=state.duplicatePlacement.cursor||state.duplicatePlacement.anchor;finishDuplicatePlacement(cursor);return;}if(state.erasing){const r=state.erasing;state.erasing=null;if(r.seen.size)recordHistory(r.historyBefore);setMessage(r.seen.size?`Стерто объектов: ${r.seen.size}`:'Объектов под ластиком нет');renderAll();return;}if(state.dimensionLabelDrag){const r=state.dimensionLabelDrag;state.dimensionLabelDrag=null;const o=state.objects.find(x=>x.id===r.id);if(o&&(Math.abs(o.labelDx-r.labelDx)>.001||Math.abs(o.labelDy-r.labelDy)>.001))recordHistory(r.historyBefore);renderAll();setMessage('Положение размерного числа изменено');return;}if(state.freehandDraft){const pts=state.freehandDraft;state.freehandDraft=null;previewLayer.innerHTML='';if(pts.length>1){const smooth=Number($('freehandSmooth').value)||0;addObject({type:'freehand',points:deep(pts),smooth,layer:'geometry',width:clamp(Number($('freehandWidth').value)||state.gost.thinLine,.05,3)});}else setMessage('Свободная линия слишком короткая');return;}if(state.rotateDrag){const r=state.rotateDrag;state.rotateDrag=null;drawingArea.classList.remove('rotating');if(Math.abs(r.delta)>.0001){recordHistory(r.historyBefore);setMessage(`Поворот завершён: ${(r.delta*180/Math.PI).toFixed(1)}°`);}else setMessage('Поворот отменён');renderAll();return;}if(state.resize){const r=state.resize;state.resize=null;drawingArea.classList.remove('resizing');const changed=JSON.stringify(r.originals)!==JSON.stringify(r.ids.map(id=>state.objects.find(o=>o.id===id)).filter(Boolean));if(changed)recordHistory(r.historyBefore);renderAll();setMessage(changed?'Размер выбранных объектов изменён':'Размер не изменён');return;}if(state.drag){if(state.drag.moved){recordHistory(state.drag.historyBefore);setMessage('Объекты перемещены');}state.drag=null;}if(state.selectionRect){const r=state.selectionRect,a=r.start,b=r.current||r.start,minX=Math.min(a.x,b.x),maxX=Math.max(a.x,b.x),minY=Math.min(a.y,b.y),maxY=Math.max(a.y,b.y);const ids=state.objects.filter(o=>{const bb=objectBounds(o);return bb&&bb.x>=minX&&bb.y>=minY&&bb.x+bb.w<=maxX&&bb.y+bb.h<=maxY;}).map(o=>o.id);state.selectedIds=r.initial.concat(ids).filter((id,i,a)=>a.indexOf(id)===i);state.selectionRect=null;previewLayer.innerHTML='';renderAll();setMessage(`Выделено объектов: ${state.selectedIds.length}`);}}
   function intersectLines(a,b,c,d){const den=(a.x-b.x)*(c.y-d.y)-(a.y-b.y)*(c.x-d.x);if(Math.abs(den)<1e-8)return null;const t=((a.x-c.x)*(c.y-d.y)-(a.y-c.y)*(c.x-d.x))/den,u=-((a.x-b.x)*(a.y-c.y)-(a.y-b.y)*(a.x-c.x))/den;if(t<0||t>1||u<0||u>1)return null;return{x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y),t};}
   function trimLineAt(o,p){const a={x:o.x,y:o.y},b={x:o.x2,y:o.y2},hits=[];state.objects.filter(x=>x.id!==o.id).forEach(x=>{if(x.type==='line'||x.type==='construction'||x.type==='centerline'){const h=intersectLines(a,b,{x:x.x,y:x.y},{x:x.x2,y:x.y2});if(h)hits.push(h);}else if(x.type==='rect'){const l=x.x,t=x.y,r=x.x2,bt=x.y2;[[{x:l,y:t},{x:r,y:t}],[{x:r,y:t},{x:r,y:bt}],[{x:r,y:bt},{x:l,y:bt}],[{x:l,y:bt},{x:l,y:t}]].forEach(pair=>{const h=intersectLines(a,b,pair[0],pair[1]);if(h)hits.push(h);});}});if(!hits.length){setMessage('Не найдено пересечений с другими линиями');return;}const dx=b.x-a.x,dy=b.y-a.y,tClick=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1),hit=hits.sort((u,v)=>Math.abs(u.t-tClick)-Math.abs(v.t-tClick))[0];commit();if(tClick<hit.t){o.x2=mm(hit.x);o.y2=mm(hit.y);}else{o.x=mm(hit.x);o.y=mm(hit.y);}renderAll();setMessage('Отрезок усечён до ближайшего пересечения');}
   function selectionCenter(objs){const boxes=objs.map(objectBounds).filter(Boolean);if(!boxes.length)return{x:0,y:0};const x=Math.min(...boxes.map(b=>b.x)),y=Math.min(...boxes.map(b=>b.y)),r=Math.max(...boxes.map(b=>b.x+b.w)),bt=Math.max(...boxes.map(b=>b.y+b.h));return{x:(x+r)/2,y:(y+bt)/2};}
