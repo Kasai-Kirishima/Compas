@@ -1,5 +1,5 @@
 /* Editable ESKD drawing sheet templates.
-   Includes three A3 portrait custom presets, GOST 2.104-2006 forms 1/2/2a/2b, and GOST 2.106-96 specification layouts.
+   Includes two active user A3 templates (Lab 4 portrait and Lab 8 landscape); legacy templates remain for opening existing projects.
    Custom/educational variants are drafting aids, not certified standard files. */
 (function () {
   const BLUE = '#000000';
@@ -335,10 +335,10 @@
     };
     const orgDefault='Шосткинський фаховий коледж імені Івана Кожедуба СумДУ';
     const rawCode=clean(d.code);
-    const code=(!rawCode||rawCode==='КРЕСЛЕННЯ.001')?'КТ-24.ЛР5.001':rawCode;
-    let orgValue=clean(d.company)||orgDefault;
+    const code=d.code===undefined?'КТ-24.ЛР5.001':rawCode;
+    let orgValue=d.company===undefined?orgDefault:clean(d.company);
     orgValue=orgValue.replace(/[|·]/g,' ').replace(/\s+/g,' ').trim();
-    orgValue=orgValue.replace(/\bКТ\s*[-–]?\s*24\b/i,'').replace(/\s+/g,' ').trim()||orgDefault;
+    orgValue=orgValue.replace(/\bКТ\s*[-–]?\s*24\b/i,'').replace(/\s+/g,' ').trim();
     const orgWords=orgValue.split(' ').filter(Boolean);
     let orgSplit=1,orgScore=Infinity;
     for(let i=1;i<orgWords.length;i++){
@@ -347,23 +347,22 @@
       const score=Math.max(a.length,b.length)+Math.abs(a.length-b.length)*.08;
       if(score<orgScore){orgScore=score;orgSplit=i;}
     }
-    const orgLines=[orgWords.slice(0,orgSplit).join(' '),orgWords.slice(orgSplit).join(' ')+' — КТ-24'];
-    const developerValue=clean(d.developer)||'Кушвид О.А.';
+    const orgLines=orgWords.length?[orgWords.slice(0,orgSplit).join(' '),orgWords.slice(orgSplit).join(' ')+' — КТ-24']:[];
+    const developerValue=d.developer===undefined?'Кушвид О.':clean(d.developer);
     // Do not fabricate the checker's second initial; keep the supplied value.
-    const checkerValue=clean(d.checker)||'Базиль Б.';
-    const titleValue=clean(d.title)||'Лабораторна робота 5';
+    const checkerValue=d.checker===undefined?'Базиль Б.':clean(d.checker);
+    const titleValue=d.title===undefined?'Лабораторна робота 5':clean(d.title);
     const materialValue=clean(d.material)==='Матеріал не зазначено'?'':clean(d.material);
     // The user's reference sample leaves Literature and Mass empty; scale is 1:1.
     const literValue=clean(d.liter);
     const massValue=clean(d.mass);
-    const scaleValue=clean(d.scale)||'1:1';
+    const scaleValue=d.scale===undefined?'1:1':clean(d.scale);
     const totalSheets=Math.max(1,parseInt(d.sheets||'1',10)||1);
     const sheetValue=totalSheets>1?(clean(d.sheet)||'1'):'';
 
     let s=`<g transform="translate(${ox} ${oy}) scale(${scale})">`;
 
-    // A4 portrait frame: 20 mm binding margin, 5 mm on top/right/bottom.
-    s+=rc(20,5,205,292,.5);
+    // The drawing frame is rendered once on sheetFrameLayer to avoid a doubled border.
 
     // Archival strip outside the left frame. It now touches the frame itself:
     // left edge at 7.5 mm, label column to 13.75 mm, blank companion column to 20 mm.
@@ -567,18 +566,24 @@
       const {w,h}=this.dimensions(format),d=data||{},f=form||'user-template';
       templateTextCoordinateCounts={};
       activeTemplateTextOverrides=d.templateTextOverrides&&typeof d.templateTextOverrides==='object'?d.templateTextOverrides:{};
+      if(f==='lab5-a4-reference-template')return lab5Template(w,h,d);
+      if(['lab5-gost-a3-landscape','lab5-gost-a3-portrait','technical-gost-a3-landscape','technical-gost-a3-portrait'].includes(f))return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
       if(f==='lab4-reference-template'){
         const refData={...d};
-        const hasValue=v=>v!==undefined&&v!==null&&String(v).trim()!=='';
-        if(!hasValue(refData.title)||['Лабораторная работа №5','Корпус','Найменування деталі'].includes(String(refData.title).trim()))refData.title='Лабораторна робота 4';
-        if(!hasValue(refData.code)||['КТ-24.ЛР5.001','8.090220 АР ХХ ХХ 01','КРЕСЛЕННЯ.001'].includes(String(refData.code).trim()))refData.code='КТ-24.ЛР4.001';
-        if(!hasValue(refData.developer))refData.developer='Кушвид О.';
-        if(!hasValue(refData.checker))refData.checker='Базиль Б.';
-        if(!hasValue(refData.scale))refData.scale='1:1';
-        if(!hasValue(refData.company)||String(refData.company).trim()==='ШЦМГУ')refData.company='Шосткинський фаховий коледж імені Івана Кожедуба СумДУ';
+        const hasOwn=key=>Object.prototype.hasOwnProperty.call(refData,key);
+        // Defaults are supplied by the New Document workflow. For imported legacy projects,
+        // an explicitly empty field must remain empty instead of acquiring new title text.
+        if(!hasOwn('title'))refData.title='Лабораторна робота 4';
+        if(!hasOwn('code'))refData.code='КТ-24.ЛР4.001';
+        if(!hasOwn('developer'))refData.developer='Кушвид О.';
+        if(!hasOwn('checker'))refData.checker='Базиль Б.';
+        if(!hasOwn('scale'))refData.scale='1:1';
+        if(!hasOwn('company'))refData.company='Шосткинський фаховий коледж імені Івана Кожедуба СумДУ';
         return lab5Template(w,h,refData);
       }
-      if(f==='lab5-template'||f==='technical-a3-template')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
+      if(f==='lab5-template')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
+      if(f==='technical-a3-template')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
+      if(f==='lab8-reference-template')return technicalA3Template(w,h,d);
       if(f==='blank')return blankSheet(w,h);
       if(f==='gost-form1')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
       if(f==='form2')return textForm2(w,h,d,String(format).replace(/[PL]$/,''));

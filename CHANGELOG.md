@@ -1,30 +1,42 @@
 # Changelog
 
+## 1.5.45
+- Restored all seven distinct drawing-frame variants from the conversation history and prior exports to the visible template gallery, main selector, and new-document flow.
+- Added the user's original Lab 5 A4 portrait frame from the KOMPAS mobile screenshot.
+- Re-exposed the four generated Form 1 GOST/ESKD-style variants: Lab 5 and technical drawing, each in A3 landscape and A3 portrait.
+- Kept the user's Lab 4 A3 portrait and Lab 8 A3 landscape templates available.
+- Kept legacy template IDs hidden for backwards compatibility, so older `.kcad` files continue to use their saved format and frame snapshot.
+- Added per-preset protected zones for title blocks, upper designation boxes and auxiliary designation fields.
+- Added runtime tests covering all seven layouts, paper sizes, key title text, developer spelling and legacy renderers.
+- Identified the early `CAD-A3-Technical-Template.svg` as geometrically identical to Lab 8 and excluded it as a duplicate option.
+
+## 1.5.44
+- Cleaned the user template gallery and printable template folder: only Lab 4 (A3 portrait) and Lab 8 (A3 landscape) remain as active user layouts.
+- Assigned Lab 8 its own `lab8-reference-template` ID so older projects using the former `technical-a3-template` cannot silently inherit the new frame.
+- Restored the former `technical-a3-template` renderer as a hidden legacy option for opening existing `.kcad` files.
+- Set Lab 4 as the default new document; Lab 8 now selects the original landscape frame with “Корпус / Вариант 8 / ШЦМГУ”.
+- Kept the author field exactly `Кушвид О.`.
+- Removed duplicate/obsolete exported frame assets; the `templates/` folder contains only the two user templates and their previews.
+
+## 1.5.43
+- Fixed legacy `.kcad` loading: a document's saved page format now wins over the selected template preset, so an older A4 drawing is not silently converted to A3.
+- Legacy title fields are initialized as blank before saved values are applied; empty fields no longer inherit values from the previously open document.
+- Per-document SVG frame snapshots are included in subsequent saves/exports to prevent future template-library edits from changing that document's frame.
+- The developer field and all bundled Lab 5 SVG/PDF/preview assets use exactly `Кушвид О.` (without an extra initial).
+- Existing legacy `Кушвид О.А.` values are normalized to `Кушвид О.` when a project is opened or exported.
+- Added regression checks for A4/A3 format preservation, blank title fields, stored frame snapshots and the exact author spelling.
+
+## 1.5.42
+- Fixed legacy project imports: a document's saved page format now wins over any template default.
+- Restored blank title values from imported projects and preserved per-document frame snapshots.
+- Changed the author spelling to exactly `Кушвид О.` and added regression checks.
+
 ## 1.5.40
-- Added a visible three-card template preset gallery in the drawing sidebar.
-- The Lab 4 reference layout is now an explicit one-click option, not only an item in the dropdown.
-- New-document template selection explicitly ensures all three custom A3 portrait presets exist.
+- Added a visible template preset gallery and one-click Lab 4 selection.
 
-## Version 1.5.39 — additional A3 reference template
+## 1.5.39
+- Reconnected the screenshot-matched Lab 4 A3 portrait layout as a standalone preset.
 
-- Reconnected the retained screenshot-matched laboratory sheet layout as a separate `lab4-reference-template` preset.
-- Added it to both template selectors and the new-document preview/creation flow.
-- The new preset is fixed to A3 portrait and receives reference defaults for Laboratory Work No. 4.
-- Preserved the existing `lab5-template` and `technical-a3-template` choices without replacing either.
-- Added an independent sheet-frame branch and title-block protection zone for the enlarged reference-style lower title block.
-- Corrected the reference template footer to display the actual sheet format (A3 on this preset).
-
-## Version 1.5.38 — drafting tool integration
-
-- Added XLINE and RAY construction entities, sheet-clipped rendering and DXF XLINE/RAY import/export.
-- Added radius/diameter circle input mode.
-- Added per-mode OSNAP toggles for endpoint, midpoint, center, intersection, quadrant and tangent; added snap marker.
-- Added line-role assignment and independent visibility controls for main, thin and center lines.
-- Added selected-circle batch center marks.
-- Extended Offset to arcs and polyline/spline point paths.
-- Added tangent-arc fillet for two selected line segments; kept rectangle fillet/chamfer.
-- Persisted the OSNAP and line-visibility settings in project snapshots.
-- Added drafting-tool integration contract tests.
-- Retained existing A3 portrait GOST templates and all previous editor features.
-
-Known limitation: arbitrary circle-circle and arc-arc fillets are not implemented in this release; see README.md.
+## 1.5.38
+- Added XLINE, RAY, circle radius/diameter mode, OSNAP modes, line roles, extended Offset, line-line Fillet, batch center marks and settings persistence.
+- Retained the previous CAD editor functions and older frame renderers.
