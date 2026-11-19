@@ -10,6 +10,9 @@ export function scaledArrowHeadLength(lineWidth, baseWidth = 0.5, baseSize = 3.5
   const safeWidth = Number.isFinite(width) && width > 0 ? width : 0.5;
   const safeBaseWidth = Number.isFinite(referenceWidth) && referenceWidth > 0 ? referenceWidth : 0.5;
   const safeBaseSize = Number.isFinite(referenceSize) && referenceSize > 0 ? referenceSize : 3.5;
-  // Keep the relationship proportional for the full supported line-weight range.
-  return Math.min(30, Math.max(0.2, safeBaseSize * safeWidth / safeBaseWidth));
+  // Arrow 1 was visually too small at its former 3.5 mm reference size.
+  // Enlarge the entire triangular head by 35% while retaining proportional
+  // scaling with line weight. The renderer also widens the included angle.
+  const visibilityFactor = 1.35;
+  return Math.min(40, Math.max(0.2, safeBaseSize * safeWidth / safeBaseWidth) * visibilityFactor);
 }

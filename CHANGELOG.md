@@ -1,3 +1,16 @@
+# CAD Geometry Core 1.5.52
+
+- Added the full-walls mode to the straight pass-cut tool and made it the default. Blind cuts retain both parallel side walls plus the transverse end wall.
+- Added the transverse end wall to the live pass-cut preview.
+- Kept no-bottom-wall and no-walls modes available.
+
+## 1.5.51 — Larger Arrow 1 triangle
+
+- Increased the standalone Arrow 1 filled triangle length by 35% at every line weight.
+- Widened the triangle from an 18° to a 28° included angle, making its silhouette easier to see.
+- Kept the proportional relationship with line weight and synchronized preview, on-sheet rendering and DXF SOLID geometry.
+- Dimension-line arrowheads are unchanged; this adjustment applies to the standalone Arrow 1 tool.
+
 ## 1.5.50 — Arrow 1 scales with line weight
 
 - The standalone one-ended Arrow 1 now scales its arrowhead length proportionally to the line weight.

@@ -1,4 +1,4 @@
-# Начало работы — CAD Geometry Core 1.5.50
+# Начало работы — CAD Geometry Core 1.5.52
 
 ## Библиотека рамок: 7 вариантов
 
@@ -38,4 +38,4 @@ XLINE/RAY, окружности по радиусу/диаметру, OSNAP, Ort
 Для проверки проекта (Node.js 18+) выполните `npm test`.
 
 
-For **Стрелка 1**, change **Толщина линии** in Object Properties: the filled arrowhead scales proportionally with it. The default pair is 0.50 mm / 3.5 mm.
+For **Стрелка 1**, change **Толщина линии** in Object Properties: the filled arrowhead scales proportionally with it. The default pair is 0.50 mm / 4.725 mm rendered head length; the triangle is also wider for visibility.
