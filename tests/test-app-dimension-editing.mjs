@@ -13,7 +13,7 @@ for (const id of [
 ]) {
   assert.match(html, new RegExp(`id="${id}"`), `The dimension properties panel must expose ${id}`);
 }
-assert.match(html, /value="single">Стрелочка 1 — один конец пустой, стрелка на конце 2/);
+assert.match(html, /value="single">Одна стрелка — пустое начало, наконечник на конце 2/);
 assert.match(html, /value="open">Две открытые V-стрелки/);
 assert.match(html, /value="tick">Две косые засечки/);
 assert.match(html, /value="dot">Две точки/);

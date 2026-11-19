@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.47
+# CAD Geometry Core 1.5.49
 
 2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
 
@@ -27,11 +27,15 @@ Legacy template IDs remain in the renderer so older `.kcad` documents can still 
 
 ## Main drafting tools
 
-- Line, ray, infinite construction line, circle by radius/diameter, arc, rectangle, polyline, spline.
+- Line and **Arrow 1** (a segment-style tool with an open first end and one filled arrowhead at the second end), ray, infinite construction line, circle by radius/diameter, arc, rectangle, polyline, spline.
 - OSNAP: endpoint, midpoint, center, intersection, quadrant and tangent; Ortho (F8).
 - Offset, Trim, Mirror, supported Fillet operations, hatch with shared angle/spacing.
 - Main/thin/center line roles and weights; dimensions, center marks and editable title-block text.
 - SVG, DXF, PDF/print and image export.
+
+## Tool-panel tabs
+
+The sidebar is grouped into Geometry, Dimensions, Annotations, Editing, Precision, ESKD/GOST, Reference, Sheet, and All. See [`docs/TOOL-TABS.md`](docs/TOOL-TABS.md) for the full contents of each tab.
 
 ## Known limitations
 

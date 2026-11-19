@@ -15,6 +15,6 @@ assert.match(app, /readProjectFile\(raw\)/, 'Import must accept the native proje
 assert.match(app, /saveProject\(\{name:importedName,forceNew:true\}\)/, 'Import must save as a new separate project, not overwrite the source');
 assert.match(app, /zoom:state\.zoom,grid:state\.grid,gridStep:gridStep\(\),snap:state\.snap,objectSnap:state\.objectSnap,ortho:state\.ortho/);
 assert.match(app, /o=>o&&supportedTypes\.has\(o\.type\)/, 'Import must restore supported editable scene objects');
-assert.equal(pkg.version, '1.5.47');
+assert.equal(pkg.version, '1.5.49');
 assert.ok(pkg.scripts.test.includes('tests/test-project-file.mjs'));
 console.log('Native project import/export UI contract tests passed (11 assertions).');

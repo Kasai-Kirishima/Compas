@@ -1,3 +1,18 @@
+## 1.5.49 — Segment-style arrow tool and clearer tool tabs
+
+- Kept “Стрелка 1” as a separate two-point drawing tool next to “Отрезок”; it creates an editable line with an open first end and a filled arrowhead at the second end.
+- The arrow tool shares segment snapping, Ortho, Shift angle lock, ruler alignment, selection, movement, and line editing behavior.
+- Clarified category contents and explicit assignments: polygon-face editing and cutout controls are under Editing; line-role and layer controls are under Sheet.
+- Added regression coverage for category headings and the single-arrow line workflow.
+
+## 1.5.48 — Arrow Line tool and reorganized tool tabs
+
+- Added a standalone “Стрелка 1” drawing tool next to Segment in the ribbon and Geometry tab.
+- It uses the same two-point workflow as Segment: first point is open, second point has a filled arrowhead.
+- Shift angle lock, Ortho, OSNAP, and ruler alignment are shared with the Segment tool.
+- Arrow lines remain normal editable line objects; arrowhead is preserved in project/CSV/SVG and exported to DXF as a filled SOLID triangle.
+- Reorganized category assignment: hatch is under Annotations; precision controls and snaps are grouped; sheet presets and layers are grouped under Sheet.
+
 ## 1.5.47
 - Added **Стрелочка 1** dimension preset: endpoint 1 remains open and endpoint 2 has a filled arrowhead.
 - Radius dimensions keep their natural single arrow at the measured arc.

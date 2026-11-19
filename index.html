@@ -26,6 +26,7 @@
     <div class="ribbon-group">
       <button class="ribbon-btn" data-tool="select"><span>↖</span>Выбор</button><button class="ribbon-btn" data-tool="eraser"><span>⌫</span>Ластик</button><button class="ribbon-btn" data-tool="cutout"><span>⌑</span>Вырез / разрез</button><button class="ribbon-btn" data-tool="split"><span>⫽</span>Разделить</button>
       <button class="ribbon-btn" data-tool="line"><span>／</span>Отрезок</button>
+      <button class="ribbon-btn" data-tool="arrowLine" title="Стрелка 1: две точки, пустое начало и наконечник на второй точке"><span>↗</span>Стрелка 1</button>
       <button class="ribbon-btn" data-tool="ruler"><span>▤</span>Линейка</button>
       <button class="ribbon-btn" data-tool="freehand"><span>✎</span>Свободная</button>
       <button class="ribbon-btn" data-tool="polyline"><span>⌁</span>Ломаная</button>
@@ -64,10 +65,10 @@
           <button type="button" class="tool-category-tab" data-tool-category="dimensions" role="tab" aria-selected="false">Размеры</button>
           <button type="button" class="tool-category-tab" data-tool-category="annotations" role="tab" aria-selected="false">Обозначения</button>
           <button type="button" class="tool-category-tab" data-tool-category="editing" role="tab" aria-selected="false">Редактирование</button>
-          <button type="button" class="tool-category-tab" data-tool-category="precision" role="tab" aria-selected="false">Точность</button>
+          <button type="button" class="tool-category-tab" data-tool-category="precision" role="tab" aria-selected="false">Привязки</button>
           <button type="button" class="tool-category-tab" data-tool-category="standards" role="tab" aria-selected="false">ЕСКД / ГОСТ</button>
           <button type="button" class="tool-category-tab" data-tool-category="reference" role="tab" aria-selected="false">Подложка</button>
-          <button type="button" class="tool-category-tab" data-tool-category="sheet" role="tab" aria-selected="false">Лист и слои</button>
+          <button type="button" class="tool-category-tab" data-tool-category="sheet" role="tab" aria-selected="false">Лист</button>
           <button type="button" class="tool-category-tab" data-tool-category="all" role="tab" aria-selected="false">Все</button>
         </div>
         <div class="panel-heading">ВЫБОР И ГЕОМЕТРИЯ</div>
@@ -76,6 +77,7 @@
           <button class="tool-tile" data-tool="eraser"><span>⌫</span>Ластик</button>
           <button class="tool-tile" data-tool="point"><span>·</span>Точка</button>
           <button class="tool-tile" data-tool="line"><span>／</span>Отрезок</button>
+          <button class="tool-tile" data-tool="arrowLine" title="Работает как отрезок: первая точка — пустой конец, вторая — наконечник"><span>↗</span>Стрелка 1</button>
           <button class="tool-tile" data-tool="ruler"><span>▤</span>Линейка</button>
           <button class="tool-tile" data-tool="freehand"><span>✎</span>Свободная линия</button>
           <button class="tool-tile" data-tool="construction"><span>┄</span>Всп. линия</button>
@@ -213,8 +215,8 @@
         <div class="muted-hint">При режиме «По граням» щёлкните на расстоянии от центра до середины стороны: для шестигранника 40 мм между гранями укажите точку на расстоянии 20 мм от центра. При режиме «По вершинам» указывайте расстояние до вершины.</div>
         <label class="field-label">Радиус скругления прямоугольника, мм<input id="roundingRadius" type="number" min="0" max="50" step="0.5" value="3"></label>
         <label class="field-label">Построение окружности<select id="circleInputMode"><option value="radius">Центр + радиус</option><option value="diameter">Центр + диаметр</option></select></label>
+        <div class="muted-hint">«Стрелка 1» строится так же, как отрезок: щёлкни первую точку (пустое начало), затем вторую (наконечник). Shift, Ortho, OSNAP и привязка к линейке работают так же, как для отрезка.</div>
         <label class="field-label">Шаг сетки, мм<input id="gridStep" type="number" min="0.1" max="100" step="0.5" value="5"></label>
-        <div class="panel-heading">ЛИНЕЙКА И ТОЧНОСТЬ</div>
         <div class="panel-heading">РЕФЕРЕНС / ПОДЛОЖКА</div>
         <button class="secondary-btn" id="addReferenceBtn">＋ Добавить изображение-референс</button>
         <input type="file" id="referenceInput" accept="image/png,image/jpeg,image/webp,image/bmp" hidden>
@@ -245,6 +247,7 @@ R17
         <div class="muted-hint">Пишите ⌀20 для диаметра, R17 для радиуса, 45° для угла. Линейные размеры вводите числом, например 140. Проверка сравнит значения с фактической геометрией размерных объектов; повторяющиеся размеры указывайте отдельными строками.</div>
         <button class="secondary-btn" id="saveAssignmentDimensionsBtn" type="button">Сохранить размеры задания</button>
         <div class="muted-hint">Автопроверка помогает найти типовые несоответствия, но не заменяет официальный нормоконтроль. Страна, отрасль и задание могут требовать другие редакции стандартов.</div>
+        <div class="panel-heading spaced">ТОЧНОСТЬ И ПАРАМЕТРЫ РИСОВАНИЯ</div>
         <label class="check-row"><input type="checkbox" id="rulerVisible" checked> Показывать линейку на листе</label>
         <label class="field-label">Привязка к линейке<select id="rulerMode"><option value="off">Выключена</option><option value="parallel">Параллельно кромке</option><option value="perpendicular">Перпендикулярно кромке</option></select></label>
         <label class="field-label">Шаг фиксации угла при Shift, °<input id="angleStep" type="number" min="1" max="90" step="1" value="15"></label>
@@ -268,6 +271,7 @@ R17
         <button class="secondary-btn" id="hatchSelectedBoundaryBtn" type="button">Заштриховать выделенный контур</button>
         <button class="secondary-btn" id="findClosedLoopsHatchBtn" type="button">Найти замкнутые области из линий и заштриховать</button>
         <div class="muted-hint">Для автоматической обработки нажмите «Найти замкнутые области из линий и заштриховать»: все области получат одну общую сетку под единым углом, а каждое внутреннее отверстие будет исключено. При ручном выборе области используется та же сетка, рассчитанная по всему чертежу. Для примера на изображении подойдут 45° и шаг около 3 мм. Доступны быстрые углы с шагом 15° и точная настройка.</div>
+        <div class="panel-heading spaced">ПРИВЯЗКИ И СЕТКА</div>
         <label class="check-row"><input type="checkbox" id="orthoToggle"> Ортогональное черчение (F8)</label>
         <label class="check-row"><input type="checkbox" id="objectSnapToggle" checked> OSNAP — привязка к объектам</label>
         <div class="snap-mode-grid" aria-label="Режимы объектных привязок">
@@ -281,7 +285,7 @@ R17
         <div class="muted-hint">Привязка «Касательная» рассчитывает точку касания от предыдущей указанной точки к окружности или дуге. При наведении появляется маркер типа привязки.</div>
         <label class="check-row"><input type="checkbox" id="gridToggle"> Сетка</label>
         <label class="check-row"><input type="checkbox" id="snapToggle"> Привязка к сетке</label>
-        <div class="panel-heading spaced">БІБЛІОТЕКА ШАБЛОНІВ</div>
+        <div class="panel-heading spaced">ЛИСТ И БИБЛИОТЕКА ШАБЛОНОВ</div>
         <div class="template-preset-gallery" role="group" aria-label="Все пользовательские и созданные шаблоны">
           <button type="button" class="template-preset-btn" data-template-preset="lab4-reference-template" aria-pressed="false"><span class="template-preset-index">01</span><span class="template-preset-copy"><b>Лабораторная работа №4</b><small>А3 книжный · твой образец</small></span></button>
           <button type="button" class="template-preset-btn" data-template-preset="lab8-reference-template" aria-pressed="false"><span class="template-preset-index">02</span><span class="template-preset-copy"><b>Лабораторная работа №8</b><small>А3 альбомный · синяя рамка «Корпус»</small></span></button>
@@ -309,7 +313,7 @@ R17
           </optgroup>
         </select></label><label class="field-label">Формат аркуша<select id="paperFormat"><option value="A4P">А4 · книжный · 210×297 мм</option><option value="A4L">А4 · альбомный · 297×210 мм</option><option value="A3L">А3 · альбомный · 420×297 мм</option><option value="A3P">А3 · книжный · 297×420 мм</option><option value="A2L">А2 · альбомный · 594×420 мм</option><option value="A2P">А2 · книжный · 420×594 мм</option><option value="A1L">А1 · альбомный · 841×594 мм</option><option value="A1P">А1 · книжный · 594×841 мм</option><option value="A0L">А0 · альбомный · 1189×841 мм</option><option value="A0P">А0 · книжный · 841×1189 мм</option><option value="A5L">A5 · альбомний (210×148)</option><optgroup label="Додаткові формати за ГОСТ 2.301"><option value="A0x2">A0×2 · 1189×1682</option><option value="A0x3">A0×3 · 1189×2523</option><option value="A1x3">A1×3 · 841×1783</option><option value="A1x4">A1×4 · 841×2378</option><option value="A2x3">A2×3 · 594×1261</option><option value="A2x4">A2×4 · 594×1682</option><option value="A2x5">A2×5 · 594×2102</option><option value="A3x3">A3×3 · 420×891</option><option value="A3x4">A3×4 · 420×1189</option><option value="A3x5">A3×5 · 420×1486</option><option value="A3x6">A3×6 · 420×1783</option><option value="A3x7">A3×7 · 420×2080</option><option value="A4x3">A4×3 · 297×630</option><option value="A4x4">A4×4 · 297×841</option><option value="A4x5">A4×5 · 297×1051</option><option value="A4x6">A4×6 · 297×1261</option><option value="A4x7">A4×7 · 297×1471</option><option value="A4x8">A4×8 · 297×1682</option><option value="A4x9">A4×9 · 297×1892</option></optgroup></select></label><div class="muted-hint">Размер листа не привязан к рамке: можно свободно переключать А4, А3 и А2. Новые размеры применяются к предпросмотру, сохранению и печати/PDF.</div>
         <label class="check-row"><input type="checkbox" id="templateToggle" checked> Показывать шаблон</label>
-        <div class="panel-heading">СЛОИ</div>
+        <div class="panel-heading">СЛОИ И ТИПЫ ЛИНИЙ</div>
         <div class="layer-row"><label><input type="checkbox" id="geometryVisible" checked> Геометрия</label><span class="layer-dot blue"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="dimensionsVisible" checked> Размеры и текст</label><span class="layer-dot amber"></span></div>
         <div class="layer-row"><label><input type="checkbox" id="constructionVisible" checked> Вспомогательные</label><span class="layer-dot green"></span></div>
@@ -365,7 +369,7 @@ R17
             </label>
             <div class="panel-heading spaced">РЕДАКТИРОВАНИЕ СТРЕЛОК</div>
             <label class="field-label">Стиль обеих стрелок
-              <select id="dimensionArrowStyle"><option value="filled">Две стрелки — треугольники</option><option value="single">Стрелочка 1 — один конец пустой, стрелка на конце 2</option><option value="open">Две открытые V-стрелки</option><option value="tick">Две косые засечки</option><option value="dot">Две точки</option><option value="none">Без стрелок</option></select>
+              <select id="dimensionArrowStyle"><option value="filled">Две стрелки — треугольники</option><option value="single">Одна стрелка — пустое начало, наконечник на конце 2</option><option value="open">Две открытые V-стрелки</option><option value="tick">Две косые засечки</option><option value="dot">Две точки</option><option value="none">Без стрелок</option></select>
             </label>
             <div class="two-fields">
               <label class="field-label">Первая стрелка
