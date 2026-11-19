@@ -1,3 +1,10 @@
+## 1.5.50 — Arrow 1 scales with line weight
+
+- The standalone one-ended Arrow 1 now scales its arrowhead length proportionally to the line weight.
+- Preview, canvas rendering, SVG/PDF export, and DXF export use the same calculated arrowhead size.
+- The base line weight and base arrow size are stored with the object, so changing the width in Object Properties scales the head predictably and saved projects retain the relationship.
+- Legacy Arrow 1 objects preserve their current arrow size until their line weight is first edited. CSV export/import now preserves arrow scaling metadata.
+
 ## 1.5.49 — Segment-style arrow tool and clearer tool tabs
 
 - Kept “Стрелка 1” as a separate two-point drawing tool next to “Отрезок”; it creates an editable line with an open first end and a filled arrowhead at the second end.

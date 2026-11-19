@@ -1,4 +1,4 @@
-# Начало работы — CAD Geometry Core 1.5.49
+# Начало работы — CAD Geometry Core 1.5.50
 
 ## Библиотека рамок: 7 вариантов
 
@@ -36,3 +36,6 @@
 XLINE/RAY, окружности по радиусу/диаметру, OSNAP, Ortho (F8), Offset, Trim, Mirror, Fillet, слои, типы линий, размеры, центровые обозначения и единая штриховка остаются доступны.
 
 Для проверки проекта (Node.js 18+) выполните `npm test`.
+
+
+For **Стрелка 1**, change **Толщина линии** in Object Properties: the filled arrowhead scales proportionally with it. The default pair is 0.50 mm / 3.5 mm.

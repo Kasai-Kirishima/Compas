@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.49
+# CAD Geometry Core 1.5.50
 
 2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
 
@@ -53,3 +53,6 @@ npm test
 ```
 
 No external npm dependencies are required to run the editor.
+
+
+Arrow 1: the filled arrowhead grows or shrinks proportionally with the line weight. The default reference is 0.50 mm line weight and 3.5 mm arrow length. This relationship is retained in saved projects and CSV exports.
