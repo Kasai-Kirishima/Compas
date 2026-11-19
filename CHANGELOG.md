@@ -1,3 +1,8 @@
+## 1.5.47
+- Added **Стрелочка 1** dimension preset: endpoint 1 remains open and endpoint 2 has a filled arrowhead.
+- Radius dimensions keep their natural single arrow at the measured arc.
+- Existing independent start/end arrow controls continue to work and override the preset when explicitly set.
+
 ## 1.5.46
 - Fixed paper-format switching: template presets now provide a recommended starting format instead of locking the document to that size.
 - Enabled genuine A4, A3 and A2 dimensions in portrait and landscape after selecting any active template.
@@ -49,3 +54,11 @@
 ## 1.5.38
 - Added XLINE, RAY, circle radius/diameter mode, OSNAP modes, line roles, extended Offset, line-line Fillet, batch center marks and settings persistence.
 - Retained the previous CAD editor functions and older frame renderers.
+
+
+## 1.5.47 — Single-arrow dimension preset
+
+- Added **Стрелочка 1** dimension preset: endpoint 1 has no arrowhead, endpoint 2 keeps one filled arrowhead.
+- Preset applies to linear, diameter and angular dimensions; radius dimensions keep their natural single arrow at the measured arc.
+- Existing independent first/second arrow overrides remain available.
+- The selected preset is stored on each dimension and is preserved when the project is saved and reopened.

@@ -30,12 +30,12 @@ Text heights are validated against the configured GOST lettering series. Dimensi
 
 The main editor stores dimension display settings on each dimension object:
 
-- `arrowStyle`: common arrow style (`filled`, `open`, `tick`, `dot`, or `none`);
+- `arrowStyle`: common arrow style (`filled`, `single`, `open`, `tick`, `dot`, or `none`); `single` leaves endpoint 1 empty and draws one filled arrowhead at endpoint 2;
 - `arrowStartStyle` and `arrowEndStyle`: optional per-end overrides; when omitted, the common style is used;
 - `arrowSize`: arrow length in millimetres (0.8–12);
 - `labelRotationDeg`: additional label-only rotation in degrees (-360 to +360).
 
-The first and second arrowhead can therefore be styled differently or independently hidden. `labelRotationDeg` is applied to the displayed number only. It does not alter the measured geometry, dimension line, extension lines, or arrow positions. For aligned text, the extra angle is added to the automatically derived alignment angle; for horizontal text, it is added to zero. All these settings are saved with the dimension object.
+The first and second arrowhead can therefore be styled differently or independently hidden. The quick `single` preset (shown as **Стрелочка 1**) leaves the first end blank and keeps one filled arrowhead at the second end; radius dimensions retain their natural single arrow at the measured arc. `labelRotationDeg` is applied to the displayed number only. It does not alter the measured geometry, dimension line, extension lines, or arrow positions. For aligned text, the extra angle is added to the automatically derived alignment angle; for horizontal text, it is added to zero. All these settings are saved with the dimension object.
 
 
 ## Fine dimension annotation controls (1.5.24)

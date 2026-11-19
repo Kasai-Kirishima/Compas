@@ -1,6 +1,6 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.46",
+  "version": "1.5.47",
   "private": true,
   "type": "module",
   "description": "2D mechanical CAD editor with seven selectable drawing-frame presets with freely changeable A4/A3/A2 sheet sizes from user references and generated GOST/ESKD layouts.",

@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.46
+# CAD Geometry Core 1.5.47
 
 2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
 

@@ -13,9 +13,10 @@ for (const id of [
 ]) {
   assert.match(html, new RegExp(`id="${id}"`), `The dimension properties panel must expose ${id}`);
 }
-assert.match(html, /value="open">Открытая V-стрелка/);
-assert.match(html, /value="tick">Косая засечка/);
-assert.match(html, /value="dot">Точка/);
+assert.match(html, /value="single">Стрелочка 1 — один конец пустой, стрелка на конце 2/);
+assert.match(html, /value="open">Две открытые V-стрелки/);
+assert.match(html, /value="tick">Две косые засечки/);
+assert.match(html, /value="dot">Две точки/);
 assert.match(html, /value="none">Без стрелок/);
 assert.match(html, /Поворот только цифры/);
 assert.match(html, /data-dimension-rotation-step="-1"/);
@@ -38,6 +39,14 @@ assert.match(app, /style==='tick'/, 'Tick arrowheads must be rendered');
 assert.match(app, /style==='dot'/, 'Dot arrowheads must be rendered');
 assert.match(app, /style==='none'/, 'Arrowheads must be independently suppressible');
 assert.match(app, /function dimensionArrowStyle\(o,end\)/, 'Each endpoint must support its own style override');
+assert.match(app, /if\(o\.arrowStyle==='single'\)return end==='End'\?'filled':'none'/, 'The single-arrow preset must leave endpoint 1 empty and draw one arrow at endpoint 2');
+const arrowStyleBody = app.match(/function dimensionArrowStyle\(o,end\)\{([\s\S]*?)\n  \}/)?.[1];
+assert.ok(arrowStyleBody, 'The arrow style resolver must exist');
+const resolveArrowStyle = new Function('o', 'end', arrowStyleBody);
+assert.equal(resolveArrowStyle({arrowStyle:'single'}, 'Start'), 'none', 'The first end must stay empty');
+assert.equal(resolveArrowStyle({arrowStyle:'single'}, 'End'), 'filled', 'The second end must keep a filled arrow');
+assert.equal(resolveArrowStyle({arrowStyle:'single', arrowStartStyle:'dot'}, 'Start'), 'dot', 'Explicit endpoint overrides must still win');
+assert.equal((app.match(/\['filled','single','open','tick','dot','none'\]\.includes\(/g)||[]).length, 2, 'The single-arrow preset must remain visible when one or multiple dimensions are selected');
 assert.match(app, /arrowStartStyle/);
 assert.match(app, /arrowEndStyle/);
 assert.match(app, /Number\(o\.arrowSize\)[\s\S]*?\.8,12/, 'Per-dimension arrow size must be applied with a useful adjustable range');
@@ -58,4 +67,4 @@ assert.match(app, /dimensionExtensionSpec\(o,'start'\)/);
 assert.match(app, /dimensionExtensionSpec\(o,'end'\)/);
 assert.match(app, /resetDimensionLabelRotation/);
 
-console.log('Dimension arrow editing and independent label rotation tests passed (25 assertions).');
+console.log('Dimension arrow editing, single-arrow preset and independent label rotation tests passed.');

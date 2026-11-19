@@ -14,6 +14,7 @@ const completeDrawing = {
   templateTextOverrides: { 'lab5-template': { 'title-cell': 'Фланец — вариант Б', 'material-cell': 'Сталь 45' } },
   objects: [
     { id: 'dim-1', type: 'dimension', x1: 10, y1: 20, x2: 80, y2: 20, textSize: 7, arrowStyle: 'open', arrowStartStyle: 'tick', arrowEndStyle: 'dot', labelRotationDeg: 35, labelDx: 3, labelDy: -2, color: '#123456', layer: 'annotation' },
+    { id: 'dim-single', type: 'dimension', x1: 10, y1: 35, x2: 80, y2: 35, textSize: 5, arrowStyle: 'single', layer: 'annotation' },
     { id: 'text-1', type: 'text', x: 12, y: 44, text: 'ТЕХНИЧЕСКИЕ ТРЕБОВАНИЯ\n1. Неуказанные...', size: 5, font: 'GOST type B,Arial,sans-serif', widthFactor: 1.1, rotation: 12, frame: true, underline: true, layer: 'annotation' },
     { id: 'rect-1', type: 'polyline', points: [{x:0,y:0},{x:50,y:0},{x:50,y:20}], straightPassCut: true, mode: 'noBottom', color: '#222', width: .5, layer: 'geometry' },
     { id: 'ref-1', type: 'reference', x: 0, y: 0, w: 25, h: 20, dataUrl: 'data:image/png;base64,aGVsbG8=', opacity: .5, locked: true, exportable: true, layer: 'reference' }
@@ -28,6 +29,7 @@ const completeDrawing = {
 const envelope = createProjectFile(completeDrawing, { exportedAt: '2026-11-18T10:00:00.000Z' });
 assert.equal(envelope.kind, PROJECT_FILE_KIND);
 assert.equal(envelope.schemaVersion, PROJECT_FILE_VERSION);
+assert.equal(envelope.document.objects.find(o => o.id === 'dim-single').arrowStyle, 'single', 'The one-arrow preset must be saved with the project');
 assert.deepEqual(readProjectFile(envelope), completeDrawing, 'A full project round-trip must preserve all drawing and formatting properties');
 assert.deepEqual(readProjectFile(completeDrawing), completeDrawing, 'Legacy plain JSON project files must remain importable');
 assert.equal(projectFileBaseName('C:\\Drawings\\Flange.kcad'), 'Flange');
