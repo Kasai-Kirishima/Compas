@@ -25,5 +25,5 @@ assert.match(app, /doc\.lineVisibility\.main/, 'Line-role visibility must be res
 assert.match(app, /s\.snapModes\.endpoint/, 'OSNAP modes must participate in undo/redo snapshots');
 assert.match(app, /s\.lineVisibility\.main/, 'Line-role visibility must participate in undo/redo snapshots');
 assert.match(app, /circleInputMode/, 'Circle construction must support radius/diameter modes');
-assert.equal(pkg.version, '1.5.38');
+assert.equal(pkg.version, '1.5.40');
 console.log('Drafting tools integration tests passed (25 assertions).');

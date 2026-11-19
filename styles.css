@@ -276,3 +276,14 @@ html,body{font-size:15px;}
 
 /* CAD 1.5.38: compact controls for independent OSNAP modes */
 .snap-mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin:6px 0}.snap-mode-grid label{display:flex;align-items:center;gap:5px;font-size:12px;min-width:0}.snap-mode-grid input{margin:0;flex:0 0 auto}
+
+
+/* Prominent one-click template presets: keep custom variants visible, not hidden only in a select. */
+.template-preset-gallery{display:grid;grid-template-columns:1fr;gap:6px;margin:7px 0 10px}
+.template-preset-btn{display:flex;align-items:center;gap:9px;width:100%;min-width:0;padding:8px 9px;border:1px solid var(--border,#d8dee6);border-radius:8px;background:var(--panel,#fff);color:var(--text,#20252a);text-align:left;cursor:pointer;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease}
+.template-preset-btn:hover{border-color:var(--accent,#4779b8);background:var(--soft,#f5f8fc)}
+.template-preset-btn.is-active{border-color:var(--accent,#4779b8);background:var(--soft,#eef5ff);box-shadow:inset 3px 0 0 var(--accent,#4779b8)}
+.template-preset-index{display:grid;place-items:center;flex:0 0 27px;width:27px;height:27px;border-radius:6px;background:var(--soft,#eef1f5);font-size:11px;font-weight:700;color:var(--muted,#657080)}
+.template-preset-copy{display:grid;gap:2px;min-width:0}
+.template-preset-copy b{font-size:12px;font-weight:650;line-height:1.25}
+.template-preset-copy small{font-size:10px;line-height:1.25;color:var(--muted,#657080)}

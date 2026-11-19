@@ -51,17 +51,46 @@ for (const [template, data] of presets) {
   assert.ok(multiSheet.includes('Аркушів 3'), `${template}: graph 8 is populated for multi-sheet documents`);
 }
 
+
+const reference = api.markup('A3P', {
+  title: 'Лабораторна робота 4',
+  code: 'КТ-24.ЛР4.001',
+  company: 'Шосткинський фаховий коледж імені Івана Кожедуба СумДУ',
+  developer: 'Кушвид О.',
+  checker: 'Базиль Б.',
+  scale: '1:1',
+  liter: '',
+  mass: '',
+}, 'lab4-reference-template');
+assert.ok(/scale\(1\.4141[0-9]*\)/.test(reference), 'Reference template scales the retained A4-proportion layout to A3 portrait');
+assert.ok(reference.includes('Лабораторна робота 4'), 'Reference template title is present and editable');
+assert.ok(reference.includes('КТ-24.ЛР4.001'), 'Reference template designation is present');
+assert.ok(reference.includes('Формат А3'), 'Reference template footer identifies A3, not the source A4 layout');
+assert.ok(reference.includes('Перш. застос.'), 'Reference template preserves the upper left archival field');
+assert.ok(reference.includes('Інв. № ориг.'), 'Reference template preserves the lower left archival field');
+assert.ok(reference.includes('Копіював'), 'Reference template retains the bottom footer caption');
+assert.ok((reference.match(/data-template-text-id=/g) || []).length >= 25, 'Reference template lettering remains editable');
+assert.ok(!/>(?:None|null|undefined)<\/text>/i.test(reference), 'Reference template leaves empty fields blank');
+
 const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 assert.ok(app.includes("state.format='A3P'"), 'Selecting either custom template sets A3 portrait');
 assert.ok(app.includes("format:'A3P'"), 'The application starts with the A3 portrait template');
-assert.ok(app.includes("state.format=['lab5-template','technical-a3-template'].includes(state.titleForm)?'A3P'"), 'Loading legacy custom-template projects migrates them to A3 portrait');
-assert.ok(app.includes("['lab5-template','technical-a3-template']"), 'Both custom templates are enforced as A3 portrait');
+assert.ok(app.includes("state.format=['lab5-template','technical-a3-template','lab4-reference-template'].includes(state.titleForm)?'A3P'"), 'Loading custom-template projects including the new reference preset migrates them to A3 portrait');
+assert.ok(app.includes("['lab5-template','technical-a3-template','lab4-reference-template']"), 'All three custom templates are enforced as A3 portrait');
 assert.ok(app.includes('technical-a3-template'), 'The app wires the technical template');
-assert.ok(app.includes('lab5-template'), 'The app wires the lab template');
+assert.ok(app.includes('lab5-template'), 'The app wires the existing lab template');
+assert.ok(app.includes('lab4-reference-template'), 'The app wires the new reference-style lab template');
 const frameRenderer = app.slice(app.indexOf('function renderSheetFrame'), app.indexOf('function svgEl', app.indexOf('function renderSheetFrame')));
 assert.ok(frameRenderer.includes("stroke:'#000000'"), 'The A3 frame renderer uses black GOST lines');
 assert.ok(!frameRenderer.includes("stroke:'#2147d0'"), 'The old blue technical frame is removed');
 assert.equal((html.match(/value="technical-a3-template"/g) || []).length, 2, 'Both template selectors offer the technical template');
-assert.equal((html.match(/value="lab5-template"/g) || []).length, 2, 'Both template selectors offer the lab template');
-console.log('A3 portrait GOST Form 1 tests passed for both custom templates.');
+assert.equal((html.match(/value="lab5-template"/g) || []).length, 2, 'Both template selectors offer the existing lab template');
+assert.equal((html.match(/value="lab4-reference-template"/g) || []).length, 2, 'Both template selectors offer the new reference template');
+
+const galleryButtons = [...html.matchAll(/data-template-preset="([^"]+)"/g)].map(m => m[1]);
+assert.deepEqual(galleryButtons, ['lab5-template', 'technical-a3-template', 'lab4-reference-template'], 'The sidebar visibly exposes all three custom presets as individual cards');
+assert.ok(app.includes("document.querySelectorAll('[data-template-preset]').forEach(button=>button.addEventListener('click',()=>changeTitleTemplate(button.dataset.templatePreset)))"), 'Preset cards are wired to the template switching routine');
+assert.ok(app.includes('function ensureTemplatePresetOptions(select)'), 'The new-document selector has a defensive custom-preset registration path');
+assert.ok(app.includes("ensureTemplatePresetOptions($('newDocTemplate'))"), 'The new-document dialog always inserts custom presets if missing');
+console.log('A3 portrait template tests passed for both GOST templates and the additional reference-style template.');

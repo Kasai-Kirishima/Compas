@@ -1,5 +1,5 @@
 /* Editable ESKD drawing sheet templates.
-   Includes two A3 portrait custom presets, GOST 2.104-2006 forms 1/2/2a/2b, and GOST 2.106-96 specification layouts.
+   Includes three A3 portrait custom presets, GOST 2.104-2006 forms 1/2/2a/2b, and GOST 2.106-96 specification layouts.
    Custom/educational variants are drafting aids, not certified standard files. */
 (function () {
   const BLUE = '#000000';
@@ -397,7 +397,7 @@
     // Graph 26: continuous 70 x 14 mm rectangle. The reference duplicates
     // the document name in this field, rotated 180 degrees on portrait A4.
     s+=rc(20,5,90,19,.5);
-    s+=tx(55,12,titleValue,7,'middle',180,{textLength:65});
+    s+=tx(55,12,code,7,'middle',180,{textLength:65});
 
     // Form 1 title block: 185 x 55 mm, divided into eleven 5 mm rows.
     const x0=20,x1=27,x2=37,x3=60,x4=75,x5=85,x6=155,x7=205;
@@ -465,11 +465,11 @@
 
     // Graph 9: two centered lines in the lower-right cell; no vertical-bar separator.
     const yCompany=[283.0,288.0];
-    orgLines.forEach((line,i)=>{if(line)s+=tx((x6+x7)/2,yCompany[i],line,3.5,'middle',0,{textLength:45});});
+    orgLines.forEach((line,i)=>{if(line)s+=tx((x6+x7)/2,yCompany[i],line,2.35,'middle',0,{textLength:40});});
 
     // “Копіював” and “Формат А4” are captions in the 5 mm lower margin, below the frame.
     s+=tx(105,295.5,'Копіював',1.65,'middle');
-    s+=tx(204,295.5,'Формат А4',1.65,'end');
+    s+=tx(204,295.5,'Формат '+formatLabel(w,h),1.65,'end');
 
     s+='</g>';
     return s;
@@ -567,6 +567,17 @@
       const {w,h}=this.dimensions(format),d=data||{},f=form||'user-template';
       templateTextCoordinateCounts={};
       activeTemplateTextOverrides=d.templateTextOverrides&&typeof d.templateTextOverrides==='object'?d.templateTextOverrides:{};
+      if(f==='lab4-reference-template'){
+        const refData={...d};
+        const hasValue=v=>v!==undefined&&v!==null&&String(v).trim()!=='';
+        if(!hasValue(refData.title)||['Лабораторная работа №5','Корпус','Найменування деталі'].includes(String(refData.title).trim()))refData.title='Лабораторна робота 4';
+        if(!hasValue(refData.code)||['КТ-24.ЛР5.001','8.090220 АР ХХ ХХ 01','КРЕСЛЕННЯ.001'].includes(String(refData.code).trim()))refData.code='КТ-24.ЛР4.001';
+        if(!hasValue(refData.developer))refData.developer='Кушвид О.';
+        if(!hasValue(refData.checker))refData.checker='Базиль Б.';
+        if(!hasValue(refData.scale))refData.scale='1:1';
+        if(!hasValue(refData.company)||String(refData.company).trim()==='ШЦМГУ')refData.company='Шосткинський фаховий коледж імені Івана Кожедуба СумДУ';
+        return lab5Template(w,h,refData);
+      }
       if(f==='lab5-template'||f==='technical-a3-template')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));
       if(f==='blank')return blankSheet(w,h);
       if(f==='gost-form1')return eskdForm1(w,h,d,String(format).replace(/[PL]$/,''));

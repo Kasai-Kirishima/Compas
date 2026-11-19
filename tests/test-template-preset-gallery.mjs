@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+const ids = [...html.matchAll(/data-template-preset="([^"]+)"/g)].map(m => m[1]);
+assert.deepEqual(ids, ['lab5-template','technical-a3-template','lab4-reference-template']);
+assert.match(html, /<b>Лабораторная работа №4<\/b><small>А3 книжный · по твоему образцу<\/small>/);
+assert.match(app, /function ensureTemplatePresetOptions\(select\)/);
+assert.match(app, /ensureTemplatePresetOptions\(\$\('newDocTemplate'\)\)/);
+assert.match(app, /data-template-preset.*changeTitleTemplate/s);
+assert.match(app, /syncTemplatePresetGallery\(\)/);
+console.log('Template preset gallery tests passed: Lab 4 is a visible one-click option and a new-document preset.');
