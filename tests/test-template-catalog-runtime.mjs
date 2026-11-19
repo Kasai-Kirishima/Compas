@@ -9,7 +9,7 @@ const api = sandbox.window.KompasTemplate;
 
 const presets = [
   { id:'lab4-reference-template', defaultFormat:'A3P', title:'Лабораторна робота 4', code:'КТ-24.ЛР4.001', developer:'Кушвид О.' },
-  { id:'lab8-reference-template', defaultFormat:'A3L', title:'Корпус', code:'8.090220 АР ХХ ХХ 01', extra:['Вариант 8','ШЦМГУ'] },
+  { id:'lab8-reference-template', defaultFormat:'A3L', title:'Корпус', code:'8.090220 АР ХХ ХХ 01', developer:'Кушвид О.', checker:'Базиль Б.', extra:['Вариант 8','ШЦМГУ'] },
   { id:'lab5-a4-reference-template', defaultFormat:'A4P', title:'Лабораторна робота 5', code:'КТ-24.ЛР5.001', developer:'Кушвид О.' },
   { id:'lab5-gost-a3-landscape', defaultFormat:'A3L', title:'Лабораторная работа №5', code:'КТ-24.ЛР5.001', developer:'Кушвид О.' },
   { id:'technical-gost-a3-landscape', defaultFormat:'A3L', title:'Корпус', code:'8.090220 АР ХХ ХХ 01', developer:'Кушвид О.', company:'ШЦМГУ' },
@@ -28,7 +28,7 @@ for (const preset of presets) {
     assert.deepEqual(JSON.parse(JSON.stringify(dims)), expected, `${format} physical page dimensions`);
     const data = {
       title:preset.title, code:preset.code, developer:preset.developer || '', company:preset.company || '',
-      checker:'', scale:'1:1', sheets:'1', sheet:'', liter:'', mass:'', material:'',
+      checker:preset.checker || '', scale:'1:1', sheets:'1', sheet:'', liter:'', mass:'', material:'',
     };
     const markup = api.markup(format, data, preset.id);
     assert.ok(markup.length > 1500, `${preset.id} returns a complete editable frame at ${format}`);

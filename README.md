@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.56
+# CAD Geometry Core 1.5.57
 
 2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
 
@@ -7,7 +7,7 @@
 ### User reference layouts
 
 - **Лабораторная работа №4** — A3 portrait (297 × 420 mm), based on the supplied vertical sheet. Developer field: **Кушвид О.**
-- **Лабораторная работа №8** — A3 landscape (420 × 297 mm), based on the supplied blue technical sheet with the title block **«Корпус / Вариант 8 / ШЦМГУ»**.
+- **Лабораторная работа №8** — A3 landscape (420 × 297 mm), based on the supplied blue technical sheet with the title block **«Корпус / Вариант 8 / ШЦМГУ»**. The Lab 8 title block has enlarged lettering and corrected role/name cell widths; defaults are **Кушвид О.** (developer) and **Базиль Б.** (checker).
 - **Лабораторная работа №5** — A4 portrait (210 × 297 mm), reconstructed from the supplied mobile KOMPAS screenshot.
 
 ### Generated GOST / ESKD-style variants
@@ -63,3 +63,6 @@ Arrow 1: the filled arrowhead grows or shrinks proportionally with the line weig
 ### Вырез из внутреннего отверстия наружу (1.5.56)
 
 Инструмент автоматически собирает замкнутую область даже из отдельных соединённых отрезков/дуг. Если жест начинается внутри отверстия, внешний контур открывается к отверстию, соответствующий участок внутренней дуги удаляется, а боковые стенки соединяются с ней. Для этого протяни линию из отверстия за внешний край детали.
+
+### Lab 8 A3 landscape title block update (1.5.57)
+The Lab 8 title block uses larger lettering. The role column is widened to 13 mm and the name field is merged to 27 mm, so `Т. контр.` and `Н. контр.` no longer overlap adjacent cells. The default name rows are `Кушвид О.` (Разраб.) and `Базиль Б.` (Пров.).

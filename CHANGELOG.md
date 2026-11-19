@@ -126,3 +126,9 @@
 - When the start lies inside a single external part profile, the operation becomes an inward notch with the drag direction reversed, creating a proper exit slot rather than enlarging the external outline.
 - Explicitly selected contours take priority; previously cut open fragments retain their saved side.
 - Added regression tests for nested holes, solid starts, explicit selection, and parent-profile protection.
+
+## 1.5.57 — Lab 8 A3 landscape title block
+- Increased the small lettering in the Lab 8 blue frame and enlarged the title, variant, document code, and footer labels.
+- Reworked the revision/signature table: role labels now have a 13 mm dedicated column; the following 27 mm column contains names. This keeps `Т. контр.` and `Н. контр.` inside their cell.
+- Added default author/reviewer entries `Кушвид О.` and `Базиль Б.` to the Lab 8 preset.
+- Kept the frame size, A3 landscape paper size, blue border, and the other six presets unchanged.

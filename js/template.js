@@ -503,56 +503,67 @@
     bands.forEach(([a,b,label],i)=>{
       out+=ln(ax0,a,ax2,a,.32)+ln(ax0,b,ax2,b,.42);
       out+=ln(ax0,a,ax0,b,.5)+ln(ax1,a,ax1,b,.28);
-      out+=tx((ax0+ax1)/2,(a+b)/2+1.1,label,1.55,'middle',-90);
+      out+=tx((ax0+ax1)/2,(a+b)/2+1.1,label,2.0,'middle',-90);
     });
 
     // Small document-designation cell at the upper-left corner of the drawing field.
     const code=String(d.code||'8.090220 АР ХХ ХХ 01');
     out+=rc(20,5,70,14,.42);
-    out+=tx(55,12.7,code,2.65,'middle',180);
+    out+=tx(55,12.7,code,3.15,'middle',180);
 
     // Main inscription: fixed 185 x 55 mm, anchored 5 mm from right and bottom edges.
     const bx=w-190, by=h-60, right=bx+185;
     out+=rc(bx,by,185,55,.52);
-    const lx=[bx+7,bx+17,bx+40,bx+55,bx+65];
-    lx.forEach(x=>out+=ln(x,by,x,by+55,.27));
-    // Revision/signature register (left 65 mm) with a header row and five signature rows.
-    for(let i=1;i<=10;i++)out+=ln(bx,by+i*5,bx+65,by+i*5,.24);
+    // The revision header keeps its five narrow columns. Below it, the role/name
+    // area is merged into readable fields: 13 mm for the role, 27 mm for the name,
+    // then 15 mm for signature and 10 mm for date. This prevents T./N. control
+    // labels from spilling into adjacent cells when the lettering is enlarged.
+    const headerXs=[bx+7,bx+17,bx+40,bx+55,bx+65];
+    headerXs.forEach(x=>out+=ln(x,by,x,by+30,.27));
+    [5,10,15,20,25,30].forEach(n=>out+=ln(bx,by+n,bx+65,by+n,.24));
+    const bodyXs=[bx+13,bx+40,bx+55,bx+65];
+    bodyXs.forEach(x=>out+=ln(x,by+30,x,by+55,.27));
+    [35,40,45,50,55].forEach(n=>out+=ln(bx,by+n,bx+65,by+n,.24));
     const headerY=by+28.25;
     [['Зм.',bx,bx+7],['Арк.',bx+7,bx+17],['№ докум.',bx+17,bx+40],['Підп.',bx+40,bx+55],['Дата',bx+55,bx+65]].forEach(([label,a,b])=>{
-      out+=tx((a+b)/2,headerY,label,1.35,'middle');
+      out+=tx((a+b)/2,headerY,label,1.95,'middle');
     });
     const roles=['Разраб.','Пров.','Т. контр.','Н. контр.','Утв.'];
-    roles.forEach((role,i)=>out+=tx(bx+1,by+33.3+i*5,role,1.45,'start'));
+    const roleValues=[d.developer||'Кушвид О.',d.checker||'Базиль Б.',d.technical||'',d.normative||'',d.approved||''];
+    roles.forEach((role,i)=>{
+      const baseline=by+33.3+i*5;
+      out+=tx(bx+1,baseline,role,2.0,'start');
+      if(roleValues[i])out+=tx(bx+14.5,baseline,roleValues[i],2.35,'start');
+    });
 
     // Central designation, detail name and variant fields.
     const midX=bx+135;
     out+=ln(bx+65,by+15,right,by+15,.35);
     out+=ln(bx+65,by+35,bx+135,by+35,.35);
-    out+=tx(bx+125,by+9.5,code,4.8,'middle');
-    out+=tx(bx+100,by+28.4,d.title||'Корпус',8.2,'middle');
-    out+=tx(bx+100,by+48.6,'Вариант 8',6.6,'middle');
+    out+=tx(bx+125,by+9.5,code,5.25,'middle');
+    out+=tx(bx+100,by+28.4,d.title||'Корпус',9.2,'middle');
+    out+=tx(bx+100,by+48.6,'Вариант 8',7.35,'middle');
 
     // Right-hand data cells: literature, mass, scale, sheet captions and organisation.
     out+=ln(midX,by+15,midX,by+55,.3);
     out+=ln(bx+150,by+15,bx+150,by+35,.25);
     out+=ln(bx+167,by+15,bx+167,by+35,.25);
     out+=ln(midX,by+20,right,by+20,.22);
-    out+=tx(bx+142.5,by+18.4,'Літ.',1.55,'middle');
-    out+=tx(bx+158.5,by+18.4,'Маса',1.55,'middle');
-    out+=tx(bx+176,by+18.4,'Масштаб',1.45,'middle');
-    out+=tx(bx+142.5,by+30.5,String(d.liter||''),2.15,'middle');
-    out+=tx(bx+158.5,by+30.5,String(d.mass||''),2.15,'middle');
-    out+=tx(bx+176,by+30.5,String(d.scale||'1:1'),2.15,'middle');
+    out+=tx(bx+142.5,by+18.4,'Літ.',1.95,'middle');
+    out+=tx(bx+158.5,by+18.4,'Маса',1.95,'middle');
+    out+=tx(bx+176,by+18.4,'Масштаб',1.85,'middle');
+    out+=tx(bx+142.5,by+30.5,String(d.liter||''),2.35,'middle');
+    out+=tx(bx+158.5,by+30.5,String(d.mass||''),2.35,'middle');
+    out+=tx(bx+176,by+30.5,String(d.scale||'1:1'),2.35,'middle');
     out+=ln(midX,by+35,right,by+35,.25)+ln(midX,by+40,right,by+40,.25);
     out+=ln(bx+160,by+35,bx+160,by+40,.22);
-    out+=tx(bx+147.5,by+38.5,'Арк.',1.45,'middle');
-    out+=tx(bx+172.5,by+38.5,'Аркушів',1.45,'middle');
-    out+=tx(bx+160,by+50.8,d.company||'ШЦМГУ',4.2,'middle');
+    out+=tx(bx+147.5,by+38.5,'Арк.',1.85,'middle');
+    out+=tx(bx+172.5,by+38.5,'Аркушів',1.85,'middle');
+    out+=tx(bx+160,by+50.8,d.company||'ШЦМГУ',4.55,'middle');
 
     // Footer captions below the frame.
-    out+=tx(bx+92,h-1.15,'Копіював',1.6,'middle');
-    out+=tx(w-5,h-1.15,'Формат '+String(formatLabel(w,h)),1.55,'end');
+    out+=tx(bx+92,h-1.15,'Копіював',1.9,'middle');
+    out+=tx(w-5,h-1.15,'Формат '+String(formatLabel(w,h)),1.8,'end');
     return out;
   }
   function formatLabel(w,h){return (Math.max(w,h)===420?'А3':(Math.max(w,h)===297?'А4':(Math.max(w,h)===594?'А2':(Math.max(w,h)===841?'А1':'А0'))));}
