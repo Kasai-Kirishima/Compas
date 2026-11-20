@@ -28,6 +28,9 @@ try {
   const viewport = await fetch(`${base}/src/viewport.mjs`);
   assert.equal(viewport.status, 200);
   assert.match(viewport.headers.get('content-type')||'', /javascript/);
+  const transforms = await fetch(`${base}/src/transforms.mjs`);
+  assert.equal(transforms.status, 200);
+  assert.match(transforms.headers.get('content-type')||'', /javascript/);
   assert.equal((await fetch(`${base}/missing-file.js`)).status, 404);
   console.log('server: ok (HTML and all required ES modules served with expected MIME types)');
 } finally {

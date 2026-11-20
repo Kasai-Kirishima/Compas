@@ -5,3 +5,5 @@ export * from './project-file.mjs';
 export * from './operations.mjs';
 export {zoomView,panView,wheelZoomFactor} from './viewport.mjs';
 export {convertKompasObject} from './project-file.mjs';
+
+export { rotateGeometryObject } from './transforms.mjs';

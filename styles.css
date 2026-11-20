@@ -342,3 +342,30 @@ html,body{font-size:15px;}
 .reference-manager-actions button{margin:0;min-height:35px;padding:6px;font-size:11px;}
 .reference-manager-actions button:last-child{grid-column:1/-1;}
 @media(max-width:700px){.panel-tabs{min-height:35px;}.panel-tab{font-size:11px;padding:0 2px;}.reference-card{grid-template-columns:minmax(0,1fr) 60px;}}
+
+
+/* restored.18 — compact workspace organization and in-place CAD editing */
+.panel-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));height:40px;gap:1px;padding:0 2px}
+.panel-tab{min-width:0;padding:0 2px;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tool-category-section{display:block;min-width:0}
+.tool-category-section.hidden,.settings-section.hidden{display:none!important}
+.settings-subtabs{position:sticky;top:0;z-index:7;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:7px 0 9px;margin:-2px 0 11px;background:#30353a;border-bottom:1px solid #4b5259}
+.settings-subtab{min-width:0;min-height:30px;padding:4px 3px;border:1px solid #505a62;border-radius:3px;background:#3a4147;color:#cbd5db;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.settings-subtab.active{border-color:var(--accent);background:#344a52;color:#fff}
+#propertiesPanel .selection-box{display:block;border:0;padding:0;margin:0}
+.object-specific-editor{margin:13px 0 8px;padding:10px;border:1px solid #4b5961;border-radius:4px;background:#293136}
+.object-specific-fields{display:grid;grid-template-columns:1fr 1fr;gap:0 9px}
+.object-specific-fields .field-label:has(textarea){grid-column:1/-1}
+.object-specific-fields textarea{width:100%;min-height:86px;resize:vertical;background:#20262a;border:1px solid #59636b;border-radius:3px;padding:7px;color:#e8edf0;font:12px/1.5 ui-monospace,Consolas,monospace}
+.object-specific-fields .specific-help,.object-specific-fields .muted-hint{grid-column:1/-1}
+#applyObjectSpecificBtn{margin-top:8px}
+#selectionLayer [data-edit-point-handle]{cursor:grab;touch-action:none}
+#selectionLayer [data-edit-point-handle]:active{cursor:grabbing}
+@media(max-width:700px){
+ .panel-tabs{grid-template-columns:repeat(5,minmax(0,1fr));height:38px}
+ .panel-tab{font-size:9px}
+ .settings-subtabs{grid-template-columns:repeat(3,minmax(0,1fr));}
+ .object-specific-fields{grid-template-columns:1fr 1fr}
+ .left-panel{max-height:46vh}
+ .left-panel #selectionPanel{display:block!important}
+}

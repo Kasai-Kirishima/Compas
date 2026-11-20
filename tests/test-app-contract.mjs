@@ -124,4 +124,32 @@ assert.match(js, /arrowHeadPoints/, 'rendered arrowheads use the proportional ge
 assert.doesNotMatch(js, /half=size\*Math\.tan\(14\*Math\.PI\/180\)/, 'arrowhead length must not be incorrectly reused as a radians angle');
 assert.match(html, /data-panel="references"/, 'reference management is exposed as its own panel tab');
 
-assert.match(js, /drawArrow\(wrap,b,a,Math\.max\(6\.5,\(o\.width\|\|\.5\)\*12\),o\.color\|\|'#20252a',23\)/, 'standalone arrow tool uses a wider, proportionate arrowhead rather than a flattened tip');
+assert.match(js, /drawArrow\(wrap,b,a,Math\.max\(5\.0,\(o\.width\|\|\.5\)\*9\.2\),o\.color\|\|'#20252a',18\)/, 'standalone arrow tool uses a wider, proportionate arrowhead rather than a flattened tip');
+
+assert.match(html, /data-panel=\"properties\"/, 'selected object editing has a dedicated properties tab');
+assert.match(html, /id=\"objectSpecificFields\"/, 'the properties panel exposes object-specific editable dimensions');
+assert.match(js, /function renderObjectSpecificFields\(o\)/, 'properties are generated for selected object types');
+assert.match(js, /circleGeometryFromInputs\(o,values\)/, 'circle radius and diameter are editable after creation');
+assert.match(js, /lineGeometryFromInputs\(o,values\)/, 'line length, angle and endpoints are editable after creation');
+assert.match(js, /addGrip\(o.center,'circle-center',0\);addGrip\(\{x:o.center.x\+o.r,y:o.center.y\},'circle-radius',0\)/, 'selected circles have direct center/radius grips');
+assert.match(js, /visible=\.28\/Math.max\(\.1,state.zoom\)/, 'line and polyline vertex grips are visually compact');
+assert.match(js, /fill:'transparent',stroke:'transparent',[^}]*'pointer-events':'all'/, 'closed geometry has an easy-to-hit transparent selection surface');
+assert.match(js, /function undo\(\)\{const currentView=\{\.\.\.state.view\}/, 'undo preserves the current workspace camera');
+assert.match(js, /function redo\(\)\{const currentView=\{\.\.\.state.view\}/, 'redo preserves the current workspace camera');
+assert.match(js, /type:t==='spline'\?'spline':t==='curvedArrow'\?'curvedArrow':'polyline'/, 'curved-arrow tool commits a smooth path object');
+assert.match(js, /'paint-order':'normal','stroke':'none'/, 'dimension numerals are rendered without a white outline');
+assert.match(html, /id=\"dimensionOffset\" type=\"number\" min=\"0\.01\"/, 'dimension extension minimum is reduced');
+
+assert.match(js, /function updateSelectedDimensionProps\(/, 'selected dimension parameters can be edited after creation');
+assert.match(js, /dimensionSelectedOffsetSlider.*addEventListener\('change',updateSelectedDimensionProps\)/s, 'dimension extension/offset slider applies its value');
+assert.match(js, /Math\.max\(5\.0,\(o\.width\|\|\.5\)\*9\.2\)/, 'standalone arrow head is slightly smaller');
+assert.match(js, /Math\.max\(4\.35,\(o\.width\|\|\.5\)\*8\.6\)/, 'curved arrow head is slightly smaller');
+assert.match(js, /visible=\.28\/Math\.max/, 'vertex grips are reduced to compact dots');
+assert.match(html, /id="dimensionSelectedOffset" type="number" min="0\.01"/, 'dimension offset supports very short extension legs');
+console.log('restored.18 UX contract: tabs, object editing, compact points, smaller arrows and undo camera preservation');
+
+assert.match(js, /data-object-rotate-handle/, 'selected objects expose a mouse rotation grip');
+assert.match(js, /rotateGeometryObject\(state.drag.original,delta,state.drag.pivot\)/, 'mouse rotation operates from original geometry and stable pivot');
+assert.match(js, /document.querySelectorAll\('\[data-rotate-step\]'\)/, 'quick angle buttons are wired');
+assert.match(js, /objectRotationSlider'\)\.onchange/, 'rotation slider applies its selected angle');
+console.log('restored.18 rotation interaction contract: ok');

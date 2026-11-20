@@ -58,16 +58,19 @@
 
   <main class="app-layout">
     <aside class="left-panel">
-      <div class="panel-tabs"><button class="panel-tab active" data-panel="tools">Инструменты</button><button class="panel-tab" data-panel="tree">Документ</button><button class="panel-tab" data-panel="references">Референсы</button></div>
+      <div class="panel-tabs" role="tablist" aria-label="Панели редактора">
+        <button class="panel-tab active" data-panel="tools" role="tab" aria-selected="true">Инструменты</button>
+        <button class="panel-tab" data-panel="tree" role="tab" aria-selected="false">Документ</button>
+        <button class="panel-tab" data-panel="properties" role="tab" aria-selected="false">Свойства</button>
+        <button class="panel-tab" data-panel="references" role="tab" aria-selected="false">Референсы</button>
+        <button class="panel-tab" data-panel="settings" role="tab" aria-selected="false">Настройки</button>
+      </div>
       <section class="panel-content" id="toolsPanel">
         <div class="tool-category-tabs" id="toolCategoryTabs" role="tablist" aria-label="Категории инструментов">
           <button type="button" class="tool-category-tab active" data-tool-category="geometry" role="tab" aria-selected="true">Геометрия</button>
           <button type="button" class="tool-category-tab" data-tool-category="dimensions" role="tab" aria-selected="false">Размеры</button>
           <button type="button" class="tool-category-tab" data-tool-category="annotations" role="tab" aria-selected="false">Обозначения</button>
           <button type="button" class="tool-category-tab" data-tool-category="editing" role="tab" aria-selected="false">Редактирование</button>
-          <button type="button" class="tool-category-tab" data-tool-category="precision" role="tab" aria-selected="false">Привязки</button>
-          <button type="button" class="tool-category-tab" data-tool-category="standards" role="tab" aria-selected="false">ЕСКД / ГОСТ</button>
-          <button type="button" class="tool-category-tab" data-tool-category="sheet" role="tab" aria-selected="false">Лист</button>
           <button type="button" class="tool-category-tab" data-tool-category="all" role="tab" aria-selected="false">Все</button>
         </div>
         <div class="panel-heading">ВЫБОР И ГЕОМЕТРИЯ</div>
@@ -77,6 +80,7 @@
           <button class="tool-tile" data-tool="point"><span>·</span>Точка</button>
           <button class="tool-tile" data-tool="line"><span>／</span>Отрезок</button>
           <button class="tool-tile" data-tool="arrowLine" title="Работает как отрезок: первая точка — пустой конец, вторая — наконечник"><span>↗</span>Стрелка 1</button>
+          <button class="tool-tile" data-tool="curvedArrow" title="Построение гнутой стрелки по точкам; Enter или двойной щелчок завершает"><span>⤴</span>Гнутая стрелка</button>
           <button class="tool-tile" data-tool="ruler"><span>▤</span>Линейка</button>
           <button class="tool-tile" data-tool="freehand"><span>✎</span>Свободная линия</button>
           <button class="tool-tile" data-tool="construction"><span>┄</span>Всп. линия</button>
@@ -252,7 +256,7 @@ R17
         <label class="field-label">Привязка к линейке<select id="rulerMode"><option value="off">Выключена</option><option value="parallel">Параллельно кромке</option><option value="perpendicular">Перпендикулярно кромке</option></select></label>
         <label class="field-label">Шаг фиксации угла при Shift, °<input id="angleStep" type="number" min="1" max="90" step="1" value="15"></label>
         <button class="secondary-btn" id="clearRulerBtn">Убрать линейку</button>
-        <div class="two-fields"><label class="field-label">Отступ от контура, мм (по умолчанию 10)<input id="dimensionOffset" type="number" step="0.5" value="10"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label></div>
+        <div class="two-fields"><label class="field-label">Отступ от контура, мм (по умолчанию 10)<input id="dimensionOffset" type="number" min="0.01" step="0.01" value="2"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label></div>
         <label class="field-label">Высота цифр новых размеров — ГОСТ 2.304, тип Б<select id="defaultDimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5" selected>2,5 мм — компактно</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7">7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select></label>
         <div class="muted-hint">Высота цифр размерных чисел выбирается из стандартного ряда шрифта типа Б. Для компактных учебных чертежей по умолчанию используется 2,5 мм. При необходимости можно выбрать 3,5 мм и больше.</div>
         <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.25"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
@@ -375,6 +379,21 @@ R17
         </div>
       </section>
 
+      <section class="panel-content hidden" id="propertiesPanel" aria-label="Редактирование свойств выбранного объекта">
+        <div class="panel-heading">СВОЙСТВА ВЫБРАННОГО ОБЪЕКТА</div>
+        <div class="muted-hint">Выберите объект на листе или в дереве документа. Параметры геометрии можно редактировать численно без повторного построения.</div>
+      </section>
+      <section class="panel-content hidden" id="settingsPanel" aria-label="Настройки редактора">
+        <div class="settings-subtabs" role="tablist" aria-label="Категории настроек">
+          <button type="button" class="settings-subtab active" data-settings-section="general">Общие</button>
+          <button type="button" class="settings-subtab" data-settings-section="standards">ЕСКД / ГОСТ</button>
+          <button type="button" class="settings-subtab" data-settings-section="drawing">Черчение</button>
+          <button type="button" class="settings-subtab" data-settings-section="precision">Привязки</button>
+          <button type="button" class="settings-subtab" data-settings-section="sheet">Лист и слои</button>
+        </div>
+        <div id="settingsPanelContent"></div>
+      </section>
+
       <div class="selection-box" id="selectionPanel">
         <div class="panel-heading">СВОЙСТВА ОБЪЕКТА</div>
         <div id="noSelection" class="muted-hint">Объект не выбран</div>
@@ -396,6 +415,11 @@ R17
             <div class="quick-rotate-row"><button type="button" data-rotate-step="-90">−90°</button><button type="button" data-rotate-step="-45">−45°</button><button type="button" data-rotate-step="-15">−15°</button><button type="button" data-rotate-step="15">+15°</button><button type="button" data-rotate-step="45">+45°</button><button type="button" data-rotate-step="90">+90°</button></div>
             <div class="muted-hint">Перетащите круглую ручку над рамкой выделения для поворота мышью. Shift фиксирует угол с заданным шагом.</div>
             <div class="muted-hint">Можно тянуть маркеры по углам и сторонам объекта. Shift при перетягивании углового маркера сохраняет пропорции.</div>
+          </div>
+          <div class="object-specific-editor" id="objectSpecificEditor">
+            <div class="panel-heading spaced">ТОЧНЫЕ ПАРАМЕТРЫ ОБЪЕКТА</div>
+            <div id="objectSpecificFields" class="object-specific-fields"><div class="muted-hint">Выберите окружность, отрезок, ломаную, эллипс, дугу, размер или текст — здесь появятся точные параметры.</div></div>
+            <button class="primary-btn" id="applyObjectSpecificBtn" type="button">Применить параметры объекта</button>
           </div>
           <label class="check-row"><input type="checkbox" id="objectLocked"> Заблокировать объект от изменений</label>
           <label class="field-label" id="objectTextSizeField">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label>
@@ -442,10 +466,10 @@ R17
             </div>
             <div class="dimension-adjust-card">
               <div class="dimension-adjust-head">
-                <label class="field-label" for="dimensionSelectedOffset">Отступ размерной линии (длина ножек), мм<input id="dimensionSelectedOffset" type="number" step="0.1" value="10"></label>
+                <label class="field-label" for="dimensionSelectedOffset">Отступ размерной линии (длина ножек), мм<input id="dimensionSelectedOffset" type="number" min="0.01" step="0.01" value="2"></label>
                 <span class="dimension-value-hint">шаг 0,1 мм</span>
               </div>
-              <input class="dimension-fine-slider" id="dimensionSelectedOffsetSlider" type="range" min="10" max="200" step="0.1" value="10" aria-label="Плавное изменение длины выносных ножек">
+              <input class="dimension-fine-slider" id="dimensionSelectedOffsetSlider" type="range" min="0.01" max="200" step="0.01" value="2" aria-label="Плавное изменение длины выносных ножек">
               <div class="dimension-step-row dimension-step-row-short" aria-label="Точная регулировка длины ножек">
                 <button type="button" data-dimension-offset-step="-0.5">−0,5</button>
                 <button type="button" data-dimension-offset-step="-0.1">−0,1</button>

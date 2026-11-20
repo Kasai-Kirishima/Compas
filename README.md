@@ -87,3 +87,8 @@ Open the **Референсы** tab in the left panel to add images, view thumbn
 
 ### Arrow geometry
 The standalone arrow uses a proportional filled triangular head. Its length is measured along the shaft and its half-width perpendicular to the shaft; the head angle is no longer calculated by mixing millimetres and radians.
+
+
+## Workspace tabs and object editing (restored.18)
+
+The left tool area is separated into Tools, Document, Properties, References and Settings. Tool categories and settings subtabs keep controls from appearing in one long list. Select an existing object to edit its geometry from the Properties panel (for example, enter a new circle radius/diameter or line length/angle). Rotate with the angle input, quick-angle buttons, slider or the circular handle above the selection; Shift snaps mouse rotation to 15°. Undo/redo retain the current viewport. Curved arrows are smooth splines with a compact triangular tip. Selection grips are visually small with larger transparent hit areas.

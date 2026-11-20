@@ -248,3 +248,19 @@
 - Increased standalone arrow tool head length and included angle so the arrow is visibly triangular and not visually flattened.
 - Kept dimension arrowheads compact and technical.
 - Arrowhead geometry remains isosceles for horizontal and diagonal arrows and scales down safely for short shafts.
+
+
+## 1.5.58-restored.18 — workspace and object inspector
+- Organized the left panel into Tools, Document, Properties, References and Settings tabs; split the tools into geometry, dimensions, annotations and editing categories, and moved drafting preferences into Settings subtabs.
+- Added selected-object property editing for circles (center/radius/diameter), lines (endpoints/length/angle), polylines/splines/curved arrows (vertex list), rectangles, ellipses, arcs, dimensions, text and references.
+- Reduced visible control points and preview markers while keeping a larger invisible pointer hit area for accurate editing.
+- Reduced standalone and curved-arrow head proportions slightly after the previous revision made them too large.
+- Removed the white halo from dimension numerals, reduced the allowed minimum dimension-line offset to 0.01 mm, and wired selected dimension offset/text/arrow-size controls.
+- Undo/redo preserve the current workspace camera instead of restoring the camera captured with the drawing snapshot.
+
+- Added a dedicated curved-arrow drafting tool using a smooth spline path and a proportionate triangular head; reduced standalone and curved-arrow heads slightly from restored.17.
+- Added object rotation with an on-canvas drag handle, numeric angle, quick ±15/45/90° buttons and a slider. Rotation handles work from a stable object pivot; Shift snaps drag rotation to 15° increments.
+- Added type-aware transforms for lines, circles, ellipses, rectangles (converted to a polygon when rotated), arcs, text, references, hatches and point-based geometry.
+- Reduced visible vertex markers further while preserving a larger invisible hit area so selected polylines and segments remain editable without covering the drawing.
+- Reduced selected-object dimension offset down to 0.01 mm and kept dimension numerals free of white halo/outline.
+- Extended the property inspector for exact existing-object edits and documented the tabbed workspace layout.

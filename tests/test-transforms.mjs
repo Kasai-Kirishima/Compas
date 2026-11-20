@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { rotateGeometryObject } from '../src/transforms.mjs';
+const close = (a,b) => assert.ok(Math.abs(a-b)<1e-8, `${a} != ${b}`);
+let line=rotateGeometryObject({type:'line',a:{x:0,y:0},b:{x:10,y:0}},90,{x:5,y:0});
+close(line.a.x,5); close(line.a.y,-5); close(line.b.x,5); close(line.b.y,5); close(line.rotation,90);
+let circle=rotateGeometryObject({type:'circle',center:{x:10,y:0},r:4},90,{x:0,y:0});
+close(circle.center.x,0); close(circle.center.y,10); close(circle.r,4);
+let ellipse=rotateGeometryObject({type:'ellipse',center:{x:4,y:8},rx:5,ry:2},45,{x:0,y:0});
+close(ellipse.center.x,4*Math.SQRT1_2-8*Math.SQRT1_2); close(ellipse.rotation,45);
+let rect=rotateGeometryObject({type:'rect',x:0,y:0,w:10,h:4},90,{x:5,y:2});
+assert.equal(rect.type,'polygon'); assert.equal(rect.points.length,4); assert.equal('x' in rect,false); assert.equal('w' in rect,false); close(rect.rotation,90);
+let text=rotateGeometryObject({type:'text',x:10,y:0,text:'A',size:3},90,{x:0,y:0});
+close(text.x,0);close(text.y,10);close(text.rotation,90);
+let arc=rotateGeometryObject({type:'arc',center:{x:0,y:0},r:5,startAngle:0,endAngle:90},30,{x:0,y:0});
+close(arc.startAngle,30);close(arc.endAngle,120);
+let reference=rotateGeometryObject({type:'reference',x:0,y:0,w:20,h:10,rotation:0},90,{x:0,y:0});
+close(reference.rotation,90);close(reference.x,-15);close(reference.y,5);
+console.log('transforms: ok (line, circle, ellipse, rect, text, arc, reference)');
