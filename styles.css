@@ -35,7 +35,7 @@
 @media print{#rulerLayer,#textModal,#helpModal{display:none!important;}}
 
 /* Navigation and reference underlay */
-.drawing-area{cursor:default;} .drawing-area.dragging{cursor:grabbing!important;user-select:none;} .drawing-area svg{will-change:transform;} #referenceLayer image{cursor:move;} #referenceLayer [data-reference-locked="true"] image{cursor:default;} @media print{#rulerLayer,g[data-reference-exportable="false"]{display:none!important;}}
+.drawing-area{cursor:default;} .drawing-area[data-tool]:not([data-tool="select"]){cursor:crosshair;} .drawing-area.dragging{cursor:grabbing!important;user-select:none;} .drawing-area svg{will-change:transform;} #referenceLayer image{cursor:move;} #referenceLayer [data-reference-locked="true"] image{cursor:default;} @media print{#rulerLayer,g[data-reference-exportable="false"]{display:none!important;}}
 
 .drawing-area.drag-over{outline:2px dashed var(--accent);outline-offset:-8px;background:#38464d;}
 

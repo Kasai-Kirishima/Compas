@@ -23,6 +23,11 @@ for (const match of html.matchAll(/<link\b[^>]*\bhref=["']([^"']+)["']/g)) {
   const href = match[1];
   if (!/^(https?:)?\/\//.test(href) && !href.startsWith('#')) assert.ok(existsSync(resolve(root, href)), `Missing linked asset: ${href}`);
 }
+assert.match(js, /drawing\.addEventListener\('pointerdown',onPointerDown\)/, 'drawing surface must receive pointer input');
+assert.match(js, /drawing\.addEventListener\('wheel'/, 'wheel zoom must work over the drawing area');
+assert.match(js, /evt\.button===1/, 'middle mouse button must pan the sheet');
+assert.match(js, /drawGesture/, 'drag-to-draw gesture handling must be present');
+assert.match(js, /function zoomFromWheel/, 'wheel zoom handler must be present');
 for (const match of js.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
   const spec = match[1];
   if (spec.startsWith('.')) assert.ok(existsSync(resolve(root, 'js', spec)), `Missing JavaScript module: ${spec}`);
