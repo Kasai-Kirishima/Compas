@@ -1,0 +1,5 @@
+# Tool panel reference
+
+The restored editor retains the supplied HTML tool categories and ribbon. The working core includes selection, line, Arrow 1, circle, rectangle/rounded rectangle, ellipse, polygon/star, polyline, freehand, arc, text, simple dimensions, leader, center marks, auxiliary/ray/construction lines, hatch for a selected closed contour, table, ruler and basic editing actions (move, duplicate, delete, rotate, mirror, scale, rectangular and polar arrays, align).
+
+Some controls are retained for interface compatibility but are intentionally marked as limited by the application: advanced contour cutouts (inside-out/outside-in and wall modes), arbitrary offset/fillet/chamfer/trim, polygon-face editing and splitting of curved/complex closed profiles. The restored Split tool handles open paths and simple polygon/rectangle chords; the Cutout tool removes a finite-width segment from open lines/polylines. Automatic multi-loop hatch, rich DXF entities, CSV/HPGL exchange and native CDW/DWG remain unavailable. See `RESTORATION-NOTES.md` for the exact implementation boundary.

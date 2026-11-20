@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { removePathWindow, splitOpenPath, splitClosedPolygon } from '../src/operations.mjs';
+
+const line=[{x:0,y:0},{x:100,y:0}];
+const cut=removePathWindow(line,{x:50,y:0.2},20);
+assert.equal(cut.length,2);
+assert.deepEqual(cut[0][0],{x:0,y:0});
+assert.ok(Math.abs(cut[0].at(-1).x-40)<1e-8);
+assert.ok(Math.abs(cut[1][0].x-60)<1e-8);
+const halves=splitOpenPath(line,{x:30,y:0},1);
+assert.equal(halves.length,2);
+assert.deepEqual(halves[0].at(-1),{x:30,y:0});
+assert.deepEqual(halves[1][0],{x:30,y:0});
+const square=[{x:0,y:0},{x:100,y:0},{x:100,y:100},{x:0,y:100}];
+const pieces=splitClosedPolygon(square,{x:50,y:0},{x:50,y:100},1);
+assert.equal(pieces.length,2);
+assert.ok(pieces.every(p=>p.length>=3));
+assert.equal(splitClosedPolygon(square,{x:25,y:0},{x:75,y:0},1),null);
+assert.equal(removePathWindow(line,{x:50,y:10},20),null);
+console.log('operations: ok');
