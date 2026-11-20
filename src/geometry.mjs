@@ -1,4 +1,30 @@
 export const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+// Returns an isosceles arrowhead in drawing units. The head length is measured
+// along the arrow direction and the half-width is measured perpendicular to it.
+// Keeping those as separate linear dimensions avoids the former radians/mm mix-up
+// that produced very wide, flattened arrowheads.
+export function arrowHeadPoints(tip, from, length = 4.5, halfAngleDeg = 14) {
+  const dx = Number(tip?.x) - Number(from?.x);
+  const dy = Number(tip?.y) - Number(from?.y);
+  const vectorLength = Math.hypot(dx, dy);
+  if (!Number.isFinite(vectorLength) || vectorLength < 1e-9) return [];
+  const requestedLength = Number(length);
+  const headLength = Math.max(0.1, Math.min(
+    Number.isFinite(requestedLength) && requestedLength > 0 ? requestedLength : 4.5,
+    vectorLength * 0.45
+  ));
+  const angle = clamp(Number(halfAngleDeg) || 14, 4, 40) * Math.PI / 180;
+  const ux = dx / vectorLength, uy = dy / vectorLength;
+  const px = -uy, py = ux;
+  const base = { x: tip.x - ux * headLength, y: tip.y - uy * headLength };
+  const halfWidth = headLength * Math.tan(angle);
+  return [
+    { x: Number(tip.x), y: Number(tip.y) },
+    { x: base.x + px * halfWidth, y: base.y + py * halfWidth },
+    { x: base.x - px * halfWidth, y: base.y - py * halfWidth },
+  ];
+}
 export const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 export const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 export const normalizeAngle = (deg) => ((deg % 360) + 360) % 360;

@@ -80,3 +80,10 @@ npm test
 ### restored.11 — title block readability correction
 - Author and checker names are now placed in the signature column; the `№ докум.` cell is left clear.
 - Enlarged the document designation and numerical values (scale, sheet number/count, literature/mass fields) in the A3 Lab 8 title block.
+
+
+### Reference manager
+Open the **Референсы** tab in the left panel to add images, view thumbnails, select a reference, toggle visibility or locking, adjust opacity, scale it, fit it to the sheet, center it, or remove it. New references use 88% opacity; the image is rendered with a single opacity multiplier so it remains readable.
+
+### Arrow geometry
+The standalone arrow uses a proportional filled triangular head. Its length is measured along the shaft and its half-width perpendicular to the shaft; the head angle is no longer calculated by mixing millimetres and radians.

@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.58-restored.14",
+  "version": "1.5.58-restored.17",
   "private": true,
   "type": "module",
-  "description": "Browser-based 2D CAD editor with non-distorting scalable reference-image underlays.",
+  "description": "Browser-based 2D CAD editor with dedicated reference management, high-visibility underlays, non-distorting scaling and proportional, clearly visible arrowheads.",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/geometry.mjs",

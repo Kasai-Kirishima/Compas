@@ -229,3 +229,22 @@
 - Preserve natural image aspect ratio on raster reference import and render.
 - Add ratio-locked width/height editing, 1.25× and 2× enlarge buttons, 0.8× reduce button, sheet-fit, rotation support, and a draggable resize grip.
 - Repair legacy reference proportions from embedded image dimensions when loading older projects.
+
+
+## restored.15 — Reference manager and readability
+- Added a dedicated References tab to the left tool panel with an image list, previews, per-reference visibility/lock controls, and selected-reference actions.
+- Improved reference visibility: image opacity is applied once (not twice), new references default to 88% opacity, and legacy default 35% references migrate to the clearer default.
+- The reference tab supports show/hide all, show hidden images, scale, fit-to-sheet, center, lock/unlock, and delete.
+
+
+## restored.16 — Reference tab and proportional arrows
+- Added a dedicated References tab in the left tool panel with thumbnails, selection, visibility, lock, opacity, fit/center, scale and delete actions.
+- Improved reference readability and management without mixing reference operations into drafting tools.
+- Fixed arrowhead construction: length is now measured along the arrow axis and width perpendicular to it; the prior implementation incorrectly passed a millimetre width into trigonometric functions as radians, producing a flattened/wide head.
+- Added geometry regression tests for horizontal, vertical, diagonal and short arrows.
+
+
+## restored.17 — Arrowhead proportions
+- Increased standalone arrow tool head length and included angle so the arrow is visibly triangular and not visually flattened.
+- Kept dimension arrowheads compact and technical.
+- Arrowhead geometry remains isosceles for horizontal and diagonal arrows and scales down safely for short shafts.

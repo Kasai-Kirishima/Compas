@@ -58,7 +58,7 @@
 
   <main class="app-layout">
     <aside class="left-panel">
-      <div class="panel-tabs"><button class="panel-tab active" data-panel="tools">Инструменты</button><button class="panel-tab" data-panel="tree">Документ</button></div>
+      <div class="panel-tabs"><button class="panel-tab active" data-panel="tools">Инструменты</button><button class="panel-tab" data-panel="tree">Документ</button><button class="panel-tab" data-panel="references">Референсы</button></div>
       <section class="panel-content" id="toolsPanel">
         <div class="tool-category-tabs" id="toolCategoryTabs" role="tablist" aria-label="Категории инструментов">
           <button type="button" class="tool-category-tab active" data-tool-category="geometry" role="tab" aria-selected="true">Геометрия</button>
@@ -67,7 +67,6 @@
           <button type="button" class="tool-category-tab" data-tool-category="editing" role="tab" aria-selected="false">Редактирование</button>
           <button type="button" class="tool-category-tab" data-tool-category="precision" role="tab" aria-selected="false">Привязки</button>
           <button type="button" class="tool-category-tab" data-tool-category="standards" role="tab" aria-selected="false">ЕСКД / ГОСТ</button>
-          <button type="button" class="tool-category-tab" data-tool-category="reference" role="tab" aria-selected="false">Подложка</button>
           <button type="button" class="tool-category-tab" data-tool-category="sheet" role="tab" aria-selected="false">Лист</button>
           <button type="button" class="tool-category-tab" data-tool-category="all" role="tab" aria-selected="false">Все</button>
         </div>
@@ -224,12 +223,6 @@
         <label class="field-label">Построение окружности<select id="circleInputMode"><option value="radius">Центр + радиус</option><option value="diameter">Центр + диаметр</option></select></label>
         <div class="muted-hint">«Стрелка 1» строится так же, как отрезок: щёлкни первую точку (пустое начало), затем вторую (наконечник). Shift, Ortho, OSNAP и привязка к линейке работают так же, как для отрезка.</div>
         <label class="field-label">Шаг сетки, мм<input id="gridStep" type="number" min="0.1" max="100" step="0.5" value="5"></label>
-        <div class="panel-heading">РЕФЕРЕНС / ПОДЛОЖКА</div>
-        <button class="secondary-btn" id="addReferenceBtn">＋ Добавить изображение-референс</button>
-        <input type="file" id="referenceInput" accept="image/png,image/jpeg,image/webp,image/bmp" hidden>
-        <div class="muted-hint">После вставки референс можно сразу перемещать. Закрепляйте его отдельной кнопкой, когда выровняете изображение.</div>
-        <label class="check-row"><input type="checkbox" id="referenceVisibleToggle" checked> Показывать референсы</label>
-        <div class="muted-hint">Добавь файл кнопкой или перетащи изображение на лист. Для привязки масштаба можно откалибровать по известной длине. Прозрачность, размер, координаты и поворот — в свойствах объекта.</div>
         <div class="panel-heading spaced">ЕСКД / ГОСТ — НАСТРОЙКИ</div>
         <label class="field-label">Профиль оформления<select id="standardProfile"><option value="dstu-gost-ua">ДСТУ ГОСТ 2.104:2006 — українські написи*</option><option value="eskd-study">ЄСКД — навчальний профіль</option><option value="custom">Пользовательские настройки</option></select></label>
         <div id="standardCustomFields" class="hidden">
@@ -341,6 +334,47 @@ R17
         <div id="objectTree" class="object-tree"></div>
         <div class="tree-note">Выберите объект на листе, чтобы увидеть его параметры. Shift + щелчок или рамка выделяют несколько объектов. Стрелки — сдвиг на 1 мм, Shift + стрелка — 10 мм.</div>
       </section>
+
+      <section class="panel-content hidden" id="referencesPanel" aria-label="Управление референсами">
+        <div class="reference-manager-head">
+          <div>
+            <div class="panel-heading">РЕФЕРЕНСЫ ЧЕРТЕЖА</div>
+            <div class="muted-hint">Загруженные изображения хранятся отдельно от геометрии. Выберите картинку в списке, чтобы настроить её.</div>
+          </div>
+          <span class="reference-count" id="referenceCount">0</span>
+        </div>
+        <button class="primary-btn reference-add-btn" id="addReferenceBtn" type="button">＋ Добавить референс</button>
+        <input type="file" id="referenceInput" accept="image/png,image/jpeg,image/webp,image/bmp" hidden>
+        <div class="reference-global-controls">
+          <label class="check-row"><input type="checkbox" id="referenceVisibleToggle" checked> Показывать все референсы</label>
+          <button class="secondary-btn" id="referenceShowAllBtn" type="button">Показать все скрытые</button>
+        </div>
+        <div class="reference-empty" id="referenceEmptyState">
+          <div class="reference-empty-icon">▧</div>
+          <b>Пока нет референсов</b>
+          <span>Добавьте PNG, JPG, WEBP или BMP. Картинка будет видна на листе без искажения пропорций.</span>
+        </div>
+        <div class="reference-list" id="referenceList" aria-live="polite"></div>
+        <div class="reference-manager-selected hidden" id="referenceManagerSelected">
+          <div class="panel-heading spaced">ВЫБРАННЫЙ РЕФЕРЕНС</div>
+          <div class="reference-large-preview" id="referenceManagerPreviewWrap"><img id="referenceManagerPreview" alt="Предпросмотр выбранного референса"></div>
+          <div class="reference-selected-name" id="referenceManagerName">Референс</div>
+          <div class="reference-selected-meta" id="referenceManagerMeta">—</div>
+          <label class="field-label">Видимость / непрозрачность <strong id="referenceManagerOpacityValue">88%</strong>
+            <input id="referenceManagerOpacity" type="range" min="10" max="100" value="88">
+          </label>
+          <div class="reference-manager-actions">
+            <button class="secondary-btn" id="referenceManagerEnlargeBtn" type="button">Увеличить</button>
+            <button class="secondary-btn" id="referenceManagerReduceBtn" type="button">Уменьшить</button>
+            <button class="secondary-btn" id="referenceManagerFitBtn" type="button">Вписать в лист</button>
+            <button class="secondary-btn" id="referenceManagerCenterBtn" type="button">По центру листа</button>
+            <button class="secondary-btn" id="referenceManagerLockBtn" type="button">🔒 Заблокировать</button>
+            <button class="secondary-btn danger" id="referenceManagerDeleteBtn" type="button">Удалить референс</button>
+          </div>
+          <div class="muted-hint">Для точной настройки X/Y, ширины, высоты, поворота и калибровки используйте свойства выбранного объекта ниже.</div>
+        </div>
+      </section>
+
       <div class="selection-box" id="selectionPanel">
         <div class="panel-heading">СВОЙСТВА ОБЪЕКТА</div>
         <div id="noSelection" class="muted-hint">Объект не выбран</div>
@@ -462,7 +496,7 @@ R17
           <button class="secondary-btn" id="editTextFormatBtn">Все параметры текста</button>
           <div id="referenceSelectionFields" class="reference-fields hidden">
             <div class="panel-heading">СВОЙСТВА РЕФЕРЕНСА</div>
-            <label class="field-label">Прозрачность <span id="referenceOpacityValue">35%</span><input type="range" id="referenceOpacity" min="5" max="100" value="35"></label>
+            <label class="field-label">Прозрачность <span id="referenceOpacityValue">88%</span><input type="range" id="referenceOpacity" min="10" max="100" value="88"></label>
             <label class="check-row"><input type="checkbox" id="referenceKeepAspect" checked> Сохранять пропорции при изменении размера</label>
             <div class="two-fields"><label class="field-label">Положение X, мм<input type="number" id="referenceX" step="0.1" value="55"></label><label class="field-label">Положение Y, мм<input type="number" id="referenceY" step="0.1" value="98"></label></div>
             <div class="two-fields"><label class="field-label">Ширина, мм<input type="number" id="referenceWidth" min="1" max="2000" step="1" value="100"></label><label class="field-label">Высота, мм<input type="number" id="referenceHeight" min="1" max="2000" step="1" value="60"></label></div>

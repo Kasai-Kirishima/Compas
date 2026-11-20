@@ -103,3 +103,25 @@ assert.match(js, /function resizeSelectedReference\(/, 'reference width/height p
 assert.match(js, /referenceEnlarge2Btn/, 'reference must have a direct enlarge control');
 assert.match(js, /data-reference-resize-handle/, 'selected reference must expose a proportional resize handle');
 assert.match(js, /\$\('referenceKeepAspect'\)\.onchange/, 'preserve-aspect checkbox must be wired');
+
+assert.match(html, /data-panel=\"references\"/, 'a dedicated References tab must be present next to Tools and Document');
+assert.match(html, /id=\"referencesPanel\"/, 'dedicated references panel must exist');
+assert.match(html, /id=\"referenceList\"/, 'reference panel must show the loaded image list');
+assert.match(html, /id=\"referenceManagerPreview\"/, 'selected reference must have a larger preview');
+assert.match(html, /id=\"referenceManagerOpacity\"/, 'reference manager must expose an independent opacity control');
+assert.match(html, /id=\"referenceManagerLockBtn\"/, 'reference manager must expose lock/unlock');
+assert.match(html, /id=\"referenceManagerFitBtn\"/, 'reference manager must expose fit-to-sheet');
+assert.match(js, /function renderReferenceManager\(/, 'reference list and selected-image preview must be rendered from document state');
+assert.match(js, /function mutateReference\(/, 'per-reference visibility and lock actions must be persisted');
+assert.match(js, /referenceManagerEnlargeBtn/, 'reference manager must provide scale up/down actions');
+assert.match(js, /referenceShowAllBtn/, 'reference manager must provide show-all-hidden action');
+assert.match(js, /opacity:\.88,exportable:false/, 'new references must default to a readable 88% opacity');
+assert.match(js, /q\.opacity===\.35\)q\.opacity=\.88/, 'legacy references must be upgraded from the old low-visibility default');
+assert.doesNotMatch(js, /el\('image',\{href:o\.dataUrl,[^}]*opacity:o\.opacity/, 'reference opacity must not be multiplied a second time on the image itself');
+assert.match(js, /const visible=checked\('referenceVisibleToggle'\)&&checked\('referenceVisibleToggleSecondary'\)/, 'reference manager and layer panel visibility switches must work together');
+
+assert.match(js, /arrowHeadPoints/, 'rendered arrowheads use the proportional geometry helper');
+assert.doesNotMatch(js, /half=size\*Math\.tan\(14\*Math\.PI\/180\)/, 'arrowhead length must not be incorrectly reused as a radians angle');
+assert.match(html, /data-panel="references"/, 'reference management is exposed as its own panel tab');
+
+assert.match(js, /drawArrow\(wrap,b,a,Math\.max\(6\.5,\(o\.width\|\|\.5\)\*12\),o\.color\|\|'#20252a',23\)/, 'standalone arrow tool uses a wider, proportionate arrowhead rather than a flattened tip');
