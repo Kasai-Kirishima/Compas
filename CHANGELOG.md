@@ -1,3 +1,18 @@
+## 1.5.58-restored.9
+- Зменшено стандартну висоту тексту нових та імпортованих розмірів до 2,5 мм.
+- Додано live-preview з маркерами кінцевих точок для відрізка, стрілки та spline; працює сценарій «клацнути першу точку → тягнути другу → відпустити».
+- Імпорт .kcad/.json додає проєкт у бібліотеку файлів, не відкриваючи його поверх активного кресленика; відкрити можна окремою дією зі списку.
+- Додано окремий шаблон А3 альбомний за зразком користувача.
+- Виправлено і перевірено повний цикл експорту/імпорту: усі 32 об’єкти вихідного Kompas-проєкту, 5 розмірів, текст і параметри основного напису зберігаються.
+- Назви та підписи рамок переведено українською.
+
+## 1.5.58-restored.8 — title-block fit and sample correction
+- Corrected A3 landscape Lab 8 template title block against the supplied sample.
+- Added the three blank upper row bands and full-height column separators in the revision/approval table.
+- Added default author/checker labels: Кушвид О. and Базиль Б.
+- Enlarged the top-left document label and moved footer labels safely inside the sheet.
+- Removed a duplicate horizontal divider in the document-code area; all template linework remains black.
+
 # 1.5.58-restored.7 — точная раскладка А3 и панорамирование листа
 
 - Перерисован пользовательский синий образец ЛР №8 на листе А3 альбомный (420×297 мм): рамка 20 мм слева и 5 мм с остальных сторон, исходный индекс, заголовок, штамп, поля «Корпус», «Вариант 8», «ШЦМГУ», «Копировал», «Формат А3».

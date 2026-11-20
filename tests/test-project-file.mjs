@@ -32,7 +32,8 @@ assert.deepEqual(kompas.objects[0].a, {x:1,y:2});
 assert.deepEqual(kompas.objects[0].b, {x:3,y:4});
 assert.equal(kompas.objects[1].type, 'construction');
 assert.deepEqual(kompas.objects[2].center, {x:15,y:16});
-assert.equal(kompas.objects[3].type, 'polygon');
+assert.equal(kompas.objects[3].type, 'polyline');
+assert.equal(kompas.objects[3].closed, true);
 assert.equal(kompas.objects[4].type, 'polyline');
 assert.equal(kompas.objects[5].kind, 'dimDia');
 assert.equal(kompas.objects[6].text, '5 отв.');
@@ -41,7 +42,7 @@ assert.equal(kompas.title.kompasTemplateTextOverrides.label.text, 'Лабора�
 
 // Проверка оригинального файла Kompas Online, предоставленного пользователем.
 import {readFileSync} from 'node:fs';
-const originalKompas = parseProject(readFileSync(new URL('../examples/ЛР5-Кушвид-исходный-проект-Kompas-Online.kcad', import.meta.url), 'utf8'));
+const originalKompas = parseProject(readFileSync(new URL('../examples/Лаб4-КушвидО-Актуальный-файл-Kompas.kcad', import.meta.url), 'utf8'));
 assert.equal(originalKompas.sheet.format, 'A4P');
 assert.equal(originalKompas.sheet.width, 210);
 assert.equal(originalKompas.sheet.height, 297);
@@ -52,3 +53,40 @@ assert.equal(originalKompas.title.title, 'Лабораторна робота 5'
 assert.equal(originalKompas.title.code, 'КТ-24.ЛР5.001');
 assert.equal(originalKompas.title.checker, 'Базиль Б.');
 console.log('project-file: original supplied Kompas .kcad imported (32 editable objects)');
+
+
+// Full round-trip of the real user-provided Kompas file: all 32 entities,
+// measured dimensions, labels, text overrides and title-block data survive export/import.
+const exportedKompas = createProject(originalKompas);
+const reopenedKompas = parseProject(JSON.stringify(exportedKompas));
+assert.equal(reopenedKompas.objects.length, 32);
+assert.deepEqual(reopenedKompas.objects, originalKompas.objects);
+assert.deepEqual(reopenedKompas.title, originalKompas.title);
+assert.deepEqual(reopenedKompas.title.kompasTemplateTextOverrides, originalKompas.title.kompasTemplateTextOverrides);
+assert.equal(reopenedKompas.title.developer, originalKompas.title.developer);
+assert.equal(reopenedKompas.title.checker, originalKompas.title.checker);
+assert.equal(reopenedKompas.objects.filter(o => o.type === 'dimension').length, 5);
+assert.ok(reopenedKompas.objects.filter(o => o.type === 'dimension').every(o => o.textSize <= 2.5));
+assert.ok(reopenedKompas.objects.some(o => o.type === 'text' && o.text === '5 отв.'));
+assert.ok(reopenedKompas.objects.some(o => o.type === 'construction' && o.dash === '18 2 1 2'));
+
+// Export/import keeps every geometry property, dimension value/size and user text.
+const mixed = {
+  name: 'mixed-roundtrip', sheet: {width:420,height:297,format:'A3L'}, templateId:'lab8-a3-landscape-template',
+  title: {title:'Корпус',developer:'Кушвид О.',checker:'Базиль Б.',customText:'Текстовий реквізит'},
+  objects: [
+    {id:'ln',type:'line',a:{x:1,y:2},b:{x:30,y:40},color:'#000',width:.5,dash:'2 1'},
+    {id:'ar',type:'arrowLine',a:{x:3,y:4},b:{x:40,y:50},arrowSize:4},
+    {id:'sp',type:'spline',points:[{x:0,y:0},{x:10,y:15},{x:20,y:0}],smooth:true},
+    {id:'dm',type:'dimension',kind:'dimDia',a:{x:5,y:5},b:{x:15,y:15},offset:7,textSize:2.5,label:'⌀14.14',arrowSize:3,labelDx:1,labelDy:2},
+    {id:'tx',type:'text',x:12,y:22,text:'Ø20 — Кушвид О.',size:4,font:'ISO',italic:true,widthFactor:.8},
+    {id:'future',type:'futureEntity',payload:{anything:'keep me'}}
+  ], settings:{grid:true,snapGrid:true,ortho:true}
+};
+const mixedAgain = parseProject(JSON.stringify(createProject(mixed)));
+assert.deepEqual(mixedAgain.objects,mixed.objects);
+assert.deepEqual(mixedAgain.title,mixed.title);
+assert.equal(mixedAgain.objects.find(o=>o.id==='dm').label,'⌀14.14');
+assert.equal(mixedAgain.objects.find(o=>o.id==='tx').text,'Ø20 — Кушвид О.');
+assert.deepEqual(mixedAgain.objects.find(o=>o.id==='future').payload,{anything:'keep me'});
+console.log('project-file: lossless export/import round-trip (32 source objects + mixed object types)');

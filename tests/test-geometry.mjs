@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {distance,constrainAngle,lineProjection,boundsOfObject,nearestPoint,pathData} from '../src/geometry.mjs';
+import {distance,constrainAngle,lineProjection,boundsOfObject,nearestPoint,pathData, splinePathData} from '../src/geometry.mjs';
 assert.equal(distance({x:0,y:0},{x:3,y:4}),5);
 assert.deepEqual(constrainAngle({x:0,y:0},{x:10,y:1},45),{x:10.04987562112089,y:0});
 assert.deepEqual(lineProjection({x:5,y:2},{x:0,y:0},{x:10,y:0}),{x:5,y:0,t:.5});
@@ -13,3 +13,8 @@ assert.ok(Math.abs(moved.x-10)<1e-9 && Math.abs(moved.y-10)<1e-9);
 const movedRect = nearestPoint({x:20,y:20}, [{id:'r',type:'rect',x:0,y:0,w:10,h:10,dx:20,dy:10}], 0.01);
 assert.equal(movedRect.type,'endpoint'); assert.equal(movedRect.x,20); assert.equal(movedRect.y,20);
 console.log('geometry: ok');
+
+const smooth = splinePathData([{x:0,y:0},{x:10,y:10},{x:20,y:0}]);
+assert.match(smooth, /C /, 'a spline with three control points must render as smooth Bézier geometry');
+assert.match(splinePathData([{x:0,y:0},{x:1,y:1}]), /L 1 1/, 'two spline points remain a drawable segment');
+console.log('geometry: spline path ok');

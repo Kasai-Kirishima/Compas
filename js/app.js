@@ -1,6 +1,6 @@
 import {TEMPLATES, FORMATS, formatForTemplate, isGostTemplate, getTemplateFrame, getForm1Bounds} from '../src/templates.mjs';
 import {History} from '../src/history.mjs';
-import {distance, constrainAngle, nearestPoint, boundsOfObject, pathData, svgEscape} from '../src/geometry.mjs';
+import {distance, constrainAngle, nearestPoint, boundsOfObject, pathData, splinePathData, svgEscape} from '../src/geometry.mjs';
 import {createProject, parseProject} from '../src/project-file.mjs';
 import {removePathWindow, splitOpenPath, splitClosedPolygon} from '../src/operations.mjs';
 import {zoomView, panView, wheelZoomFactor} from '../src/viewport.mjs';
@@ -17,14 +17,14 @@ const el = (tag, attrs={}, parent=null, text=null) => {
 const round = n => Math.round(Number(n)*1000)/1000;
 const fmt = n => Number(n).toFixed(2).replace(/\.00$/,'');
 const defaultTitle = () => ({title:'Лабораторна робота 4',code:'КТ-24.ЛР5.001',material:'',liter:'У',mass:'—',scale:'',sheet:'',sheets:'1',company:'Шосткинський фаховий коледж імені Івана Кожедуба СумДУ',developer:'Кушвид О.',checker:'Базиль Б.',technical:'',normative:'',approved:''});
-const lab8DefaultTitle = () => ({...defaultTitle(),title:'Корпус',code:'8.090220 ЛР ХХ ХХ 01',material:'',liter:'',mass:'',scale:'1:1',sheet:'',sheets:'1',company:'ШЦМГУ',developer:'',checker:'',technical:'',normative:'',approved:'',variant:'Вариант 8',leftHeader:'10 ХХ ХХ д/ 02206018'});
+const lab8DefaultTitle = () => ({...defaultTitle(),title:'Корпус',code:'8.090220 ЛР ХХ ХХ 01',material:'',liter:'',mass:'',scale:'1:1',sheet:'',sheets:'1',company:'ШЦМГУ',developer:'Кушвид О.',checker:'Базиль Б.',technical:'',normative:'',approved:'',variant:'Варіант 8',leftHeader:'10 ХХ ХХ д/ 02206018'});
 const kompasLab5DefaultTitle = () => ({...defaultTitle(),title:'Лабораторна робота 5',code:'КТ-24.ЛР5.001',material:'',scale:'1:1',sheets:'1',company:'Шосткинський фаховий коледж імені Івана Кожедуба СумДУ',developer:'Кушвид О.А.',checker:'Базиль Б.',kompasTemplateTextOverrides:{
  'tpltext-145_246_6_middle_0-0':{source:'Лабораторна робота 5',text:'Лабораторна робота 4',x:145,y:246.6,size:7,widthFactor:1,font:"GOST type B,Arial,sans-serif",color:'#000000',rotation:0,anchor:'middle',slanted:true},
  'tpltext-55_12_middle_180-0':{source:'Лабораторна робота 5',text:'Лабораторна робота 4',x:55,y:12,size:7,widthFactor:1,font:"GOST type B,Arial,sans-serif",color:'#000000',rotation:180,anchor:'middle',slanted:true},
  'tpltext-38_2_265_35_start_0-0':{source:'Кушвид О.А.',text:'Кушвид О.',x:38.2,y:265.35,size:2.2,widthFactor:1,font:"GOST type B,Arial,sans-serif",color:'#000000',rotation:0,anchor:'start',slanted:true},
  'tpltext-196_265_4_middle_0-0':{source:'1:1',text:'1:1',x:196,y:265.4,size:4,widthFactor:1,font:"GOST type B,Arial,sans-serif",color:'#000000',rotation:0,anchor:'middle',slanted:true}
 }});
-const state={name:'Корпус_Вариант_8',sheet:{format:'A3L',width:420,height:297},templateId:'lab8-reference-template',title:lab8DefaultTitle(),objects:[],selected:new Set(),tool:'select',pending:null,preview:null,drag:null,drawGesture:null,pan:null,grid:false,snapGrid:false,osnap:true,ortho:false,zoom:1,baseViewWidth:460,view:{x:-20,y:-24,w:460,h:346},settings:{lineWidth:.35,defaultTextSize:5,gridStep:5},lastPolar:null};
+const state={name:'Корпус_Варіант_8',sheet:{format:'A3L',width:420,height:297},templateId:'lab8-reference-template',title:lab8DefaultTitle(),objects:[],selected:new Set(),tool:'select',pending:null,preview:null,drag:null,drawGesture:null,pan:null,grid:false,snapGrid:false,osnap:true,ortho:false,zoom:1,baseViewWidth:460,view:{x:-20,y:-24,w:460,h:346},settings:{lineWidth:.35,defaultTextSize:5,gridStep:5},lastPolar:null};
 const history=new History(100);
 const svg=$('sheetSvg'), sheetRoot=$('sheetRoot'), drawing=$('drawingArea');
 const layers={reference:$('referenceLayer'),template:$('templateLayer'),geometry:$('geometryLayer'),construction:$('constructionLayer'),annotation:$('annotationLayer'),preview:$('previewLayer'),selection:$('selectionLayer')};
@@ -154,29 +154,29 @@ function renderForm1TitleBlock(g, bounds, title, ink='#161616'){
  // Change / approval table on the left (65 mm).
  [15,20,25,35,40,45,50].forEach(dy=>ln(x,y+dy,x+65,y+dy));
  const headers=['(14)','(15)','(16)','(17)','(18)'];
- const labels=['Изм.','Лист','№ докум.','Подп.','Дата'];
+ const labels=['Зм.','Арк.','№ докум.','Підп.','Дата'];
  const widths=[7,10,23,15,10];let cx=x;
  widths.forEach((cw,i)=>{tx(cx+cw/2,y+18.2,headers[i],1.35,'middle');tx(cx+cw/2,y+23.4,labels[i],1.2,'middle');cx+=cw;});
- tx(x+2,y+31.5,'Студент',1.55);tx(x+2,y+38.5,'Рук. пр.',1.55);
+ tx(x+2,y+31.5,'Студент',1.55);tx(x+2,y+38.5,'Кер. пр.',1.55);
  tx(x+2,y+43.5,'(10)',1.35);tx(x+17,y+43.5,'(11)',1.35);tx(x+42,y+43.5,'(12)',1.35);tx(x+57,y+43.5,'(13)',1.35);
  tx(x+2,y+48.5,'Н. контр.',1.45);tx(x+2,y+53.5,'Зав. каф.',1.45);
  tx(x+25,y+31.5,title.developer||'',1.7);tx(x+25,y+38.5,title.checker||'',1.7);tx(x+25,y+48.5,title.normative||'',1.65);tx(x+25,y+53.5,title.approved||'',1.65);
  // Main information fields: 70 mm wide, split into 15 / 20 / 20 mm bands.
  ln(x+65,y+15,x+135,y+15);ln(x+65,y+35,x+135,y+35);
- tx(x+67,y+4,'Обозначение документа',1.45);tx(x+67,y+12,title.code||'КТ-24.000.000',2.0);
- tx(x+67,y+22,'Наименование изделия / работы',1.45);tx(x+67,y+31,title.title||'Чертёж',2.25);
- tx(x+67,y+42,'Материал',1.45);tx(x+67,y+52,title.material||'',1.85);
+ tx(x+67,y+4,'Позначення документа',1.45);tx(x+67,y+12,title.code||'КТ-24.000.000',2.0);
+ tx(x+67,y+22,'Найменування виробу / роботи',1.45);tx(x+67,y+31,title.title||'Кресленик',2.25);
+ tx(x+67,y+42,'Матеріал',1.45);tx(x+67,y+52,title.material||'',1.85);
  // Right block: 50 mm, divided into 15 / 17 / 18 mm and 15 / 5 / 15 / 5 / 15 mm rows.
  ln(x+150,y,x+150,y+35);ln(x+167,y,x+167,y+35);
  ln(x+140,y+15,x+140,y+35);ln(x+145,y+15,x+145,y+35);
  ln(x+155,y+15,x+155,y+55);
  [15,20,35,40].forEach(dy=>ln(x+135,y+dy,x+185,y+dy));
- tx(x+142.5,y+4,'Лит.',1.45,'middle');tx(x+158.5,y+4,'Масса',1.35,'middle');tx(x+176,y+4,'Масштаб',1.3,'middle');
+ tx(x+142.5,y+4,'Літ.',1.45,'middle');tx(x+158.5,y+4,'Маса',1.35,'middle');tx(x+176,y+4,'Масштаб',1.3,'middle');
  tx(x+137.5,y+19,'5',1.1,'middle');tx(x+142.5,y+19,'5',1.1,'middle');tx(x+147.5,y+19,'5',1.1,'middle');
  tx(x+142.5,y+31,title.liter||'У',1.7,'middle');tx(x+158.5,y+29,title.mass||'—',1.7,'middle');tx(x+176,y+29,title.scale||'1:1',1.7,'middle');
- tx(x+145,y+39,'Лист',1.25,'middle');tx(x+170,y+39,'Листов',1.25,'middle');
+ tx(x+145,y+39,'Арк.',1.25,'middle');tx(x+170,y+39,'Аркушів',1.25,'middle');
  tx(x+145,y+48,title.sheet||'1',1.8,'middle');tx(x+170,y+48,title.sheets||'1',1.8,'middle');
- tx(x+157,y+53,'Организация: '+(title.company||'').slice(0,22),1.2,'middle');
+ tx(x+157,y+53,'Організація: '+(title.company||'').slice(0,22),1.2,'middle');
 }
 
 function renderLab8SampleTemplate(g,w,h,title){
@@ -210,37 +210,38 @@ function renderLab8SampleTemplate(g,w,h,title){
  });
  // Header box, including its editable document/index text.
  rect(20,5,75,14,.42);
- tx(57.5,14.4,title.leftHeader||'10 ХХ ХХ д/ 02206018',3.1,'middle','leftHeader');
+ tx(57.5,14.2,title.leftHeader||'10 ХХ ХХ д/ 02206018',4.8,'middle','leftHeader');
  // 185 × 55 mm title block (form 1 footprint), 5 mm from right and bottom edges.
  const b=getForm1Bounds(w,h),x=b.x,y=b.y;
  rect(x,y,185,55,.48);
- // Form 1: full-height separators at 65 and 135 mm; the five narrow
- // approval columns start only below the 15 mm header band.
+ // Form 1 table: longitudinal separators continue through the complete
+ // height. Above the header labels there are three intentionally empty rows
+ // (5 mm each), matching the supplied title-block reference.
  [65,135].forEach(dx=>line(x+dx,y,x+dx,y+55,.32));
- [7,17,40,55].forEach(dx=>line(x+dx,y+15,x+dx,y+55,.32));
- line(x,y+15,x+185,y+15,.34);
- [20,27,34,41,48].forEach(dy=>line(x,y+dy,x+65,y+dy,.28));
+ [7,17,40,55].forEach(dx=>line(x+dx,y,x+dx,y+55,.32));
+ [5,10,15,20,27,34,41,48].forEach(dy=>line(x,y+dy,x+65,y+dy,.28));
  const colCenters=[3.5,12,28.5,47.5,60];
- ['Изм.','Лист','№ докум.','Подп.','Дата'].forEach((label,i)=>tx(x+colCenters[i],y+18.4,label,2.25,'middle',null,null,false));
- const roles=[['Разраб.',title.developer||''],['Пров.',title.checker||''],['Т. контр.',title.technical||''],['Н. контр.',title.normative||''],['Утв.',title.approved||'']];
+ ['Зм.','Арк.','№ докум.','Підп.','Дата'].forEach((label,i)=>tx(x+colCenters[i],y+18.4,label,2.25,'middle',null,null,false));
+ const roles=[['Розроб.',title.developer||''],['Перев.',title.checker||''],['Т. контр.',title.technical||''],['Н. контр.',title.normative||''],['Затв.',title.approved||'']];
  roles.forEach((r,i)=>{
   const yy=y+24.6+i*7.0;
   tx(x+1.2,yy,r[0],2.15,'start',null,null,false);
-  if(r[1])tx(x+18.5,yy,r[1],1.85,'start',i===0?'developer':i===1?'checker':i===2?'technical':i===3?'normative':'approved',null,false);
+  if(r[1])tx(x+18.5,yy,r[1],2.1,'start',i===0?'developer':i===1?'checker':i===2?'technical':i===3?'normative':'approved',null,false);
  });
- // Designation, product name and assignment variant.
+ // Designation, product name and assignment variant. The code row is one
+ // uninterrupted cell across the whole right-hand 120 mm (no extra divider).
  line(x+65,y+15,x+185,y+15,.34);
- tx(x+125,y+10.1,title.code||'8.090220 ЛР ХХ ХХ 01',4.8,'middle','code');
+ tx(x+125,y+10.1,title.code||'8.090220 ЛР ХХ ХХ 01',4.5,'middle','code');
  line(x+65,y+40,x+135,y+40,.34);
  tx(x+100,y+30.5,title.title||'Корпус',10.5,'middle','title');
- tx(x+100,y+52.0,title.variant||'Вариант 8',6.0,'middle','variant');
+ tx(x+100,y+52.0,title.variant||'Варіант 8',6.0,'middle','variant');
  // Right-hand fields: literature, mass, scale, sheet count and the institution name.
  line(x+135,y+15,x+135,y+55,.32);
  line(x+150,y+15,x+150,y+35,.28);
  line(x+167,y+15,x+167,y+35,.28);
  line(x+135,y+22,x+185,y+22,.28);
- tx(x+142.5,y+19.4,'Лит.',2.2,'middle',null,null,false);
- tx(x+158.5,y+19.4,'Масса',2.1,'middle',null,null,false);
+ tx(x+142.5,y+19.4,'Літ.',2.2,'middle',null,null,false);
+ tx(x+158.5,y+19.4,'Маса',2.1,'middle',null,null,false);
  tx(x+176,y+19.4,'Масштаб',2.0,'middle',null,null,false);
  tx(x+142.5,y+31.2,title.liter||'У',2.7,'middle','liter',null,false);
  tx(x+158.5,y+31.2,title.mass||'—',2.7,'middle','mass',null,false);
@@ -248,14 +249,14 @@ function renderLab8SampleTemplate(g,w,h,title){
  line(x+135,y+35,x+185,y+35,.28);
  line(x+160,y+35,x+160,y+45,.28);
  line(x+135,y+45,x+185,y+45,.28);
- tx(x+147.5,y+39.2,'Лист',2.1,'middle',null,null,false);
- tx(x+172.5,y+39.2,'Листов',2.1,'middle',null,null,false);
+ tx(x+147.5,y+39.2,'Арк.',2.1,'middle',null,null,false);
+ tx(x+172.5,y+39.2,'Аркушів',2.1,'middle',null,null,false);
  tx(x+147.5,y+44.1,title.sheet||'1',2.2,'middle','sheet',null,false);
  tx(x+172.5,y+44.1,title.sheets||'1',2.2,'middle','sheets',null,false);
  tx(x+160,y+53.0,title.company||'ШЦМГУ',6.8,'middle','company',null,false);
  // Footer labels are below the title-block border, as in the reference drawing.
- tx(x+67.5,h-1.5,title.copy||'Копировал',3.0,'middle','copy',null,false);
- tx(x+160,h-1.5,`Формат ${title.sheetFormat||'А3'}`,3.0,'middle','sheetFormat',null,false);
+ tx(x+67.5,h-2.1,title.copy||'Копіював',2.6,'middle','copy',null,false);
+ tx(x+160,h-2.1,`Формат ${title.sheetFormat||'А3'}`,2.6,'middle','sheetFormat',null,false);
 }
 function renderKompasLab5Template(g,w,h,title){
  const ink='#111111',sw=.38;
@@ -296,7 +297,7 @@ function renderTemplate(){
  if((!checked('templateVisible')||!checked('templateToggle')) && $('templateVisible'))return;
  if(!state.templateId||state.templateId==='blank')return;
  const {width:w,height:h}=state.sheet;const t=state.templateId;const ink='#111111';const sw=.35;
- if(t==='lab8-reference-template'){renderLab8SampleTemplate(g,w,h,state.title);return;}
+ if(t==='lab8-reference-template'||t==='lab8-a3-landscape-template'){renderLab8SampleTemplate(g,w,h,state.title);return;}
  if(t==='kompas-lab5-a4-template'||t==='kompas-import-a4-template'){renderKompasLab5Template(g,w,h,state.title);return;}
  const line=(x1,y1,x2,y2,width=sw)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':width,fill:'none'},g);
  const rect=(x,y,ww,hh,width=sw)=>el('rect',{x,y,width:ww,height:hh,fill:'none',stroke:ink,'stroke-width':width},g);
@@ -310,11 +311,11 @@ function renderTemplate(){
   rect(23,10,70,14);txt(58,19,state.title.code||'КТ-24.ЛР4.001',2.6,'middle','code');
   for(let i=0;i<5;i++){const yy=140+i*48;line(left,yy,23,yy);}
   const bw=Math.min(185,w-34),bx=w-5-bw,by=h-65;rect(bx,by,bw,55);line(bx,by+10,bx+bw,by+10);line(bx,by+20,bx+bw,by+20);line(bx,by+32,bx+bw,by+32);line(bx+80,by,bx+80,by+32);line(bx+125,by,bx+125,by+32);line(bx+150,by,bx+150,by+55);line(bx,by+42,bx+bw,by+42);
-  txt(bx+3,by+7,'Обозначение',2);txt(bx+3,by+18,state.title.title||'Лабораторная работа №4',3.2,'start','title');txt(bx+83,by+7,'Масштаб',1.8);txt(bx+101,by+18,state.title.scale||'1:1',2.7,'middle','scale');txt(bx+128,by+7,'Лист',1.8);txt(bx+137,by+18,state.title.sheet||'1',2.4,'middle','sheet');
-  txt(bx+3,by+30,'Разраб. '+(state.title.developer||'Кушвид О.'),2.2,'start','developer');txt(bx+83,by+30,'Пров. '+(state.title.checker||'Базиль Б.'),2.2,'start','checker');txt(bx+3,by+40,'Материал: '+(state.title.material||''),2.0,'start','material');txt(bx+3,by+50,state.title.company||'ШЦК',2.0,'start','company');txt(bx+bw-3,by+40,'ЛР №4',2.6,'end');
+  txt(bx+3,by+7,'Позначення',2);txt(bx+3,by+18,state.title.title||'Лабораторна робота №4',3.2,'start','title');txt(bx+83,by+7,'Масштаб',1.8);txt(bx+101,by+18,state.title.scale||'1:1',2.7,'middle','scale');txt(bx+128,by+7,'Арк.',1.8);txt(bx+137,by+18,state.title.sheet||'1',2.4,'middle','sheet');
+  txt(bx+3,by+30,'Розроб. '+(state.title.developer||'Кушвид О.'),2.2,'start','developer');txt(bx+83,by+30,'Перев. '+(state.title.checker||'Базиль Б.'),2.2,'start','checker');txt(bx+3,by+40,'Матеріал: '+(state.title.material||''),2.0,'start','material');txt(bx+3,by+50,state.title.company||'ШЦК',2.0,'start','company');txt(bx+bw-3,by+40,'ЛР №4',2.6,'end');
  }else if(t==='lab5-a4-reference-template'){
   const bw=Math.min(185,w-25),bx=w-10-bw,by=h-65;rect(bx,by,bw,55);line(bx,by+8,bx+bw,by+8);line(bx,by+17,bx+bw,by+17);line(bx,by+27,bx+bw,by+27);line(bx,by+38,bx+bw,by+38);line(bx+75,by,bx+75,by+38);line(bx+120,by,bx+120,by+38);line(bx+150,by,bx+150,by+55);
-  txt(bx+3,by+6,'Обозначение документа',2);txt(bx+3,by+15,state.title.title||'Лабораторная работа №5',2.8,'start','title');txt(bx+78,by+6,'Масштаб',1.8);txt(bx+98,by+15,state.title.scale||'1:1',2.2,'middle','scale');txt(bx+3,by+25,'Разраб. '+(state.title.developer||'Кушвид О.'),2.1,'start','developer');txt(bx+78,by+25,'Пров. '+(state.title.checker||''),2.1,'start','checker');txt(bx+3,by+35,'Материал '+(state.title.material||''),2.0,'start','material');txt(bx+3,by+48,state.title.company||'Колледж',2,'start','company');txt(bx+bw-3,by+48,'ЛР №5',2.5,'end');
+  txt(bx+3,by+6,'Позначення документа',2);txt(bx+3,by+15,state.title.title||'Лабораторна робота №5',2.8,'start','title');txt(bx+78,by+6,'Масштаб',1.8);txt(bx+98,by+15,state.title.scale||'1:1',2.2,'middle','scale');txt(bx+3,by+25,'Розроб. '+(state.title.developer||'Кушвид О.'),2.1,'start','developer');txt(bx+78,by+25,'Перев. '+(state.title.checker||''),2.1,'start','checker');txt(bx+3,by+35,'Матеріал '+(state.title.material||''),2.0,'start','material');txt(bx+3,by+48,state.title.company||'Коледж',2,'start','company');txt(bx+bw-3,by+48,'ЛР №5',2.5,'end');
   line(18,10,18,h-10);line(18,35,10,35);
  }else if(isGostTemplate(t)){
   renderForm1TitleBlock(g,getForm1Bounds(w,h),state.title,ink);
@@ -344,7 +345,8 @@ function renderObject(o,parent){
  case 'ellipse':add('ellipse',{cx:o.center.x,cy:o.center.y,rx:o.rx,ry:o.ry,transform:o.rotation?`rotate(${o.rotation} ${o.center.x} ${o.center.y})`:null});break;
  case 'rect':add('rect',{x:o.x,y:o.y,width:o.w,height:o.h,rx:o.rx||0,ry:o.ry||0});break;
  case 'polygon':add('polygon',{points:o.points.map(p=>`${p.x},${p.y}`).join(' ')});break;
- case 'polyline':case 'freehand':case 'spline':case 'breakline':add('path',{d:pathData(o.points,false),fill:'none'});break;
+ case 'polyline':case 'freehand':case 'breakline':add('path',{d:pathData(o.points,!!o.closed),fill:'none'});break;
+ case 'spline':add('path',{d:splinePathData(o.points||[],!!o.closed),fill:'none'});break;
  case 'arc':{
    const a=o.startAngle*Math.PI/180,b=o.endAngle*Math.PI/180;
    const p1={x:o.center.x+o.r*Math.cos(a),y:o.center.y+o.r*Math.sin(a)},p2={x:o.center.x+o.r*Math.cos(b),y:o.center.y+o.r*Math.sin(b)};
@@ -367,7 +369,7 @@ function renderObject(o,parent){
    const arrowSize=Math.max(1.8,o.arrowSize||2.5);drawArrow(wrap,p1,p2,arrowSize,o.color||'#20252a');drawArrow(wrap,p2,p1,arrowSize,o.color||'#20252a');
    const mid={x:(p1.x+p2.x)/2+(o.labelDx||0),y:(p1.y+p2.y)/2-1.2+(o.labelDy||0)};
    const label=o.label||(kind==='dimDia'?`⌀${fmt(len*2)}`:kind==='dimRad'?`R${fmt(len)}`:fmt(len));
-   addText(wrap,mid.x,mid.y,label,o.textSize||getNum('defaultDimensionTextHeight',3.5),{fill:o.color||'#20252a','text-anchor':'middle','paint-order':'stroke','stroke':'#fff','stroke-width':.8});break;
+   addText(wrap,mid.x,mid.y,label,o.textSize||getNum('defaultDimensionTextHeight',2.5),{fill:o.color||'#20252a','text-anchor':'middle','paint-order':'stroke','stroke':'#fff','stroke-width':.8});break;
  }
  case 'leader':{
    const pts=o.points||[];if(pts.length>1){add('path',{d:pathData(pts),fill:'none'});drawArrow(wrap,pts[0],pts[1],2.5,o.color||'#20252a');addText(wrap,pts.at(-1).x+1,pts.at(-1).y-1,o.text||'',o.textSize||3.5,{fill:o.color||'#20252a'});}break;
@@ -423,10 +425,10 @@ function renderTree(){
 }
 function render(){
  updateSheetGeometry();renderTemplate();renderObjects();renderPreview();
- const doc=$('docName');if(doc)doc.textContent=state.name||'Чертёж БЕЗ ИМЕНИ';
+ const doc=$('docName');if(doc)doc.textContent=state.name||'Кресленик БЕЗ НАЗВИ';
  updateHistoryButtons();
 }
-function renderPreview(){const g=layers.preview;g.replaceChildren();if(state.preview){const o={...state.preview,color:'#168db2',width:.35,dash:'2 1',fill:'none'};renderObject(o,g);}}
+function renderPreview(){const g=layers.preview;g.replaceChildren();if(state.preview){const o={...state.preview,color:'#168db2',width:.35,dash:'2 1',fill:'none'};renderObject(o,g);const pts=o.points?.length?[o.points[0],o.points[o.points.length-1]]:(o.a&&o.b?[o.a,o.b]:[]);for(const p of pts)el('circle',{cx:p.x,cy:p.y,r:1.35,fill:'#168db2',stroke:'#fff','stroke-width':.35},g);}}
 function addObject(o){history.push(snapshot());o.id=o.id||nextId();o.color=o.color||getVal('objectColor','#20252a');o.width=o.width??getNum('drawingLineWidth',.35);o.layer=o.layer||'Основной';o.dx=o.dx||0;o.dy=o.dy||0;state.objects.push(o);state.selected=new Set([o.id]);commit();showProperties();setStatus('Объект создан');}
 function selectObject(id,additive=false){if(!additive)state.selected.clear();if(id)state.selected.add(id);renderObjects();showProperties();}
 function showProperties(){
@@ -497,11 +499,12 @@ function openModal(id){$(id)?.classList.remove('hidden');}
 function closeModal(id){$(id)?.classList.add('hidden');}
 function addTextAt(p){textInsertPoint=p;$('textPosX').value=fmt(p.x);$('textPosY').value=fmt(p.y);$('textContent').value='Текст';openModal('textModal');}
 function finishText(){const p={x:getNum('textPosX',textInsertPoint?.x||0),y:getNum('textPosY',textInsertPoint?.y||0)};const values={x:p.x,y:p.y,text:getVal('textContent','Текст'),size:getNum('textSize',5),color:getVal('textColor','#20252a'),font:getVal('textFont','Arial'),rotation:getNum('textRotation',0),align:getVal('textAlign','start'),bold:checked('textBold'),italic:checked('textItalic'),underline:checked('textUnderline'),frame:checked('textFrame')};closeModal('textModal');if(editingTextId){updateSelected(o=>{if(o.id===editingTextId)Object.assign(o,values);});editingTextId=null;}else addObject({type:'text',...values});setTool('select');}
-const dragDrawTools=new Set(['line','arrowLine','construction','xline','ray','centerline','circle','rect','roundRect','ellipse','polygon','star6','arc','breakline','table','roughness','tolerance','weld','section','techReq']);
+const dragDrawTools=new Set(['line','arrowLine','spline','construction','xline','ray','centerline','circle','rect','roundRect','ellipse','polygon','star6','arc','breakline','table','roughness','tolerance','weld','section','techReq']);
 function makeTwoPointObject(t,a,p,evt={}){
  const st=currentStyle();
  let b=p;
  if((state.ortho||checked('orthoToggle'))||evt.shiftKey)b=constrainAngle(a,p,getNum('angleStep',15));
+ if(t==='spline')return {type:'spline',points:[a,b],...st};
  if(t==='line'||t==='arrowLine'||t==='construction'||t==='xline'||t==='ray'||t==='centerline'||t==='ruler')return {type:t,a,b,...st};
  if(t==='circle'){const diameter=getVal('circleInputMode','radius')==='diameter';return {type:'circle',center:a,r:distance(a,b)/(diameter?2:1),...st};}
  if(t==='rect'||t==='roundRect')return {type:'rect',x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(b.x-a.x),h:Math.abs(b.y-a.y),rx:t==='roundRect'?getNum('roundingRadius',3):0,...st};
@@ -519,6 +522,7 @@ function makeTwoPointObject(t,a,p,evt={}){
 }
 function updateDrawPreview(gesture,p){
  const q=applyPrecision(p,{shiftKey:false});
+ if(gesture.tool==='spline'&&polylinePoints.length){state.preview={type:'spline',points:[...polylinePoints,q],...currentStyle()};renderPreview();return;}
  const o=makeTwoPointObject(gesture.tool,gesture.start,q,{});
  if(!o)return;
  state.preview=o;renderPreview();
@@ -545,13 +549,13 @@ function clickTool(p,evt){
  if(t==='text'){addTextAt(p);return;}
  if(t==='polyline'||t==='spline'){
   if(evt.detail>=2&&polylinePoints.length>=2){polylinePoints.push(p);addObject({type:t==='spline'?'spline':'polyline',points:polylinePoints,...st});polylinePoints=[];state.preview=null;setTool('select');return;}
-  polylinePoints.push(p);state.preview={type:'polyline',points:[...polylinePoints,p]};renderPreview();setStatus(`Точек ломаной: ${polylinePoints.length}. Двойной щелчок — завершить, Enter — завершить.`);return;
+  polylinePoints.push(p);state.preview={type:t==='spline'?'spline':'polyline',points:[...polylinePoints,p]};renderPreview();setStatus(`Точок кривої: ${polylinePoints.length}. Подвійне клацання або Enter — завершити.`);return;
  }
  if(t==='dimension'||t==='dimAuto'||t==='dimH'||t==='dimV'||t==='dimRad'||t==='dimDia'||t==='dimAngle'||t==='measure'){
   if(!state.pending){state.pending={start:p};state.preview={type:'line',a:p,b:p};renderPreview();setStatus('Укажите вторую точку размера');return;}
   if(!state.pending.end){state.pending.end=p;const kind=t==='dimAuto'?'dimension':t==='measure'?'dimension':t;state.preview={type:'line',a:state.pending.start,b:p};renderPreview();if(['dimRad','dimDia'].includes(t)){addObject({type:'dimension',kind:t,a:state.pending.start,b:p,offset:0,label:t==='dimDia'?`⌀${fmt(distance(state.pending.start,p)*2)}`:`R${fmt(distance(state.pending.start,p))}`,...st});state.pending=null;state.preview=null;return;}setStatus('Укажите положение размерной линии');return;}
   const a=state.pending.start,b=state.pending.end,base=state.pending.end,off=Math.abs(t==='dimV'?p.x-base.x:t==='dimH'?p.y-base.y:((p.x-base.x)+(p.y-base.y))/2)||getNum('dimensionOffset',10);
-  addObject({type:'dimension',kind:t==='dimH'?'dimH':t==='dimV'?'dimV':t==='dimAngle'?'dimAngle':'dimension',a,b,offset:off,textSize:getNum('defaultDimensionTextHeight',3.5),...st});state.pending=null;state.preview=null;return;
+  addObject({type:'dimension',kind:t==='dimH'?'dimH':t==='dimV'?'dimV':t==='dimAngle'?'dimAngle':'dimension',a,b,offset:off,textSize:getNum('defaultDimensionTextHeight',2.5),...st});state.pending=null;state.preview=null;return;
  }
  if(t==='leader'){
   if(!state.pending){state.pending={points:[p]};state.preview={type:'polyline',points:[p,p]};return;}
@@ -597,14 +601,15 @@ function onCanvasMouseDown(evt){
    else if(!evt.shiftKey){state.selected.clear();renderObjects();showProperties();}
    return;
  }
- state.drawGesture={tool:state.tool,start:p,last:p,clientX:evt.clientX,clientY:evt.clientY,moved:false,pendingAtStart:!!state.pending,target:evt.target};
+ const hasPendingAnchor=!!state.pending?.start&&dragDrawTools.has(state.tool);const gestureStart=hasPendingAnchor?state.pending.start:(state.tool==='spline'&&polylinePoints.length?polylinePoints[polylinePoints.length-1]:p);
+ state.drawGesture={tool:state.tool,start:gestureStart,last:p,clientX:evt.clientX,clientY:evt.clientY,moved:false,pendingAtStart:hasPendingAnchor,target:evt.target};
 }
 function onCanvasMouseMove(evt){
  const p=screenPoint(evt);$('coordinates').textContent=`X: ${fmt(p.x)} · Y: ${fmt(p.y)} мм`;
  if(state.pan){const r=svg.getBoundingClientRect(),v=state.pan.view,next=panView({x:v.x,y:v.y,width:v.w,height:v.h},evt.clientX-state.pan.clientX,evt.clientY-state.pan.clientY,r.width,r.height);state.view={x:next.x,y:next.y,w:next.width,h:next.height};applyView();return;}
  if(state.drawGesture){
   const g=state.drawGesture,distPx=Math.hypot(evt.clientX-g.clientX,evt.clientY-g.clientY);
-  if(!g.pendingAtStart&&dragDrawTools.has(g.tool)&&distPx>=3){g.moved=true;g.last=applyPrecision(p,evt);updateDrawPreview(g,g.last);}
+  if(dragDrawTools.has(g.tool)&&distPx>=3){g.moved=true;g.last=applyPrecision(p,evt);updateDrawPreview(g,g.last);}
   return;
  }
  if(state.drag?.type==='objects'){
@@ -614,6 +619,9 @@ function onCanvasMouseMove(evt){
  }
  if(state.drag?.type==='freehand'){state.drag.points.push(applyPrecision(p,evt));state.preview={type:'freehand',points:state.drag.points};renderPreview();return;}
  if(state.drag?.type==='region'){state.drag.current=p;const g=layers.preview;g.replaceChildren();const a=state.drag.start,b=p;el('rect',{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:'#168db2',opacity:.12,stroke:'#168db2','stroke-dasharray':'2 1'},g);return;}
+ if(polylinePoints.length&&['polyline','spline'].includes(state.tool)){
+  const q=applyPrecision(p,evt);state.preview={type:state.tool==='spline'?'spline':'polyline',points:[...polylinePoints,q],...currentStyle()};renderPreview();return;
+ }
  if(state.pending){const q=applyPrecision(p,evt);const t=state.tool;const o=makeTwoPointObject(t,state.pending.start,q,evt);if(o){state.preview=o;renderPreview();}}
 }
 function onCanvasMouseUp(evt){
@@ -621,8 +629,17 @@ function onCanvasMouseUp(evt){
  if(state.drawGesture){
   const g=state.drawGesture,p=applyPrecision(screenPoint(evt),evt);state.drawGesture=null;
   const toolEvt={target:g.target||evt.target,shiftKey:evt.shiftKey,detail:evt.detail||1};
-  if(g.moved&&!g.pendingAtStart){const o=makeTwoPointObject(g.tool,g.start,p,toolEvt);if(o){addObject(o);state.pending=null;state.preview=null;renderPreview();}else clickTool(p,toolEvt);}
-  else clickTool(p,toolEvt);
+  if(g.moved){
+   if(g.tool==='spline'){
+    const points=polylinePoints.length?[...polylinePoints,p]:[g.start,p];
+    if(points.length>=2)addObject({type:'spline',points,...currentStyle()});
+    polylinePoints=[];state.pending=null;state.preview=null;renderPreview();
+   }else{
+    const o=makeTwoPointObject(g.tool,g.start,p,toolEvt);
+    if(o){addObject(o);state.pending=null;state.preview=null;renderPreview();}
+    else clickTool(p,toolEvt);
+   }
+  }else clickTool(p,toolEvt);
   return;
  }
  if(state.drag?.type==='freehand'){const points=state.drag.points;if(points.length>1)addObject({type:'freehand',points,color:getVal('objectColor','#20252a'),width:getNum('freehandWidth',.25)});state.drag=null;state.preview=null;renderPreview();return;}
@@ -733,13 +750,35 @@ function saveProject(){exportProject();}
 function saveToLibrary(newCopy=false){readTitleFromUI();const key='cad-geometry-library-v1';let list=[];try{list=JSON.parse(localStorage.getItem(key)||'[]');}catch{}const data=createProject(state);if(newCopy)data.name=`${state.name} копия`;else data.name=state.name;const item={id:crypto.randomUUID?.()||nextId(),name:data.name,savedAt:new Date().toISOString(),data};list=list.filter(x=>x.name!==data.name);list.unshift(item);localStorage.setItem(key,JSON.stringify(list.slice(0,100)));setStatus(`Сохранено в библиотеку: ${data.name}`);}
 function scheduleAutosave(){try{localStorage.setItem('cad-geometry-autosave-v1',JSON.stringify(createProject(state)));$('saveState').textContent='Изменения сохранены локально';}catch(e){$('saveState').textContent='Автосохранение недоступно';}}
 function loadProjectData(data){const p=parseProject(data);history.push(snapshot());state.name=p.name;state.sheet=p.sheet;state.templateId=p.templateId;state.grid=!!p.settings?.grid;state.snapGrid=!!p.settings?.snapGrid;state.ortho=!!p.settings?.ortho;state.title={...defaultTitle(),...p.title};state.objects=(p.objects||[]).map(o=>({...o,id:o.id||nextId()}));state.selected.clear();writeTitleToUI();$('gridToggle').checked=state.grid;$('snapToggle').checked=state.snapGrid;$('orthoToggle').checked=state.ortho;$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';$('filenameField').value=state.name;$('titleFormSelect').value=state.templateId;$('templateQuickSelect').value=state.templateId;setSheet(state.sheet.format||'A3P');render();setStatus('Проект загружен');scheduleAutosave();}
-function openLibrary(){const listNode=$('savedProjectsList');listNode.replaceChildren();let list=[];try{list=JSON.parse(localStorage.getItem('cad-geometry-library-v1')||'[]');}catch{}$('fileCount').textContent=String(list.length);if(!list.length){const d=document.createElement('div');d.className='file-empty';d.textContent='Пока нет сохранённых чертежей.';listNode.appendChild(d);}for(const item of list){const card=document.createElement('div');card.className='file-card';const info=document.createElement('div'),name=document.createElement('div'),meta=document.createElement('div');name.className='file-card-name';name.textContent=item.name;meta.className='file-card-meta';meta.textContent=new Date(item.savedAt).toLocaleString()+' · '+(item.data.sheet?.format||'');info.append(name,meta);const actions=document.createElement('div');actions.className='file-card-actions';const open=document.createElement('button');open.className='primary';open.textContent='Открыть';open.onclick=()=>{loadProjectData(item.data);closeModal('filesModal');};const del=document.createElement('button');del.className='danger';del.textContent='Удалить';del.onclick=()=>{localStorage.setItem('cad-geometry-library-v1',JSON.stringify(list.filter(x=>x.id!==item.id)));openLibrary();};actions.append(open,del);card.append(info,actions);listNode.append(card);}openModal('filesModal');}
-function importFile(file,kind){if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const text=String(reader.result);if(kind==='project'||kind==='json'||file.name.toLowerCase().endsWith('.kcad')||file.name.toLowerCase().endsWith('.json'))loadProjectData(text);else if(kind==='svg'||file.name.toLowerCase().endsWith('.svg'))importSVG(text);else if(kind==='dxf'||file.name.toLowerCase().endsWith('.dxf'))importDXF(text);else if(kind==='image')importReference(reader.result,file.name);else setStatus('Этот тип импорта пока не поддержан');}catch(e){alert(`Не удалось импортировать файл: ${e.message}`);}};if(kind==='image')reader.readAsDataURL(file);else reader.readAsText(file);}
+const libraryKey='cad-geometry-library-v1';
+function readLibrary(){try{const data=JSON.parse(localStorage.getItem(libraryKey)||'[]');return Array.isArray(data)?data:[];}catch{return [];}}
+function writeLibrary(list){localStorage.setItem(libraryKey,JSON.stringify(list.slice(0,100)));}
+function addImportedProjectToLibrary(project,sourceName){
+ const normalized=createProject(project);const list=readLibrary();
+ const item={id:crypto.randomUUID?.()||nextId(),name:normalized.name||sourceName||'Імпортований кресленик',savedAt:new Date().toISOString(),sourceName:sourceName||'',imported:true,data:normalized};
+ list.unshift(item);writeLibrary(list);openLibrary();setStatus('Файл додано до списку. Вибери його та натисни «Відкрити» — поточний кресленик не буде накладено.');
+}
+function openLibrary(){
+ const listNode=$('savedProjectsList');listNode.replaceChildren();const list=readLibrary();
+ const query=String($('fileSearch')?.value||'').trim().toLocaleLowerCase();const filtered=list.filter(item=>`${item.name||''} ${item.sourceName||''}`.toLocaleLowerCase().includes(query));
+ $('fileCount').textContent=`${filtered.length} / ${list.length}`;
+ if(!filtered.length){const d=document.createElement('div');d.className='file-empty';d.textContent=list.length?'За цим пошуком файлів не знайдено.':'Поки немає креслеників. Імпортуй .kcad — він з’явиться тут, не відкриваючись поверх поточного аркуша.';listNode.appendChild(d);}
+ for(const item of filtered){
+  const card=document.createElement('div');card.className='file-card';const info=document.createElement('div'),name=document.createElement('div'),meta=document.createElement('div');
+  name.className='file-card-name';name.textContent=item.name||'Кресленик без назви';meta.className='file-card-meta';
+  meta.textContent=`${item.imported?'Імпортований файл':'Збережений файл'} · ${new Date(item.savedAt).toLocaleString()} · ${item.data.sheet?.format||''}${item.sourceName?' · '+item.sourceName:''}`;info.append(name,meta);
+  const actions=document.createElement('div');actions.className='file-card-actions';const open=document.createElement('button');open.className='primary';open.textContent='Відкрити';open.onclick=()=>{loadProjectData(item.data);closeModal('filesModal');};
+  const del=document.createElement('button');del.className='danger';del.textContent='Видалити';del.onclick=()=>{writeLibrary(readLibrary().filter(x=>x.id!==item.id));openLibrary();};actions.append(open,del);card.append(info,actions);listNode.append(card);
+ }
+ openModal('filesModal');
+}
+function importFile(file,kind){if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const text=String(reader.result),ext=file.name.toLowerCase();if(kind==='project'||kind==='json'||ext.endsWith('.kcad')||ext.endsWith('.json')){const project=parseProject(text);addImportedProjectToLibrary(project,file.name);}else if(kind==='svg'||ext.endsWith('.svg'))importSVG(text);else if(kind==='dxf'||ext.endsWith('.dxf'))importDXF(text);else if(kind==='image')importReference(reader.result,file.name);else setStatus('Цей тип імпорту поки не підтримується');}catch(e){alert(`Не вдалося імпортувати файл: ${e.message}`);}};if(kind==='image')reader.readAsDataURL(file);else reader.readAsText(file);}
+
 function importReference(dataUrl,name){const img=new Image();img.onload=()=>{addObject({type:'reference',dataUrl,x:10,y:10,w:Math.min(100,img.width/4),h:Math.min(100,img.height/4),name,opacity:.35,exportable:false,locked:false});setStatus('Изображение добавлено как подложка');};img.src=dataUrl;}
 function importSVG(text){history.push(snapshot());const doc=new DOMParser().parseFromString(text,'image/svg+xml');if(doc.querySelector('parsererror'))throw new Error('Некорректный SVG');const root=doc.documentElement;const view=(root.getAttribute('viewBox')||`0 0 ${state.sheet.width} ${state.sheet.height}`).split(/[ ,]+/).map(Number);const sx=state.sheet.width/(view[2]||state.sheet.width),sy=state.sheet.height/(view[3]||state.sheet.height);const add=(o)=>{o.id=nextId();state.objects.push(o);};for(const node of root.querySelectorAll('line,circle,rect,ellipse,polyline,polygon,text')){const tag=node.tagName,attr=k=>Number(node.getAttribute(k)||0),style=node.getAttribute('style')||'';const color=node.getAttribute('stroke')||style.match(/stroke:([^;]+)/)?.[1]||'#20252a';if(tag==='line')add({type:'line',a:{x:attr('x1')*sx,y:attr('y1')*sy},b:{x:attr('x2')*sx,y:attr('y2')*sy},color});if(tag==='circle')add({type:'circle',center:{x:attr('cx')*sx,y:attr('cy')*sy},r:attr('r')*sx,color});if(tag==='rect')add({type:'rect',x:attr('x')*sx,y:attr('y')*sy,w:attr('width')*sx,h:attr('height')*sy,color});if(tag==='ellipse')add({type:'ellipse',center:{x:attr('cx')*sx,y:attr('cy')*sy},rx:attr('rx')*sx,ry:attr('ry')*sy,color});if(tag==='polyline'||tag==='polygon'){const vals=(node.getAttribute('points')||'').trim().split(/[ ,]+/).map(Number),points=[];for(let i=0;i<vals.length;i+=2)points.push({x:vals[i]*sx,y:vals[i+1]*sy});add({type:tag==='polygon'?'polygon':'polyline',points,color});}if(tag==='text')add({type:'text',x:attr('x')*sx,y:attr('y')*sy,text:node.textContent,size:attr('font-size')*sx||4,color});}commit();setStatus('SVG импортирован (базовые фигуры)');}
 function importDXF(text){history.push(snapshot());const lines=text.replace(/\r/g,'').split('\n');const pairs=[];for(let i=0;i+1<lines.length;i+=2)pairs.push([lines[i].trim(),lines[i+1].trim()]);let type=null,ent={};const flush=()=>{if(!type)return;const val=c=>ent[c]!==undefined?Number(ent[c]):0;if(type==='LINE')state.objects.push({id:nextId(),type:'line',a:{x:val('10'),y:-val('20')},b:{x:val('11'),y:-val('21')},color:'#20252a'});if(type==='CIRCLE')state.objects.push({id:nextId(),type:'circle',center:{x:val('10'),y:-val('20')},r:val('40'),color:'#20252a'});if(type==='TEXT')state.objects.push({id:nextId(),type:'text',x:val('10'),y:-val('20'),size:val('40'),text:ent['1']||'',color:'#20252a'});if(type==='LWPOLYLINE'){const pts=[];for(let i=0;i<ent._xs.length;i++)pts.push({x:ent._xs[i],y:-ent._ys[i]});if(pts.length)state.objects.push({id:nextId(),type:'polyline',points:pts,color:'#20252a'});}type=null;ent={_xs:[],_ys:[]};};for(const [c,v] of pairs){if(c==='0'){flush();type=v;continue;}if(c==='10'&&type==='LWPOLYLINE')ent._xs.push(Number(v));else if(c==='20'&&type==='LWPOLYLINE')ent._ys.push(Number(v));else ent[c]=v;}flush();commit();setStatus('DXF импортирован (LINE/CIRCLE/TEXT/LWPOLYLINE)');}
 function applyTitle(){readTitleFromUI();renderTemplate();scheduleAutosave();setStatus('Данные основной надписи обновлены');}
-function switchTemplate(id){state.templateId=id;if(id==='lab8-reference-template'){state.title={...state.title,...lab8DefaultTitle()};writeTitleToUI();}if(id==='kompas-lab5-a4-template'&&state.name==='Новый чертёж'){state.title={...state.title,...kompasLab5DefaultTitle()};writeTitleToUI();}const f=formatForTemplate(id);setSheet(f);$('titleFormSelect').value=id;$('templateQuickSelect').value=id;const t=TEMPLATES.find(v=>v.id===id);$('templateDescription').textContent=t?.description||'';document.querySelectorAll('[data-template-preset]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.templatePreset===id)));renderTemplate();scheduleAutosave();}
+function switchTemplate(id){state.templateId=id;if(id==='lab8-reference-template'||id==='lab8-a3-landscape-template'){state.title={...state.title,...lab8DefaultTitle()};writeTitleToUI();}if(id==='kompas-lab5-a4-template'&&state.name==='Новый чертёж'){state.title={...state.title,...kompasLab5DefaultTitle()};writeTitleToUI();}const f=formatForTemplate(id);setSheet(f);$('titleFormSelect').value=id;$('templateQuickSelect').value=id;const t=TEMPLATES.find(v=>v.id===id);$('templateDescription').textContent=t?.description||'';document.querySelectorAll('[data-template-preset]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.templatePreset===id)));renderTemplate();scheduleAutosave();}
 function populateNewDocTemplateOptions(){
  const select=$('newDocTemplate');if(!select)return;select.replaceChildren();
  const groups=[
@@ -765,8 +804,8 @@ function createNewDocument(){
  const id=TEMPLATES.some(t=>t.id===templateCandidate)?templateCandidate:(TEMPLATES.some(t=>t.id===state.templateId)?state.templateId:TEMPLATES[0].id);
  const format=getVal('newDocFormat','A3'),orient=getVal('newDocOrientation','P');
  // ГОСТ/DСТУ A4 drawing sheets are portrait; do not silently create the unsupported A4 landscape preset.
- let f=format==='A4'?'A4P':format+orient;if(!FORMATS[f])f='A3P';
- state.objects=[];state.selected.clear();state.pending=null;state.preview=null;state.name=name;state.title=id==='lab8-reference-template'?lab8DefaultTitle():id==='kompas-lab5-a4-template'?kompasLab5DefaultTitle():defaultTitle();if(id!=='lab8-reference-template'&&id!=='kompas-lab5-a4-template')state.title.title=name;state.templateId=id;
+ let f=id==='lab8-a3-landscape-template'?'A3L':(format==='A4'?'A4P':format+orient);if(!FORMATS[f])f='A3P';
+ state.objects=[];state.selected.clear();state.pending=null;state.preview=null;state.name=name;state.title=(id==='lab8-reference-template'||id==='lab8-a3-landscape-template')?lab8DefaultTitle():id==='kompas-lab5-a4-template'?kompasLab5DefaultTitle():defaultTitle();if(id!=='lab8-reference-template'&&id!=='lab8-a3-landscape-template'&&id!=='kompas-lab5-a4-template')state.title.title=name;state.templateId=id;
  state.sheet.format=f;state.sheet.width=FORMATS[f][0];state.sheet.height=FORMATS[f][1];
  writeTitleToUI();$('filenameField').value=name;
  $('titleFormSelect').value=id;$('templateQuickSelect').value=id;$('templateVisible').checked=true;$('templateToggle').checked=true;
@@ -784,12 +823,12 @@ function showNewDoc(){
 function renderNewDocPreview(){
  const p=$('newDocPreview');if(!p)return;
  const format=getVal('newDocFormat','A3'),orientation=format==='A4'?'P':getVal('newDocOrientation','P');
- const f=format+orientation,[w,h]=FORMATS[f]||FORMATS.A3P,id=getVal('newDocTemplate',state.templateId);
+ const id=getVal('newDocTemplate',state.templateId),f=id==='lab8-a3-landscape-template'?'A3L':format+orientation,[w,h]=FORMATS[f]||FORMATS.A3P;
  p.setAttribute('viewBox',`0 0 ${w} ${h}`);p.replaceChildren();
  el('rect',{x:0,y:0,width:w,height:h,fill:'#fff',stroke:'#777','stroke-width':.35},p);
- if(id!=='lab8-reference-template'){const b=getTemplateFrame(id,w,h);el('rect',{x:b.x,y:b.y,width:b.width,height:b.height,fill:'none',stroke:'#171717','stroke-width':isGostTemplate(id)?.7:.4},p);}
- if(isGostTemplate(id)){const tb=getForm1Bounds(w,h);renderForm1TitleBlock(p,tb,{title:'Наименование',code:'Обозначение',developer:'Разраб.',checker:'Пров.',normative:'Н.контр.',approved:'Утв.',liter:'У',mass:'—',scale:'1:1',sheet:'1',sheets:'1',company:'Организация'},'#111111');}
- else if(id==='lab8-reference-template'){renderLab8SampleTemplate(p,w,h,lab8DefaultTitle());}
+ if(id!=='lab8-reference-template'&&id!=='lab8-a3-landscape-template'){const b=getTemplateFrame(id,w,h);el('rect',{x:b.x,y:b.y,width:b.width,height:b.height,fill:'none',stroke:'#171717','stroke-width':isGostTemplate(id)?.7:.4},p);}
+ if(isGostTemplate(id)){const tb=getForm1Bounds(w,h);renderForm1TitleBlock(p,tb,{title:'Найменування',code:'Позначення',developer:'Розроб.',checker:'Перев.',normative:'Н.контр.',approved:'Затв.',liter:'У',mass:'—',scale:'1:1',sheet:'1',sheets:'1',company:'Організація'},'#111111');}
+ else if(id==='lab8-reference-template'||id==='lab8-a3-landscape-template'){renderLab8SampleTemplate(p,w,h,lab8DefaultTitle());}
  else if(id==='kompas-lab5-a4-template'||id==='kompas-import-a4-template'){renderKompasLab5Template(p,w,h,kompasLab5DefaultTitle());}
  else {el('rect',{x:w-195,y:h-65,width:185,height:55,fill:'none',stroke:'#111','stroke-width':.3},p);}
  const item=TEMPLATES.find(t=>t.id===id);$('newDocTemplateHint').textContent=item?.description||'Предпросмотр выбранного листа и рамки.';
@@ -807,7 +846,7 @@ function bind(){
  document.querySelectorAll('[data-menu]').forEach(b=>b.addEventListener('click',()=>{const m=b.dataset.menu;if(m==='help')openModal('helpModal');else if(m==='file')showNewDoc();else setStatus(`Раздел «${b.textContent}»: используйте соответствующие панели инструментов.`);}));
  $('panModeBtn')?.addEventListener('click',()=>setTool(state.tool==='pan'?'select':'pan'));$('newBtn').onclick=showNewDoc;$('closeNewDocModal').onclick=()=>closeModal('newDocModal');$('cancelNewDocBtn').onclick=()=>closeModal('newDocModal');$('createNewDocBtn').onclick=createNewDocument;
  $('newDocTemplate').onchange=()=>{const t=TEMPLATES.find(v=>v.id===getVal('newDocTemplate'));if(t){$('newDocFormat').value=t.format.slice(0,2);$('newDocOrientation').value=t.format.endsWith('L')?'L':'P';}renderNewDocPreview();};$('newDocFormat').onchange=renderNewDocPreview;$('newDocOrientation').onchange=renderNewDocPreview;
- $('openBtn').onclick=openLibrary;$('openLibraryBtn').onclick=openLibrary;$('closeFilesModal').onclick=()=>closeModal('filesModal');$('saveBtn').onclick=saveProject;$('exportProjectBtn').onclick=exportProject;$('saveJsonBtn').onclick=exportProject;$('importProjectBtn').onclick=()=>$('fileInput').click();$('loadJsonBtn').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>importFile(e.target.files[0],'project');
+ $('openBtn').onclick=openLibrary;$('openLibraryBtn').onclick=openLibrary;$('closeFilesModal').onclick=()=>closeModal('filesModal');$('fileSearch').oninput=()=>openLibrary();$('importJsonFromLibraryBtn').onclick=()=>$('fileInput').click();$('saveBtn').onclick=saveProject;$('exportProjectBtn').onclick=exportProject;$('saveJsonBtn').onclick=exportProject;$('importProjectBtn').onclick=()=>$('fileInput').click();$('loadJsonBtn').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>{const file=e.target.files[0];importFile(file,'project');e.target.value='';};
  $('saveToLibraryBtn').onclick=()=>saveToLibrary(false);$('saveAsLibraryBtn').onclick=()=>saveToLibrary(true);$('restoreAutosaveBtn').onclick=()=>{const s=localStorage.getItem('cad-geometry-autosave-v1');if(s)loadProjectData(s);else setStatus('Автосохранение не найдено');};
  $('undoBtn').onclick=undo;$('redoBtn').onclick=redo;$('deleteBtn').onclick=deleteSelected;$('deleteSelectedBtn').onclick=deleteSelected;$('fitBtn').onclick=fitSheet;$('zoomIn').onclick=()=>setZoom(1.25);$('zoomOut').onclick=()=>setZoom(.8);
  $('gridBtn').onclick=()=>{state.grid=!state.grid;$('gridToggle').checked=state.grid;updateSheetGeometry();};$('gridToggle').onchange=()=>{state.grid=checked('gridToggle');updateSheetGeometry();};$('snapToggle').onchange=()=>state.snapGrid=checked('snapToggle');$('snapBtn').onclick=()=>{$('objectSnapToggle').checked=!$('objectSnapToggle').checked;state.osnap=$('objectSnapToggle').checked;};$('objectSnapToggle').onchange=()=>state.osnap=checked('objectSnapToggle');$('orthoBtn').onclick=()=>{$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';};$('orthoToggle').onchange=()=>{state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';};
@@ -821,7 +860,7 @@ function bind(){
  $('addTextBtn').onclick=()=>setTool('text');$('editContentBtn').onclick=()=>{const o=findSelected()[0];if(o?.type==='text'){textInsertPoint={x:o.x,y:o.y};$('textContent').value=o.text;$('textSize').value=o.size;openModal('textModal');}else setStatus('Выберите текстовый объект');};$('editTextFormatBtn').onclick=()=>{const o=findSelected()[0];if(o?.type==='text'){editingTextId=o.id;$('textContent').value=o.text;$('textSize').value=o.size;openModal('textModal');}else setStatus('Выберите текстовый объект');};$('closeTextModal').onclick=()=>{closeModal('textModal');editingTextId=null;};$('cancelTextBtn').onclick=()=>{closeModal('textModal');editingTextId=null;};$('applyTextBtn').onclick=finishText;
  $('dxfBtn').onclick=exportDXF;$('exportDxfBtn').onclick=exportDXF;$('svgBtn').onclick=exportSVG;$('exportJpgBtn').onclick=()=>exportRaster('image/jpeg');$('exportWebpBtn').onclick=()=>exportRaster('image/webp');$('exportBmpBtn').onclick=()=>exportRaster('image/png');$('pngBtn').onclick=()=>exportRaster('image/png');$('exportCsvBtn').onclick=()=>{const rows=['id,type,x,y,width,height,color'];for(const o of state.objects){const b=objectBounds(o);rows.push([o.id,o.type,b.x,b.y,b.w,b.h,o.color||''].join(','));}downloadBlob(new Blob([rows.join('\n')],{type:'text/csv'}),`${state.name}.csv`);};$('exportHpglBtn').onclick=()=>setStatus('HPGL/PLT экспорт не реализован в восстановленной сборке.');
  $('importDxfBtn').onclick=()=>$('dxfInput').click();$('dxfInput').onchange=e=>importFile(e.target.files[0],'dxf');$('importSvgBtn').onclick=()=>$('svgInput').click();$('svgInput').onchange=e=>importFile(e.target.files[0],'svg');$('importCsvBtn').onclick=()=>$('csvInput').click();$('csvInput').onchange=e=>setStatus('Импорт CSV пока не реализован');$('importHpglBtn').onclick=()=>$('hpglInput').click();$('hpglInput').onchange=e=>setStatus('Импорт HPGL пока не реализован');
- $('printBtn').onclick=()=>{const p=$('printPageDimensions');if(p)p.textContent=`Лист ${state.sheet.width} × ${state.sheet.height} мм`;openModal('printModal');};$('closePrintModal').onclick=()=>closeModal('printModal');$('printNowBtn').onclick=()=>{closeModal('printModal');window.print();};$('printPreflightBtn').onclick=doGostCheck;$('printCalibrationBtn').onclick=()=>{addObject({type:'line',a:{x:20,y:30},b:{x:120,y:30},color:'#000',width:.35});addObject({type:'text',x:20,y:25,text:'Контрольный отрезок 100 мм',size:4,color:'#000'});};
+ $('printBtn').onclick=()=>{const p=$('printPageDimensions');if(p)p.textContent=`Лист ${state.sheet.width} × ${state.sheet.height} мм`;openModal('printModal');};$('closePrintModal').onclick=()=>closeModal('printModal');$('printNowBtn').onclick=()=>{closeModal('printModal');window.print();};$('printPreflightBtn').onclick=doGostCheck;$('printCalibrationBtn').onclick=()=>{addObject({type:'line',a:{x:20,y:30},b:{x:120,y:30},color:'#000',width:.35});addObject({type:'text',x:20,y:25,text:'Контрольний відрізок 100 мм',size:4,color:'#000'});};
  $('kompasBridgeBtn').onclick=()=>openModal('kompasBridgeModal');$('closeKompasBridgeBtn').onclick=()=>closeModal('kompasBridgeModal');$('closeBridgeBottomBtn').onclick=()=>closeModal('kompasBridgeModal');$('bridgeExportDxfBtn').onclick=()=>{closeModal('kompasBridgeModal');exportDXF();};
  $('gostRibbonBtn').onclick=doGostCheck;$('checkGostBtn').onclick=doGostCheck;$('closeGostModal').onclick=()=>closeModal('gostModal');$('closeGostModalBottom').onclick=()=>closeModal('gostModal');$('helpBtn').onclick=()=>openModal('helpModal');$('closeHelp').onclick=()=>closeModal('helpModal');
  $('applyMirrorBtn').onclick=()=>mirrorSelected(getVal('mirrorAxisMode','vertical'));$('closeMirrorModal').onclick=()=>closeModal('mirrorModal');$('cancelMirrorBtn').onclick=()=>closeModal('mirrorModal');$('mirrorAxisMode').onchange=()=>$('mirrorCustomPoints').classList.toggle('hidden',getVal('mirrorAxisMode')!=='custom');
@@ -854,7 +893,7 @@ function bind(){
  drawing.addEventListener('dblclick',evt=>{if(['polyline','spline'].includes(state.tool)&&polylinePoints.length>=2){addObject({type:state.tool,points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}});
  drawing.addEventListener('wheel',onCanvasWheel,{passive:false});
  drawing.addEventListener('contextmenu',e=>e.preventDefault());drawing.addEventListener('auxclick',e=>e.preventDefault());
- document.addEventListener('keydown',e=>{if(e.key===' '&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){spaceDown=true;drawing.classList.add('pan-ready');e.preventDefault();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;if(e.key==='Escape'){state.pending=null;state.preview=null;polylinePoints=[];state.drag=null;state.drawGesture=null;renderPreview();setTool('select');}if(e.key==='Enter'&&polylinePoints.length>=2){addObject({type:'polyline',points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if(e.key==='F8'){$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if(e.key==='Delete'||e.key==='Backspace')deleteSelected();if(e.key===' '&&!e.repeat){drawing.dataset.space='1';}});document.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;drawing.classList.remove('pan-ready');}});
+ document.addEventListener('keydown',e=>{if(e.key===' '&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){spaceDown=true;drawing.classList.add('pan-ready');e.preventDefault();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;if(e.key==='Escape'){state.pending=null;state.preview=null;polylinePoints=[];state.drag=null;state.drawGesture=null;renderPreview();setTool('select');}if(e.key==='Enter'&&polylinePoints.length>=2){addObject({type:state.tool==='spline'?'spline':'polyline',points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if(e.key==='F8'){$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if(e.key==='Delete'||e.key==='Backspace')deleteSelected();if(e.key===' '&&!e.repeat){drawing.dataset.space='1';}});document.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;drawing.classList.remove('pan-ready');}});
  window.addEventListener('resize',()=>fitSheet());
  document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)m.classList.add('hidden');}));
 }

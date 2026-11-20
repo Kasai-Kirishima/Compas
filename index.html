@@ -48,7 +48,7 @@
     </div>
     <div class="ribbon-group export-group">
       <button class="ribbon-btn" id="exportProjectBtn" title="Экспортировать полный редактируемый проект: геометрию, размеры, текст, рамку и оформление"><span>📦</span>Экспорт проекта</button>
-      <button class="ribbon-btn" id="importProjectBtn" title="Импортировать проект как новый файл, не перезаписывая исходный"><span>📂</span>Импорт проекта</button>
+      <button class="ribbon-btn" id="importProjectBtn" title="Импортировать проект как новый файл, не перезаписывая исходный"><span>📂</span>Імпортувати файл</button>
       <button class="ribbon-btn" id="svgBtn"><span>⇩</span>SVG</button>
       <button class="ribbon-btn" id="dxfBtn"><span>⇩</span>DXF</button><button class="ribbon-btn" id="kompasBridgeBtn"><span>↔</span>CDW-помічник</button>
       <button class="ribbon-btn" id="pngBtn"><span>▧</span>PNG</button>
@@ -260,8 +260,8 @@ R17
         <label class="field-label">Шаг фиксации угла при Shift, °<input id="angleStep" type="number" min="1" max="90" step="1" value="15"></label>
         <button class="secondary-btn" id="clearRulerBtn">Убрать линейку</button>
         <div class="two-fields"><label class="field-label">Отступ от контура, мм (по умолчанию 10)<input id="dimensionOffset" type="number" step="0.5" value="10"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label></div>
-        <label class="field-label">Высота цифр новых размеров — ГОСТ 2.304, тип Б<select id="defaultDimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5">2,5 мм</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7" selected>7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select></label>
-        <div class="muted-hint">Высота цифр размерных чисел выбирается из стандартного ряда шрифта типа Б. Для обычных размеров чаще используют 3,5 или 5 мм; 7 мм и больше применяйте, если это оправдано масштабом и компоновкой чертежа.</div>
+        <label class="field-label">Высота цифр новых размеров — ГОСТ 2.304, тип Б<select id="defaultDimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5" selected>2,5 мм — компактно</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7">7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select></label>
+        <div class="muted-hint">Высота цифр размерных чисел выбирается из стандартного ряда шрифта типа Б. Для компактных учебных чертежей по умолчанию используется 2,5 мм. При необходимости можно выбрать 3,5 мм и больше.</div>
         <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.25"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
         <div class="panel-heading">ШТРИХОВКА</div>
         <label class="field-label">Рисунок штриховки<select id="hatchPattern"><option value="single">Параллельные линии</option><option value="cross">Перекрёстная 90°</option><option value="triple">Тройная сетка 60°</option><option value="solid">Сплошная заливка</option></select></label>
@@ -368,7 +368,7 @@ R17
           <div id="dimensionSelectionFields" class="dimension-selection-fields hidden">
             <div class="panel-heading spaced">ПАРАМЕТРЫ РАЗМЕРА</div>
             <label class="field-label">Высота размерного числа — ГОСТ 2.304, тип Б
-              <select id="dimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5">2,5 мм</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7" selected>7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select>
+              <select id="dimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5" selected>2,5 мм — компактно</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7">7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select>
             </label>
             <label class="check-row"><input type="checkbox" id="dimensionShowValue" checked> Показывать числовое значение размера</label>
             <label class="field-label">Размещение стрелок
@@ -556,9 +556,9 @@ Ctrl + C / Ctrl + V — копировать / вставить.
   </div></div></div>
 
   <div class="modal-backdrop hidden" id="filesModal"><div class="modal files-modal"><div class="modal-head"><b>Збережені кресленики</b><button id="closeFilesModal" type="button">✕</button></div><div class="modal-body">
-    <div class="file-library-toolbar"><input id="fileSearch" type="search" placeholder="Пошук за назвою..." aria-label="Поиск файлов"><span id="fileCount" class="muted-hint">0 файлів</span></div>
+    <div class="file-library-toolbar"><input id="fileSearch" type="search" placeholder="Пошук за назвою..." aria-label="Пошук креслеників"><span id="fileCount" class="muted-hint">0 файлів</span></div>
     <div id="savedProjectsList" class="saved-projects-list"><div class="file-empty">Загружается список...</div></div>
-    <div class="file-library-footer"><span class="muted-hint">Файли зберігаються локально в цьому браузері на цьому пристрої.</span><div class="file-footer-actions"><button class="secondary-btn" id="importJsonFromLibraryBtn" type="button">Импорт проекта</button><button class="primary-btn" id="newFromLibraryBtn" type="button">Новий кресленик</button></div></div>
+    <div class="file-library-footer"><span class="muted-hint">Файли зберігаються локально в цьому браузері на цьому пристрої.</span><div class="file-footer-actions"><button class="secondary-btn" id="importJsonFromLibraryBtn" type="button">Імпортувати файл</button><button class="primary-btn" id="newFromLibraryBtn" type="button">Новий кресленик</button></div></div>
   </div></div></div>
 <div class="modal-backdrop hidden" id="polarArrayModal"><div class="modal polar-modal"><div class="modal-head"><b>Кругове дублювання</b><button id="closePolarArrayBtn" type="button" aria-label="Закрити">✕</button></div><div class="modal-body">
     <p class="muted-hint">Створює копії виділених об'єктів навколо заданого центра. Початковий об'єкт зберігається.</p>

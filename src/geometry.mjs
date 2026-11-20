@@ -88,4 +88,24 @@ export function pathData(points, close = false) {
   if (!points?.length) return '';
   return `M ${points.map(p=>`${p.x} ${p.y}`).join(' L ')}${close?' Z':''}`;
 }
+
+// Smooth Catmull–Rom spline expressed as SVG cubic Bézier segments.
+export function splinePathData(points, close = false) {
+  if (!points?.length) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  if (points.length === 2) return pathData(points, close);
+  const pts = points.map(p => ({x:Number(p.x), y:Number(p.y)}));
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  const segmentCount = close ? pts.length : pts.length - 1;
+  for (let i=0; i<segmentCount; i++) {
+    const p0 = pts[(i - 1 + pts.length) % pts.length] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % pts.length];
+    const p3 = pts[(i + 2) % pts.length] || p2;
+    const c1 = {x:p1.x + (p2.x-p0.x)/6, y:p1.y + (p2.y-p0.y)/6};
+    const c2 = {x:p2.x - (p3.x-p1.x)/6, y:p2.y - (p3.y-p1.y)/6};
+    d += ` C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p2.x} ${p2.y}`;
+  }
+  return d + (close ? ' Z' : '');
+}
 export function svgEscape(s='') { return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c])); }

@@ -19,49 +19,55 @@ export function convertKompasObject(source, index = 0) {
   };
 
   switch (source.type) {
-    case 'line':
-    case 'construction':
-      return { ...source, ...base, type: source.type, a: point(source.x, source.y), b: point(source.x2, source.y2), dash: source.dash || null };
+    case 'line': case 'arrowLine': case 'construction': case 'xline': case 'ray': case 'ruler': case 'centerline':
+      return { ...source, ...base, type: source.type, a: point(source.a?.x ?? source.x, source.a?.y ?? source.y), b: point(source.b?.x ?? source.x2, source.b?.y ?? source.y2), dash: source.dash || null };
 
-    case 'polyline': {
+    case 'polyline': case 'freehand': case 'spline': case 'breakline': case 'polygon': {
       const points = Array.isArray(source.points) ? source.points.map(p => point(p?.x, p?.y)) : [];
-      if (points.length < 2) return null;
-      return { ...source, ...base, type: source.closed ? 'polygon' : 'polyline', points, closed: !!source.closed };
+      if (points.length < 2) return { ...source, ...base, type: source.type, points };
+      // Keep the original entity type and its closed flag; do not silently turn
+      // a closed Kompas polyline into another object type during import.
+      return { ...source, ...base, type: source.type, points, closed: !!source.closed };
     }
 
     case 'ellipse': {
+      if (source.center && source.rx != null && source.ry != null) return { ...source, ...base };
       const x1 = finite(source.x), y1 = finite(source.y), x2 = finite(source.x2), y2 = finite(source.y2);
-      return {
-        ...source, ...base, type: 'ellipse',
-        center: point((x1 + x2) / 2, (y1 + y2) / 2),
-        rx: Math.abs(x2 - x1) / 2, ry: Math.abs(y2 - y1) / 2,
-        rotation: finite(source.rotationTotal, 0),
-      };
+      return { ...source, ...base, type: 'ellipse', center: point((x1 + x2) / 2, (y1 + y2) / 2), rx: Math.abs(x2 - x1) / 2, ry: Math.abs(y2 - y1) / 2, rotation: finite(source.rotationTotal ?? source.rotation, 0) };
     }
+
+    case 'circle':
+      if (source.center && source.r != null) return { ...source, ...base };
+      return { ...source, ...base, type: 'circle', center: point(source.x, source.y), r: Math.abs(finite(source.r ?? source.radius, 0)) };
+
+    case 'rect':
+      return { ...source, ...base, type: 'rect', x: finite(source.x), y: finite(source.y), w: finite(source.w ?? source.width), h: finite(source.h ?? source.height) };
 
     case 'dimension': {
       const kindMap = { vertical: 'dimV', horizontal: 'dimH', diameter: 'dimDia', radius: 'dimRad', linear: 'linear', angular: 'dimAngle' };
       return {
         ...source, ...base, type: 'dimension', kind: kindMap[source.kind] || source.kind || 'linear',
-        a: point(source.x, source.y), b: point(source.x2, source.y2),
-        offset: finite(source.offset, 0), textSize: finite(source.textSize, 3.5),
+        a: point(source.a?.x ?? source.x, source.a?.y ?? source.y), b: point(source.b?.x ?? source.x2, source.b?.y ?? source.y2),
+        offset: finite(source.offset, 0),
+        // Use a compact, standard drawing-note height when adapting legacy Kompas sheets.
+        // The measured value/anchor/extension properties remain untouched.
+        textSize: Math.min(finite(source.textSize, 2.5), 2.5),
         labelDx: finite(source.labelDx, 0), labelDy: finite(source.labelDy, 0),
-        arrowSize: finite(source.arrowSize, 2.5),
-        label: source.label || '',
+        arrowSize: finite(source.arrowSize, 2.5), label: source.label || '',
       };
     }
 
     case 'text':
       return {
-        ...source, ...base, type: 'text',
-        x: finite(source.x), y: finite(source.y), text: String(source.text ?? ''),
-        size: finite(source.size, 3.5), rotation: finite(source.rotation, 0),
-        align: source.align || 'start', font: source.font || 'Arial, sans-serif',
+        ...source, ...base, type: 'text', x: finite(source.x), y: finite(source.y), text: String(source.text ?? ''),
+        size: finite(source.size, 3.5), rotation: finite(source.rotation, 0), align: source.align || 'start', font: source.font || 'Arial, sans-serif',
         italic: !!source.italic, bold: !!source.bold,
       };
 
     default:
-      return null;
+      // Preserve unrecognized Kompas entities losslessly in the project file.
+      // The renderer may not draw a future entity, but import/export will not discard it.
+      return { ...source, ...base, type: source.type };
   }
 }
 
