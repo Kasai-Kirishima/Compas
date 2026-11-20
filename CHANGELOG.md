@@ -1,3 +1,11 @@
+# 1.5.58-restored.22 — отдельное редактирование текста и более крупные ручки
+
+- Обычный текст получил собственные ручки выделения, свободного перемещения, перемещения вдоль направления надписи, изменения высоты и поворота.
+- Добавлены точные параметры текста с ползунками и быстрыми шагами высоты (−1 / −0,5 / +0,5 / +1 мм) и поворота (−15 / −5 / −1 / +1 / +5 / +15°).
+- Ручки изменения высоты и поворота текста и цифр размеров увеличены для более удобного захвата; для текста убрана дублирующая общая ручка поворота.
+- Кнопки быстрых шагов увеличения и поворота размерного числа стали выше и крупнее; компактные кнопки выносных ножек сохранены.
+- Добавлены проверки контракта для отдельных манипуляторов текста и быстрых настроек.
+
 # 1.5.58-restored.21 — независимое редактирование цифр размеров
 
 - Цифровая подпись размера теперь выделяется и перемещается отдельно от геометрии и размерной линии.
@@ -293,3 +301,10 @@
 - Reduced visible vertex markers further while preserving a larger invisible hit area so selected polylines and segments remain editable without covering the drawing.
 - Reduced selected-object dimension offset down to 0.01 mm and kept dimension numerals free of white halo/outline.
 - Extended the property inspector for exact existing-object edits and documented the tabbed workspace layout.
+
+
+## 1.5.58-restored.22 — standalone text manipulation
+- Added independent on-canvas controls for text objects: free move, move along the text baseline, font-height scaling and rotation.
+- Added a transparent text hit target so text can be grabbed directly on the drawing, including rotated and multiline text.
+- Text movement, sizing and rotation update only the selected text object; Shift snaps text rotation to 15° increments.
+- Improved the selected text bounding box to follow its rendered width, height and rotation.

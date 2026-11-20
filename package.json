@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.58-restored.21",
+  "version": "1.5.58-restored.22",
   "private": true,
   "type": "module",
-  "description": "Browser-based 2D CAD editor with editable dimensions, independently draggable/rotatable/scalable dimension labels, configurable inward/outward arrows, and object transforms.",
+  "description": "Browser-based 2D CAD editor with editable dimensions, independently draggable/rotatable/scalable dimension labels and standalone text, configurable inward/outward arrows, and object transforms.",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/geometry.mjs",

@@ -169,6 +169,26 @@ assert.match(html, /id="dimensionArrowPlacement"[\s\S]*option value="inside"[\s\
 assert.match(html, /data-dimension-text-step/, 'dimension number height has convenient step buttons');
 console.log('restored.21 dimension label and arrow interaction contract: ok');
 
+assert.match(js, /function textLabelLayoutWorld\(o\)/, 'standalone text exposes a world-space label layout for manipulation');
+assert.match(js, /data-text-label-hit/, 'standalone text has its own hit target');
+assert.match(js, /data-text-label-move-handle/, 'selected text exposes a free-move grip');
+assert.match(js, /data-text-label-axis-handle/, 'selected text exposes an axis-constrained move grip');
+assert.match(js, /data-text-label-size-handle/, 'selected text exposes a font-height grip');
+assert.match(js, /data-text-label-rotate-handle/, 'selected text exposes an independent rotation grip');
+assert.match(js, /textLabelMove/, 'text movement is handled independently of the drawing geometry');
+assert.match(js, /textLabelAxis/, 'text axis movement has its own drag operation');
+assert.match(js, /textLabelSize/, 'text height is resized without scaling unrelated geometry');
+assert.match(js, /textLabelRotate/, 'text rotation has its own drag operation');
+assert.match(css, /\[data-text-label-size-handle\][\s\S]*?cursor:nwse-resize/, 'text size grip has a resize cursor');
+assert.match(js, /addTextSlider\('size'/, 'standalone text has a live font-height slider and quick steps');
+assert.match(js, /addTextSlider\('rotation'/, 'standalone text has a live rotation slider and quick steps');
+assert.match(js, /stepAttr:'textSizeStep'/, 'standalone text exposes quick font-height buttons');
+assert.match(js, /stepAttr:'textRotationStep'/, 'standalone text exposes quick rotation buttons');
+assert.match(js, /width:3\.6\/scale,height:3\.6\/scale/, 'text and dimension font-height grips are easier to grab');
+assert.match(js, /r:2\.05\/scale/, 'text and dimension rotation grips are larger');
+assert.match(css, /dimension-step-row button\{[^}]*min-height:35px[^}]*font-size:13px/, 'dimension increase and rotation step buttons are larger');
+console.log('restored.22 standalone text manipulation contract: ok');
+
 console.log('restored.20 rotation interaction contract: ok');
 
 assert.match(html, /id="applyObjectScaleBtn"/, 'selected objects expose an explicit scale control');

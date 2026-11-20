@@ -131,7 +131,27 @@ function renderObjectSpecificFields(o){
  }else if(o.type==='dimension'){
   point('Точка 1',o.a);point('Точка 2',o.b);add('Отступ размерной линии, мм','offset',o.offset??2,{min:.01,step:.01});add('Высота цифр, мм','textSize',o.textSize??2.5,{min:.5,step:.1});add('Текст размера (пусто — авто)','label',o.label??'',{type:'text'});
  }else if(o.type==='text'){
-  add('X, мм','x',o.x);add('Y, мм','y',o.y);add('Текст','text',o.text,{multiline:true,rows:3});add('Высота, мм','size',o.size||5,{min:.5});add('Поворот, °','rotation',o.rotation||0);
+  add('X, мм','x',o.x);add('Y, мм','y',o.y);add('Текст','text',o.text,{multiline:true,rows:3});
+  const addTextSlider=(key,{min,max,step,ariaLabel,steps,stepAttr})=>{
+   const field=root.querySelector(`[data-specific-prop="${key}"]`);
+   const slider=document.createElement('input');slider.type='range';slider.className='dimension-fine-slider';slider.min=String(min);slider.max=String(max);slider.step=String(step);slider.value=String(Math.max(min,Math.min(max,Number(field?.value)||min)));slider.setAttribute('aria-label',ariaLabel);slider.dataset.textControlSlider=key;root.append(slider);
+   field?.addEventListener('input',()=>{const value=Number(field.value);if(Number.isFinite(value))slider.value=String(Math.max(min,Math.min(max,value)));});
+   slider.addEventListener('input',()=>{if(field)field.value=slider.value;});
+   slider.addEventListener('change',()=>$('applyObjectSpecificBtn')?.click());
+   field?.addEventListener('change',()=>$('applyObjectSpecificBtn')?.click());
+   const row=document.createElement('div');row.className='dimension-step-row dimension-step-row-short text-editor-step-row';row.setAttribute('aria-label',ariaLabel+' — быстрые шаги');
+   for(const value of steps){
+    const button=document.createElement('button');button.type='button';button.textContent=(value>0?'+':'')+String(value).replace('.',',')+(key==='rotation'?'°':'');button.dataset[stepAttr]=String(value);
+    button.addEventListener('click',()=>{const current=Number(field?.value)||0,next=Math.max(min,Math.min(max,Math.round((current+value)*1000)/1000));if(field)field.value=String(next);slider.value=String(next);$('applyObjectSpecificBtn')?.click();});
+    row.append(button);
+   }
+   root.append(row);
+  };
+  add('Высота текста, мм','size',o.size||5,{min:.5,max:100,step:.1});
+  addTextSlider('size',{min:.5,max:100,step:.1,ariaLabel:'Высота обычного текста',steps:[-1,-.5,.5,1],stepAttr:'textSizeStep'});
+  add('Поворот текста, °','rotation',o.rotation||0,{min:-360,max:360,step:.1});
+  addTextSlider('rotation',{min:-360,max:360,step:.5,ariaLabel:'Угол поворота обычного текста',steps:[-15,-5,-1,1,5,15],stepAttr:'textRotationStep'});
+  root.append(Object.assign(document.createElement('div'),{className:'muted-hint',textContent:'Текст также можно перемещать голубыми ручками на чертеже: квадрат — свободно, ромб — вдоль направления надписи, белый маркер — высота, оранжевый — поворот.'}));
  }else if(o.type==='reference'){
   add('X, мм','x',o.x);add('Y, мм','y',o.y);add('Ширина, мм','w',o.w,{min:1});add('Высота, мм','h',o.h,{min:1});add('Поворот, °','rotation',o.rotation||0);
  }else{
@@ -298,6 +318,32 @@ function dimensionArrowStyles(o){
 function dimensionLabelLayoutWorld(o){
  const geometry=getDimensionGeometry(o),label=getDimensionLabelLayout(o,geometry);
  return {...label,geometry,x:label.x+(o.dx||0),y:label.y+(o.dy||0)};
+}
+// Geometry and manipulation grips for a standalone text object. All positions are
+// calculated in world coordinates so the controls remain correct while zooming,
+// rotating, or moving the text object's parent transform.
+function textLabelLayoutWorld(o){
+ const x=Number(o.x||0)+(Number(o.dx)||0),y=Number(o.y||0)+(Number(o.dy)||0);
+ const size=Math.max(.5,Number(o.size)||5),lines=String(o.text??'').split('\n');
+ const width=Math.max(size*.7,...lines.map(line=>line.length*size*.62));
+ const height=Math.max(size*1.35,(lines.length-1)*size*1.25+size*1.35);
+ const left=o.align==='center'?-width/2:o.align==='end'?-width:0;
+ const rotation=Number(o.rotation)||0,angle=rotation*Math.PI/180;
+ const axis={x:Math.cos(angle),y:Math.sin(angle)},perp={x:-Math.sin(angle),y:Math.cos(angle)};
+ const center={x:x+axis.x*(left+width/2)+perp.x*(-size+height/2),y:y+axis.y*(left+width/2)+perp.y*(-size+height/2)};
+ const along={x:center.x+axis.x*(width/2+2.2),y:center.y+axis.y*(width/2+2.2)};
+ const free={x:center.x+perp.x*(height/2+2.2),y:center.y+perp.y*(height/2+2.2)};
+ const sizeHandle={x:center.x+axis.x*(width/2+1.2)-perp.x*(height/2+1.2),y:center.y+axis.y*(width/2+1.2)-perp.y*(height/2+1.2)};
+ const rotate={x:center.x-perp.x*(height/2+4),y:center.y-perp.y*(height/2+4)};
+ const rectLeft=left,rectTop=-size,rectHeight=height;
+ const corners=[
+  [rectLeft,rectTop],[rectLeft+width,rectTop],
+  [rectLeft+width,rectTop+rectHeight],[rectLeft,rectTop+rectHeight]
+ ].map(([lx,ly])=>({x:x+axis.x*lx+perp.x*ly,y:y+axis.y*lx+perp.y*ly}));
+ const xs=corners.map(v=>v.x),ys=corners.map(v=>v.y);
+ return {x,y,size,width,height,left,rotation,axis,perp,center,free,along,sizeHandle,rotate,
+  rect:{x:left,y:rectTop,width,height:rectHeight},
+  bounds:{x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)}};
 }
 function renderForm1TitleBlock(g, bounds, title, ink='#000000'){
  const {x,y,width:w,height:h}=bounds;
@@ -521,8 +567,10 @@ function renderObject(o,parent){
    const large=Math.abs(o.endAngle-o.startAngle)>180?1:0;add('path',{d:`M ${p1.x} ${p1.y} A ${o.r} ${o.r} 0 ${large} 1 ${p2.x} ${p2.y}`,fill:'none'});break;
  }
  case 'text':{
-   const t=addText(wrap,o.x,o.y,o.text,o.size||5,{fill:o.color||'#20252a','font-family':o.font||'Arial, sans-serif','font-weight':o.bold?'bold':'normal','font-style':o.italic?'italic':'normal','text-anchor':o.align==='center'?'middle':o.align==='end'?'end':'start',transform:o.rotation?`rotate(${o.rotation} ${o.x} ${o.y})`:null});
-   if(o.underline||o.frame){const b=boundsOfObject(o);if(o.frame)el('rect',{x:o.x-1,y:o.y-(o.size||5),width:Math.max(10,String(o.text).length*(o.size||5)*.58)+2,height:(o.size||5)*1.5,fill:'none',stroke:o.color||'#20252a','stroke-width':.25},wrap);if(o.underline)el('line',{x1:o.x,y1:o.y+1,x2:o.x+String(o.text).length*(o.size||5)*.58,y2:o.y+1,stroke:o.color||'#20252a','stroke-width':.25},wrap);}
+   addText(wrap,o.x,o.y,o.text,o.size||5,{fill:o.color||'#20252a','font-family':o.font||'Arial, sans-serif','font-weight':o.bold?'bold':'normal','font-style':o.italic?'italic':'normal','text-anchor':o.align==='center'?'middle':o.align==='end'?'end':'start',transform:o.rotation?`rotate(${o.rotation} ${o.x} ${o.y})`:null});
+   if(o.underline||o.frame){if(o.frame)el('rect',{x:o.x-1,y:o.y-(o.size||5),width:Math.max(10,String(o.text).length*(o.size||5)*.58)+2,height:(o.size||5)*1.5,fill:'none',stroke:o.color||'#20252a','stroke-width':.25},wrap);if(o.underline)el('line',{x1:o.x,y1:o.y+1,x2:o.x+String(o.text).length*(o.size||5)*.58,y2:o.y+1,stroke:o.color||'#20252a','stroke-width':.25},wrap);}
+   const label=textLabelLayoutWorld(o),rotation=label.rotation?`rotate(${label.rotation} ${o.x} ${o.y})`:null;
+   el('rect',{...label.rect,transform:rotation,fill:'transparent',stroke:'none','pointer-events':'all','data-text-label-hit':'true','data-object-id':o.id,cursor:'move','aria-label':'Выделить и переместить текст'},wrap);
    break;
  }
  case 'dimension':case 'dimH':case 'dimV':case 'dimRad':case 'dimDia':case 'dimAngle':{
@@ -602,19 +650,29 @@ function renderObjects(){
  for(const o of state.objects){const parent=layers[layerFor(o)]||layers.geometry;renderObject(o,parent);}
  updateLayerVisibility();renderSelection();renderTree();renderReferenceManager();
 }
-function objectBounds(o){const b=boundsOfObject(o);return{x:b.x+(o.dx||0),y:b.y+(o.dy||0),w:b.w,h:b.h};}
+function objectBounds(o){if(o.type==='text')return textLabelLayoutWorld(o).bounds;const b=boundsOfObject(o);return{x:b.x+(o.dx||0),y:b.y+(o.dy||0),w:b.w,h:b.h};}
 function bakeOffset(o){const dx=o.dx||0,dy=o.dy||0;if(!dx&&!dy)return o;if(o.points)o.points=o.points.map(p=>({x:p.x+dx,y:p.y+dy}));for(const k of ['a','b','center'])if(o[k])o[k]={x:o[k].x+dx,y:o[k].y+dy};if(o.x!=null)o.x+=dx;if(o.y!=null)o.y+=dy;o.dx=0;o.dy=0;return o;}
 function materializedObject(o){const q=structuredClone(o);return bakeOffset(q);}
 function renderSelection(){
  const g=layers.selection;g.replaceChildren();
  for(const id of state.selected){const o=state.objects.find(v=>v.id===id);if(!o)continue;const b=objectBounds(o);el('rect',{x:b.x-1,y:b.y-1,width:Math.max(b.w,2)+2,height:Math.max(b.h,2)+2,fill:'none',stroke:'#13a9d1','stroke-width':.4,'stroke-dasharray':'2 1'},g);
-  if(!o.locked&&o.type!=='circle'){
+  if(!o.locked&&o.type!=='circle'&&o.type!=='text'){
    const cx=b.x+b.w/2,top=b.y,hy=top-8.5;
    el('line',{x1:cx,y1:top-1,x2:cx,y2:hy,stroke:'#f3a83b','stroke-width':.32,'stroke-dasharray':'1 0.7','pointer-events':'none'},g);
    el('circle',{cx,cy:hy,r:1.45,fill:'#f3a83b',stroke:'#20252a','stroke-width':.25,cursor:'grab','pointer-events':'all','data-object-rotate-handle':'true','data-object-id':o.id,'aria-label':'Повернуть объект'},g);
   }
   if(o.type==='reference'&&!o.locked){el('rect',{x:b.x+b.w-1.8,y:b.y+b.h-1.8,width:3.6,height:3.6,rx:.45,fill:'#fff',stroke:'#087fa8','stroke-width':.7,cursor:'nwse-resize','data-reference-resize-handle':'true','data-object-id':o.id},g);}
   if(!o.locked){
+   if(o.type==='text'){
+    const label=textLabelLayoutWorld(o),scale=Math.max(.1,state.zoom),cx=label.center.x,cy=label.center.y;
+    el('line',{x1:cx,y1:cy,x2:label.free.x,y2:label.free.y,stroke:'#0786a4','stroke-width':.3/scale,'stroke-dasharray':'1 1','pointer-events':'none'},g);
+    el('rect',{x:label.free.x-1.15/scale,y:label.free.y-1.15/scale,width:2.3/scale,height:2.3/scale,fill:'#eafaff',stroke:'#0786a4','stroke-width':.55/scale,'vector-effect':'non-scaling-stroke',cursor:'move','pointer-events':'all','data-text-label-move-handle':'true','data-object-id':o.id,'aria-label':'Свободно переместить текст'},g);
+    el('line',{x1:cx,y1:cy,x2:label.along.x,y2:label.along.y,stroke:'#0786a4','stroke-width':.25/scale,'stroke-dasharray':'1 1','pointer-events':'none'},g);
+    el('rect',{x:label.along.x-1.35/scale,y:label.along.y-1.35/scale,width:2.7/scale,height:2.7/scale,transform:`rotate(45 ${label.along.x} ${label.along.y})`,fill:'#d8f5ff',stroke:'#087fa8','stroke-width':.55/scale,'vector-effect':'non-scaling-stroke',cursor:'move','pointer-events':'all','data-text-label-axis-handle':'true','data-object-id':o.id,'aria-label':'Переместить текст вдоль его оси'},g);
+    el('rect',{x:label.sizeHandle.x-1.8/scale,y:label.sizeHandle.y-1.8/scale,width:3.6/scale,height:3.6/scale,rx:.45/scale,fill:'#fff',stroke:'#087fa8','stroke-width':.7/scale,'vector-effect':'non-scaling-stroke',cursor:'nwse-resize','pointer-events':'all','data-text-label-size-handle':'true','data-object-id':o.id,'aria-label':'Изменить высоту текста'},g);
+    el('line',{x1:cx,y1:cy,x2:label.rotate.x,y2:label.rotate.y,stroke:'#e39a2d','stroke-width':.3/scale,'stroke-dasharray':'1 1','pointer-events':'none'},g);
+    el('circle',{cx:label.rotate.x,cy:label.rotate.y,r:2.05/scale,fill:'#f3a83b',stroke:'#20252a','stroke-width':.3/scale,'vector-effect':'non-scaling-stroke',cursor:'grab','pointer-events':'all','data-text-label-rotate-handle':'true','data-object-id':o.id,'aria-label':'Повернуть текст'},g);
+   }
    if(isDimensionObject(o)&&o.showValue!==false){
     const label=dimensionLabelLayoutWorld(o),axis=label.geometry.axis;
     const cx=label.x,cy=label.y,scale=Math.max(.1,state.zoom);
@@ -626,9 +684,9 @@ function renderSelection(){
     el('rect',{x:free.x-1.15/scale,y:free.y-1.15/scale,width:2.3/scale,height:2.3/scale,fill:'#eafaff',stroke:'#0786a4','stroke-width':.55/scale,'vector-effect':'non-scaling-stroke',cursor:'move','pointer-events':'all','data-dimension-label-move-handle':'true','data-object-id':o.id,'aria-label':'Свободно переместить размерное число'},g);
     el('line',{x1:cx,y1:cy,x2:along.x,y2:along.y,stroke:'#0786a4','stroke-width':.25/scale,'stroke-dasharray':'1 1','pointer-events':'none'},g);
     el('rect',{x:along.x-1.35/scale,y:along.y-1.35/scale,width:2.7/scale,height:2.7/scale,transform:`rotate(45 ${along.x} ${along.y})`,fill:'#d8f5ff',stroke:'#087fa8','stroke-width':.55/scale,'vector-effect':'non-scaling-stroke',cursor:'move','pointer-events':'all','data-dimension-label-axis-handle':'true','data-object-id':o.id,'aria-label':'Переместить число вдоль размерной оси'},g);
-    el('rect',{x:size.x-1.25/scale,y:size.y-1.25/scale,width:2.5/scale,height:2.5/scale,rx:.3/scale,fill:'#fff',stroke:'#087fa8','stroke-width':.6/scale,'vector-effect':'non-scaling-stroke',cursor:'nwse-resize','pointer-events':'all','data-dimension-label-size-handle':'true','data-object-id':o.id,'aria-label':'Изменить высоту цифры'},g);
+    el('rect',{x:size.x-1.8/scale,y:size.y-1.8/scale,width:3.6/scale,height:3.6/scale,rx:.45/scale,fill:'#fff',stroke:'#087fa8','stroke-width':.7/scale,'vector-effect':'non-scaling-stroke',cursor:'nwse-resize','pointer-events':'all','data-dimension-label-size-handle':'true','data-object-id':o.id,'aria-label':'Изменить высоту цифры'},g);
     el('line',{x1:cx,y1:cy-label.textSize*.65,x2:rotate.x,y2:rotate.y+1.2/scale,stroke:'#e39a2d','stroke-width':.3/scale,'stroke-dasharray':'1 1','pointer-events':'none'},g);
-    el('circle',{cx:rotate.x,cy:rotate.y,r:1.45/scale,fill:'#f3a83b',stroke:'#20252a','stroke-width':.25/scale,'vector-effect':'non-scaling-stroke',cursor:'grab','pointer-events':'all','data-dimension-label-rotate-handle':'true','data-object-id':o.id,'aria-label':'Повернуть размерное число'},g);
+    el('circle',{cx:rotate.x,cy:rotate.y,r:2.05/scale,fill:'#f3a83b',stroke:'#20252a','stroke-width':.3/scale,'vector-effect':'non-scaling-stroke',cursor:'grab','pointer-events':'all','data-dimension-label-rotate-handle':'true','data-object-id':o.id,'aria-label':'Повернуть размерное число'},g);
    }
    const addGrip=(point,kind,index)=>{
     const r=1.45/Math.max(.1,state.zoom),visible=.28/Math.max(.1,state.zoom);
@@ -905,6 +963,17 @@ function onCanvasMouseDown(evt){
  if(evt.button!==0)return;
  const raw=screenPoint(evt),p=applyPrecision(raw,evt);
  evt.preventDefault();
+ const textLabelHandle=evt.target.closest?.('[data-text-label-move-handle],[data-text-label-axis-handle],[data-text-label-size-handle],[data-text-label-rotate-handle],[data-text-label-hit]');
+ if(textLabelHandle){
+  const id=textLabelHandle.getAttribute('data-object-id'),o=state.objects.find(v=>v.id===id);
+  if(o?.type==='text'&&!o.locked){
+   const before=snapshot();selectObject(id,false);
+   const type=textLabelHandle.hasAttribute('data-text-label-axis-handle')?'textLabelAxis':textLabelHandle.hasAttribute('data-text-label-size-handle')?'textLabelSize':textLabelHandle.hasAttribute('data-text-label-rotate-handle')?'textLabelRotate':'textLabelMove';
+   const layout=textLabelLayoutWorld(o),pivot={x:layout.x,y:layout.y};
+   state.drag={type,id,before,start:raw,last:raw,initialX:Number(o.x)||0,initialY:Number(o.y)||0,initialSize:Number(o.size)||5,initialRotation:Number(o.rotation)||0,pivot,axis:{...layout.axis},startDistance:Math.max(.01,Math.hypot(raw.x-pivot.x,raw.y-pivot.y)),startAngle:Math.atan2(raw.y-pivot.y,raw.x-pivot.x)};
+  }
+  return;
+ }
  const dimensionLabelHandle=evt.target.closest?.('[data-dimension-label-move-handle],[data-dimension-label-axis-handle],[data-dimension-label-size-handle],[data-dimension-label-rotate-handle],[data-dimension-label-hit]');
  if(dimensionLabelHandle){
   const id=dimensionLabelHandle.getAttribute('data-object-id'),o=state.objects.find(v=>v.id===id);
@@ -957,6 +1026,27 @@ function onCanvasMouseMove(evt){
   const g=state.drawGesture,distPx=Math.hypot(evt.clientX-g.clientX,evt.clientY-g.clientY);
   if(dragDrawTools.has(g.tool)&&distPx>=3){g.moved=true;g.last=applyPrecision(p,evt);updateDrawPreview(g,g.last);}
   return;
+ }
+ if(state.drag?.type==='textLabelMove'||state.drag?.type==='textLabelAxis'){
+  const d=state.drag,o=state.objects.find(v=>v.id===d.id);if(!o)return;
+  const dx=p.x-d.start.x,dy=p.y-d.start.y;
+  if(d.type==='textLabelAxis'){
+   const amount=dx*d.axis.x+dy*d.axis.y;
+   o.x=d.initialX+d.axis.x*amount;o.y=d.initialY+d.axis.y*amount;
+  }else{o.x=d.initialX+dx;o.y=d.initialY+dy;}
+  d.last=p;renderObjects();return;
+ }
+ if(state.drag?.type==='textLabelSize'){
+  const d=state.drag,o=state.objects.find(v=>v.id===d.id);if(!o)return;
+  const current=Math.max(.01,Math.hypot(p.x-d.pivot.x,p.y-d.pivot.y));
+  o.size=Math.max(.5,Math.min(100,d.initialSize*current/d.startDistance));
+  d.last=p;renderObjects();return;
+ }
+ if(state.drag?.type==='textLabelRotate'){
+  const d=state.drag,o=state.objects.find(v=>v.id===d.id);if(!o)return;
+  let delta=(Math.atan2(p.y-d.pivot.y,p.x-d.pivot.x)-d.startAngle)*180/Math.PI;
+  delta=((delta+540)%360)-180;if(evt.shiftKey)delta=Math.round(delta/15)*15;
+  o.rotation=d.initialRotation+delta;d.last=p;renderObjects();return;
  }
  if(state.drag?.type==='dimensionLabelMove'||state.drag?.type==='dimensionLabelAxis'){
   const d=state.drag,o=state.objects.find(v=>v.id===d.id);if(!o)return;
@@ -1048,6 +1138,11 @@ function onCanvasMouseUp(evt){
  }
  if(state.drag?.type==='freehand'){const points=state.drag.points;if(points.length>1)addObject({type:'freehand',points,color:getVal('objectColor','#20252a'),width:getNum('freehandWidth',.25)});state.drag=null;state.preview=null;renderPreview();return;}
  if(state.drag?.type==='region'){const {start,current}=state.drag;const ids=state.objects.filter(o=>{const b=objectBounds(o);return b.x>=Math.min(start.x,current.x)&&b.y>=Math.min(start.y,current.y)&&b.x+b.w<=Math.max(start.x,current.x)&&b.y+b.h<=Math.max(start.y,current.y);}).map(o=>o.id);state.selected=new Set(ids);state.drag=null;renderPreview();renderObjects();showProperties();return;}
+ if(['textLabelMove','textLabelAxis','textLabelSize','textLabelRotate'].includes(state.drag?.type)){
+  const d=state.drag,moved=d.last.x!==d.start.x||d.last.y!==d.start.y;
+  if(moved){history.push(d.before);scheduleAutosave();updateHistoryButtons();}
+  state.drag=null;render();showProperties();if(moved)setStatus('Текст перемещён или изменён');return;
+ }
  if(['dimensionLabelMove','dimensionLabelAxis','dimensionLabelSize','dimensionLabelRotate'].includes(state.drag?.type)){
   const d=state.drag,moved=d.last.x!==d.start.x||d.last.y!==d.start.y;
   if(moved){history.push(d.before);scheduleAutosave();updateHistoryButtons();}
@@ -1059,7 +1154,7 @@ function onCanvasMouseUp(evt){
  if(state.drag?.type==='referenceResize'){const moved=state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
  if(state.drag?.type==='objects'){if(state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();return;}
 }
-function cancelCanvasGesture(){if(state.drag?.before&&['objectRotate','objectScale','objectPoint','objects','referenceResize','dimensionLabelMove','dimensionLabelAxis','dimensionLabelSize','dimensionLabelRotate'].includes(state.drag.type)){const before=state.drag.before;state.objects=structuredClone(before.objects||[]);state.selected=new Set(before.selected||[]);}state.pan=null;state.drawGesture=null;state.drag=null;drawing.classList.remove('dragging');state.preview=null;render();showProperties();}
+function cancelCanvasGesture(){if(state.drag?.before&&['objectRotate','objectScale','objectPoint','objects','referenceResize','textLabelMove','textLabelAxis','textLabelSize','textLabelRotate','dimensionLabelMove','dimensionLabelAxis','dimensionLabelSize','dimensionLabelRotate'].includes(state.drag.type)){const before=state.drag.before;state.objects=structuredClone(before.objects||[]);state.selected=new Set(before.selected||[]);}state.pan=null;state.drawGesture=null;state.drag=null;drawing.classList.remove('dragging');state.preview=null;render();showProperties();}
 function updateSelectionByProps(){const id=[...state.selected][0];const o=state.objects.find(v=>v.id===id);if(!o)return;history.push(snapshot());o.color=getVal('objectColor',o.color);o.width=getNum('objectWidth',o.width);o.dash=getVal('objectDash','solid');o.layer=getVal('objectLayer',o.layer);o.role=getVal('objectLineRole',o.role);o.name=getVal('objectName',o.name);o.locked=checked('objectLocked');render();scheduleAutosave();updateHistoryButtons();}
 function replaceObjectData(target,source){for(const key of Object.keys(target))delete target[key];Object.assign(target,source);}
 function applyBoxProps(){
