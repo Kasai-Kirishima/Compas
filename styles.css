@@ -287,3 +287,10 @@ html,body{font-size:15px;}
 .template-preset-copy{display:grid;gap:2px;min-width:0}
 .template-preset-copy b{font-size:12px;font-weight:650;line-height:1.25}
 .template-preset-copy small{font-size:10px;line-height:1.25;color:var(--muted,#657080)}
+
+/* Reliable laptop navigation affordances */
+#panModeBtn{min-width:32px;width:32px;font-size:16px;line-height:1;background:#3b4248;border:1px solid #59626a;border-radius:3px;color:#fff;}
+#panModeBtn.active{border-color:var(--accent);background:#245260;}
+.drawing-area[data-tool="pan"]{cursor:grab!important;}
+.drawing-area.pan-ready{cursor:grab!important;}
+.drawing-area.dragging{cursor:grabbing!important;}

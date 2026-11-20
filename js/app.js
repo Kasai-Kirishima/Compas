@@ -1,4 +1,4 @@
-import {TEMPLATES, FORMATS, formatForTemplate} from '../src/templates.mjs';
+import {TEMPLATES, FORMATS, formatForTemplate, isGostTemplate, getTemplateFrame, getForm1Bounds} from '../src/templates.mjs';
 import {History} from '../src/history.mjs';
 import {distance, constrainAngle, nearestPoint, boundsOfObject, pathData, svgEscape} from '../src/geometry.mjs';
 import {createProject, parseProject} from '../src/project-file.mjs';
@@ -16,7 +16,7 @@ const el = (tag, attrs={}, parent=null, text=null) => {
 const round = n => Math.round(Number(n)*1000)/1000;
 const fmt = n => Number(n).toFixed(2).replace(/\.00$/,'');
 const defaultTitle = () => ({title:'Лабораторна робота 4',code:'КТ-24.ЛР5.001',material:'',liter:'У',mass:'—',scale:'',sheet:'',sheets:'1',company:'Шосткинський фаховий коледж імені Івана Кожедуба СумДУ',developer:'Кушвид О.',checker:'Базиль Б.',technical:'',normative:'',approved:''});
-const state={name:'Кресленик_1',sheet:{format:'A3P',width:297,height:420},templateId:'lab4-reference-template',title:defaultTitle(),objects:[],selected:new Set(),tool:'select',pending:null,preview:null,drag:null,drawGesture:null,pan:null,grid:false,snapGrid:false,osnap:true,ortho:false,zoom:1,view:{x:0,y:0,w:297,h:420},settings:{lineWidth:.35,defaultTextSize:5,gridStep:5},lastPolar:null};
+const state={name:'Кресленик_1',sheet:{format:'A3P',width:297,height:420},templateId:'technical-gost-a3-portrait',title:defaultTitle(),objects:[],selected:new Set(),tool:'select',pending:null,preview:null,drag:null,drawGesture:null,pan:null,grid:false,snapGrid:false,osnap:true,ortho:false,zoom:1,view:{x:0,y:0,w:297,h:420},settings:{lineWidth:.35,defaultTextSize:5,gridStep:5},lastPolar:null};
 const history=new History(100);
 const svg=$('sheetSvg'), drawing=$('drawingArea');
 const layers={reference:$('referenceLayer'),template:$('templateLayer'),geometry:$('geometryLayer'),construction:$('constructionLayer'),annotation:$('annotationLayer'),preview:$('previewLayer'),selection:$('selectionLayer')};
@@ -67,10 +67,19 @@ function setZoom(factor,clientPoint=null){
  applyView();
 }
 function zoomFromWheel(evt){
- const factor=Math.exp(-evt.deltaY*.0015);
+ const unit=evt.deltaMode===1?16:evt.deltaMode===2?Math.max(1,drawing.clientHeight):1;
+ const delta=evt.deltaY*unit;
+ const factor=Math.exp(-delta*(evt.ctrlKey?.0032:.0016));
  setZoom(factor,{x:evt.clientX,y:evt.clientY});
 }
-function screenPoint(evt){const pt=svg.createSVGPoint();pt.x=evt.clientX;pt.y=evt.clientY;const m=svg.getScreenCTM();if(!m)return{x:0,y:0};const p=pt.matrixTransform(m.inverse());return{x:p.x,y:p.y};}
+function screenPoint(evt){
+ const rect=svg.getBoundingClientRect();
+ // Prefer SVG's own transform matrix; fall back to viewBox math for browsers/layouts
+ // where getScreenCTM() is temporarily unavailable (e.g. during first paint/resize).
+ try{const pt=svg.createSVGPoint();pt.x=evt.clientX;pt.y=evt.clientY;const m=svg.getScreenCTM();if(m){const p=pt.matrixTransform(m.inverse());if(Number.isFinite(p.x)&&Number.isFinite(p.y))return{x:p.x,y:p.y};}}catch{}
+ const vb=svg.viewBox?.baseVal||{x:state.view.x,y:state.view.y,width:state.view.w,height:state.view.h};
+ return {x:vb.x+(evt.clientX-rect.left)*(vb.width/Math.max(1,rect.width)),y:vb.y+(evt.clientY-rect.top)*(vb.height/Math.max(1,rect.height))};
+}
 function applyPrecision(p,evt=null){let q={x:p.x,y:p.y};
  if(state.snapGrid||checked('snapToggle')){const s=Math.max(.1,getNum('gridStep',5));q={x:Math.round(q.x/s)*s,y:Math.round(q.y/s)*s};}
  if(state.osnap && checked('objectSnapToggle')){const tol=4/state.zoom;const sn=nearestPoint(q,state.objects,tol);if(sn)q={x:sn.x,y:sn.y};}
@@ -95,19 +104,56 @@ function addText(parent,x,y,text,size=3.5,attrs={}){
  const lines=String(text??'').split('\n');const t=el('text',{x,y,'font-size':size,'font-family':'Arial, sans-serif',fill:'#20252a','dominant-baseline':'auto',...attrs},parent);
  lines.forEach((line,i)=>el('tspan',{x,dy:i===0?0:size*1.25},t, line));return t;
 }
+function renderForm1TitleBlock(g, bounds, title, ink='#161616'){
+ const {x,y,width:w,height:h}=bounds;
+ const ln=(x1,y1,x2,y2,sw=.25)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':sw,fill:'none'},g);
+ const rc=(x1,y1,ww,hh,sw=.35)=>el('rect',{x:x1,y:y1,width:ww,height:hh,fill:'none',stroke:ink,'stroke-width':sw},g);
+ const tx=(x1,y1,str,size=1.7,anchor='start')=>addText(g,x1,y1,str,size,{'font-family':'Arial, sans-serif','text-anchor':anchor,fill:ink});
+ rc(x,y,w,h,.35);
+ // Form 1: 185 x 55 mm. Horizontal chain: 7+10+23+15+10+70+50.
+ const colEdges=[7,17,40,55,65,135];
+ for(const dx of colEdges)ln(x+dx,y,x+dx,y+h);
+ // Change / approval table on the left (65 mm).
+ [15,20,25,35,40,45,50].forEach(dy=>ln(x,y+dy,x+65,y+dy));
+ const headers=['(14)','(15)','(16)','(17)','(18)'];
+ const labels=['Изм.','Лист','№ докум.','Подп.','Дата'];
+ const widths=[7,10,23,15,10];let cx=x;
+ widths.forEach((cw,i)=>{tx(cx+cw/2,y+18.2,headers[i],1.35,'middle');tx(cx+cw/2,y+23.4,labels[i],1.2,'middle');cx+=cw;});
+ tx(x+2,y+31.5,'Студент',1.55);tx(x+2,y+38.5,'Рук. пр.',1.55);
+ tx(x+2,y+43.5,'(10)',1.35);tx(x+17,y+43.5,'(11)',1.35);tx(x+42,y+43.5,'(12)',1.35);tx(x+57,y+43.5,'(13)',1.35);
+ tx(x+2,y+48.5,'Н. контр.',1.45);tx(x+2,y+53.5,'Зав. каф.',1.45);
+ tx(x+25,y+31.5,title.developer||'',1.7);tx(x+25,y+38.5,title.checker||'',1.7);tx(x+25,y+48.5,title.normative||'',1.65);tx(x+25,y+53.5,title.approved||'',1.65);
+ // Main information fields: 70 mm wide, split into 15 / 20 / 20 mm bands.
+ ln(x+65,y+15,x+135,y+15);ln(x+65,y+35,x+135,y+35);
+ tx(x+67,y+4,'Обозначение документа',1.45);tx(x+67,y+12,title.code||'КТ-24.000.000',2.0);
+ tx(x+67,y+22,'Наименование изделия / работы',1.45);tx(x+67,y+31,title.title||'Чертёж',2.25);
+ tx(x+67,y+42,'Материал',1.45);tx(x+67,y+52,title.material||'',1.85);
+ // Right block: 50 mm, divided into 15 / 17 / 18 mm and 15 / 5 / 15 / 5 / 15 mm rows.
+ ln(x+150,y,x+150,y+35);ln(x+167,y,x+167,y+35);
+ ln(x+140,y+15,x+140,y+35);ln(x+145,y+15,x+145,y+35);
+ ln(x+155,y+15,x+155,y+55);
+ [15,20,35,40].forEach(dy=>ln(x+135,y+dy,x+185,y+dy));
+ tx(x+142.5,y+4,'Лит.',1.45,'middle');tx(x+158.5,y+4,'Масса',1.35,'middle');tx(x+176,y+4,'Масштаб',1.3,'middle');
+ tx(x+137.5,y+19,'5',1.1,'middle');tx(x+142.5,y+19,'5',1.1,'middle');tx(x+147.5,y+19,'5',1.1,'middle');
+ tx(x+142.5,y+31,title.liter||'У',1.7,'middle');tx(x+158.5,y+29,title.mass||'—',1.7,'middle');tx(x+176,y+29,title.scale||'1:1',1.7,'middle');
+ tx(x+145,y+39,'Лист',1.25,'middle');tx(x+170,y+39,'Листов',1.25,'middle');
+ tx(x+145,y+48,title.sheet||'1',1.8,'middle');tx(x+170,y+48,title.sheets||'1',1.8,'middle');
+ tx(x+157,y+53,'Организация: '+(title.company||'').slice(0,22),1.2,'middle');
+}
+
 function renderTemplate(){
  const g=layers.template;g.replaceChildren();
- if(!checked('templateVisible') && $('templateVisible'))return;
+ if((!checked('templateVisible')||!checked('templateToggle')) && $('templateVisible'))return;
  if(!state.templateId||state.templateId==='blank')return;
- const {width:w,height:h}=state.sheet;const t=state.templateId;const blue=t==='lab8-reference-template';const ink=blue?'#162cff':'#161616';const sw=blue?.42:.35;
+ const {width:w,height:h}=state.sheet;const t=state.templateId;const blue=t==='lab8-reference-template';const margin=blue?5:10;const ink=blue?'#162cff':'#161616';const sw=blue?.42:.35;
  const line=(x1,y1,x2,y2,width=sw)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':width,fill:'none'},g);
  const rect=(x,y,ww,hh,width=sw)=>el('rect',{x,y,width:ww,height:hh,fill:'none',stroke:ink,'stroke-width':width},g);
  const txt=(x,y,s,z=2.6,anchor='start',key=null,rotate=null)=>{
   const a={x,y,'font-size':z,'text-anchor':anchor,fill:ink,'font-family':'Arial, sans-serif'};if(rotate)a.transform=`rotate(${rotate} ${x} ${y})`;
   const e=addText(g,x,y,s,z,a);if(key)e.setAttribute('data-template-key',key);return e;
  };
- // Common drawing border, with ESKD-style inner frame.
- const margin=t==='lab8-reference-template'?5:10;rect(margin,margin,w-2*margin,h-2*margin,sw);
+ // Sheet frame. ГОСТ-style templates reserve 20 mm at the left and 5 mm elsewhere.
+ const frame=getTemplateFrame(t,w,h);rect(frame.x,frame.y,frame.width,frame.height,isGostTemplate(t)?.7:sw);
  if(t==='lab8-reference-template'){
   // Reconstruction of the supplied blue A3 landscape frame (not a certified template).
   rect(11,5,12,h-10,.38);line(23,5,23,h-5);line(11,62,23,62);line(11,118,23,118);line(11,174,23,174);line(11,230,23,230);
@@ -143,14 +189,9 @@ function renderTemplate(){
   const bw=Math.min(185,w-25),bx=w-10-bw,by=h-65;rect(bx,by,bw,55);line(bx,by+8,bx+bw,by+8);line(bx,by+17,bx+bw,by+17);line(bx,by+27,bx+bw,by+27);line(bx,by+38,bx+bw,by+38);line(bx+75,by,bx+75,by+38);line(bx+120,by,bx+120,by+38);line(bx+150,by,bx+150,by+55);
   txt(bx+3,by+6,'Обозначение документа',2);txt(bx+3,by+15,state.title.title||'Лабораторная работа №5',2.8,'start','title');txt(bx+78,by+6,'Масштаб',1.8);txt(bx+98,by+15,state.title.scale||'1:1',2.2,'middle','scale');txt(bx+3,by+25,'Разраб. '+(state.title.developer||'Кушвид О.'),2.1,'start','developer');txt(bx+78,by+25,'Пров. '+(state.title.checker||''),2.1,'start','checker');txt(bx+3,by+35,'Материал '+(state.title.material||''),2.0,'start','material');txt(bx+3,by+48,state.title.company||'Колледж',2,'start','company');txt(bx+bw-3,by+48,'ЛР №5',2.5,'end');
   line(18,10,18,h-10);line(18,35,10,35);
- }else{
-  // Simplified, editable Form 1 title block. These are teaching layouts, not certified standards drawings.
-  const bx=w-195,by=h-65,bw=185,bh=55;rect(bx,by,bw,bh);line(bx,by+8,bx+bw,by+8);line(bx,by+17,bx+bw,by+17);line(bx,by+27,bx+bw,by+27);line(bx,by+39,bx+bw,by+39);line(bx+75,by,bx+75,by+27);line(bx+115,by,bx+115,by+27);line(bx+145,by,bx+145,by+bh);line(bx+25,by+27,bx+25,by+bh);line(bx+75,by+27,bx+75,by+bh);
-  txt(bx+3,by+6,'Обозначение',2.0);txt(bx+3,by+15,state.title.title|| (t.startsWith('lab5')?'Лабораторная работа №5':'Технический чертёж'),2.8,'start','title');txt(bx+78,by+6,'Масштаб',1.8);txt(bx+95,by+15,state.title.scale||'1:1',2.4,'middle','scale');txt(bx+118,by+6,'Лист',1.8);txt(bx+130,by+15,state.title.sheet||'1',2.3,'middle','sheet');
-  txt(bx+3,by+24,'Материал: '+(state.title.material||''),2.0,'start','material');txt(bx+78,by+24,'Масса '+(state.title.mass||'—'),2.0,'start','mass');
-  txt(bx+2,by+35,'Разраб.',1.8);txt(bx+28,by+35,state.title.developer||'Кушвид О.',2.1,'start','developer');txt(bx+78,by+35,'Пров.',1.8);txt(bx+98,by+35,state.title.checker||'Базиль Б.',2.1,'start','checker');
-  txt(bx+2,by+47,'Т.контр.',1.8);txt(bx+28,by+47,state.title.technical||'',2.1,'start','technical');txt(bx+78,by+47,'Н.контр.',1.8);txt(bx+98,by+47,state.title.normative||'',2.1,'start','normative');
-  txt(bx+bw-4,by+53,t.startsWith('lab5')?'ЛР №5':'Чертёж',2.2,'end');
+ }else if(isGostTemplate(t)){
+  // DСТУ ГОСТ 2.104:2006 / ESKD form 1: exact overall 185 × 55 mm.
+  renderForm1TitleBlock(g,getForm1Bounds(w,h),state.title,ink);
  }
  // Protected drawing area hint boundary.
 }
@@ -275,8 +316,8 @@ function showProperties(){
 function findSelected(){return state.objects.filter(o=>state.selected.has(o.id));}
 function updateSelected(mutator){const picked=findSelected();if(!picked.length)return;history.push(snapshot());for(const o of picked)mutator(o);render();showProperties();scheduleAutosave();updateHistoryButtons();}
 function currentStyle(){const role=getVal('drawingLineRole','main');const defaultWidth=role==='main'?getNum('gostMainLine',.5):getNum('gostThinLine',.25);return {color:getVal('objectColor','#20252a'),width:getNum('drawingLineWidth',defaultWidth)||defaultWidth,dash:getVal('objectDash','')||null,layer:getVal('objectLayer','geometry'),role};}
-function setTool(tool){state.tool=tool;state.pending=null;state.preview=null;state.drawGesture=null;polylinePoints=[];drawing.dataset.tool=tool;renderPreview();document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));setStatus(`Инструмент: ${toolLabel(tool)}`);}
-const toolNames={select:'Выбор',line:'Отрезок',arrowLine:'Стрелка 1',circle:'Окружность',rect:'Прямоугольник',dimension:'Размер',dimAuto:'Авторазмер',dimH:'Горизонтальный размер',dimV:'Вертикальный размер',dimRad:'Радиус',dimDia:'Диаметр',dimAngle:'Угловой размер',polyline:'Ломаная',polygon:'Многоугольник',text:'Текст',freehand:'Свободная линия',eraser:'Ластик',centerMark:'Центровые',innerCutout:'Внутренний контур',construction:'Вспомогательная линия',ray:'Луч',xline:'Прямая',arc:'Дуга',ellipse:'Эллипс',roundRect:'Скруглённый прямоугольник',measure:'Измерение',hatch:'Штриховка',leader:'Выноска'};
+function setTool(tool){state.tool=tool;state.pending=null;state.preview=null;state.drawGesture=null;polylinePoints=[];drawing.dataset.tool=tool;renderPreview();document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('panModeBtn')?.classList.toggle('active',tool==='pan');setStatus(`Инструмент: ${toolLabel(tool)}`);}
+const toolNames={select:'Выбор',pan:'Перемещение листа',line:'Отрезок',arrowLine:'Стрелка 1',circle:'Окружность',rect:'Прямоугольник',dimension:'Размер',dimAuto:'Авторазмер',dimH:'Горизонтальный размер',dimV:'Вертикальный размер',dimRad:'Радиус',dimDia:'Диаметр',dimAngle:'Угловой размер',polyline:'Ломаная',polygon:'Многоугольник',text:'Текст',freehand:'Свободная линия',eraser:'Ластик',centerMark:'Центровые',innerCutout:'Внутренний контур',construction:'Вспомогательная линия',ray:'Луч',xline:'Прямая',arc:'Дуга',ellipse:'Эллипс',roundRect:'Скруглённый прямоугольник',measure:'Измерение',hatch:'Штриховка',leader:'Выноска'};
 function toolLabel(t){return toolNames[t]||t;}
 function objectFromEventOrSelection(evt){
  const target=evt?.target?.closest?.('[data-object-id]');
@@ -413,18 +454,15 @@ function clickTool(p,evt){
  if(o)addObject(o);else setStatus(`Для инструмента «${toolLabel(t)}» этот способ построения не поддерживается.`);
  state.pending=null;state.preview=null;renderPreview();
 }
-function captureDrawingPointer(evt){
- try{if(drawing.setPointerCapture&&evt.pointerId!==undefined)drawing.setPointerCapture(evt.pointerId);}catch{}
-}
-function onPointerDown(evt){
- const isPanButton=evt.button===1||evt.button===2||(evt.button===0&&spaceDown);
+function onCanvasMouseDown(evt){
+ const isPanButton=evt.button===1||evt.button===2||(evt.button===0&&(spaceDown||evt.altKey||state.tool==='pan'));
  if(isPanButton){
   state.pan={clientX:evt.clientX,clientY:evt.clientY,view:{...state.view}};
-  drawing.classList.add('dragging');captureDrawingPointer(evt);evt.preventDefault();return;
+  drawing.classList.add('dragging');evt.preventDefault();return;
  }
  if(evt.button!==0)return;
  const raw=screenPoint(evt),p=applyPrecision(raw,evt);
- captureDrawingPointer(evt);
+ evt.preventDefault();
  if(state.tool==='freehand'){state.drag={type:'freehand',points:[p]};return;}
  if(state.tool==='selectRegion'){state.drag={type:'region',start:p,current:p};return;}
  if(state.tool==='select'){
@@ -435,7 +473,7 @@ function onPointerDown(evt){
  }
  state.drawGesture={tool:state.tool,start:p,last:p,clientX:evt.clientX,clientY:evt.clientY,moved:false,pendingAtStart:!!state.pending,target:evt.target};
 }
-function onPointerMove(evt){
+function onCanvasMouseMove(evt){
  const p=screenPoint(evt);$('coordinates').textContent=`X: ${fmt(p.x)} · Y: ${fmt(p.y)} мм`;
  if(state.pan){const r=svg.getBoundingClientRect(),dx=(evt.clientX-state.pan.clientX)/Math.max(1,r.width)*state.pan.view.w,dy=(evt.clientY-state.pan.clientY)/Math.max(1,r.height)*state.pan.view.h;const v=state.pan.view;state.view={...v,x:v.x-dx,y:v.y-dy};applyView();return;}
  if(state.drawGesture){
@@ -452,7 +490,7 @@ function onPointerMove(evt){
  if(state.drag?.type==='region'){state.drag.current=p;const g=layers.preview;g.replaceChildren();const a=state.drag.start,b=p;el('rect',{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:'#168db2',opacity:.12,stroke:'#168db2','stroke-dasharray':'2 1'},g);return;}
  if(state.pending){const q=applyPrecision(p,evt);const t=state.tool;const o=makeTwoPointObject(t,state.pending.start,q,evt);if(o){state.preview=o;renderPreview();}}
 }
-function onPointerUp(evt){
+function onCanvasMouseUp(evt){
  if(state.pan){state.pan=null;drawing.classList.remove('dragging');return;}
  if(state.drawGesture){
   const g=state.drawGesture,p=applyPrecision(screenPoint(evt),evt);state.drawGesture=null;
@@ -465,7 +503,7 @@ function onPointerUp(evt){
  if(state.drag?.type==='region'){const {start,current}=state.drag;const ids=state.objects.filter(o=>{const b=objectBounds(o);return b.x>=Math.min(start.x,current.x)&&b.y>=Math.min(start.y,current.y)&&b.x+b.w<=Math.max(start.x,current.x)&&b.y+b.h<=Math.max(start.y,current.y);}).map(o=>o.id);state.selected=new Set(ids);state.drag=null;renderPreview();renderObjects();showProperties();return;}
  if(state.drag?.type==='objects'){if(state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();return;}
 }
-function onPointerCancel(){state.pan=null;state.drawGesture=null;state.drag=null;drawing.classList.remove('dragging');state.preview=null;renderPreview();}
+function cancelCanvasGesture(){state.pan=null;state.drawGesture=null;state.drag=null;drawing.classList.remove('dragging');state.preview=null;renderPreview();}
 function updateSelectionByProps(){const id=[...state.selected][0];const o=state.objects.find(v=>v.id===id);if(!o)return;history.push(snapshot());o.color=getVal('objectColor',o.color);o.width=getNum('objectWidth',o.width);o.dash=getVal('objectDash','solid');o.layer=getVal('objectLayer',o.layer);o.role=getVal('objectLineRole',o.role);o.name=getVal('objectName',o.name);o.locked=checked('objectLocked');render();scheduleAutosave();updateHistoryButtons();}
 function applyBoxProps(){
  const id=[...state.selected][0],o=state.objects.find(v=>v.id===id);if(!o)return;
@@ -576,9 +614,60 @@ function importSVG(text){history.push(snapshot());const doc=new DOMParser().pars
 function importDXF(text){history.push(snapshot());const lines=text.replace(/\r/g,'').split('\n');const pairs=[];for(let i=0;i+1<lines.length;i+=2)pairs.push([lines[i].trim(),lines[i+1].trim()]);let type=null,ent={};const flush=()=>{if(!type)return;const val=c=>ent[c]!==undefined?Number(ent[c]):0;if(type==='LINE')state.objects.push({id:nextId(),type:'line',a:{x:val('10'),y:-val('20')},b:{x:val('11'),y:-val('21')},color:'#20252a'});if(type==='CIRCLE')state.objects.push({id:nextId(),type:'circle',center:{x:val('10'),y:-val('20')},r:val('40'),color:'#20252a'});if(type==='TEXT')state.objects.push({id:nextId(),type:'text',x:val('10'),y:-val('20'),size:val('40'),text:ent['1']||'',color:'#20252a'});if(type==='LWPOLYLINE'){const pts=[];for(let i=0;i<ent._xs.length;i++)pts.push({x:ent._xs[i],y:-ent._ys[i]});if(pts.length)state.objects.push({id:nextId(),type:'polyline',points:pts,color:'#20252a'});}type=null;ent={_xs:[],_ys:[]};};for(const [c,v] of pairs){if(c==='0'){flush();type=v;continue;}if(c==='10'&&type==='LWPOLYLINE')ent._xs.push(Number(v));else if(c==='20'&&type==='LWPOLYLINE')ent._ys.push(Number(v));else ent[c]=v;}flush();commit();setStatus('DXF импортирован (LINE/CIRCLE/TEXT/LWPOLYLINE)');}
 function applyTitle(){readTitleFromUI();renderTemplate();scheduleAutosave();setStatus('Данные основной надписи обновлены');}
 function switchTemplate(id){state.templateId=id;const f=formatForTemplate(id);setSheet(f);$('titleFormSelect').value=id;$('templateQuickSelect').value=id;const t=TEMPLATES.find(v=>v.id===id);$('templateDescription').textContent=t?.description||'';document.querySelectorAll('[data-template-preset]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.templatePreset===id)));renderTemplate();scheduleAutosave();}
-function createNewDocument(){const name=getVal('newDocName','Новый чертёж');const format=getVal('newDocFormat','A3');const orient=getVal('newDocOrientation','P');const id=getVal('newDocTemplate','lab4-reference-template');state.objects=[];state.selected.clear();state.name=name;state.title=defaultTitle();state.title.title=name;state.templateId=id;let f=format+orient;if(!FORMATS[f])f=format==='A4'?'A4P':'A3P';state.sheet.format=f;state.sheet.width=FORMATS[f][0];state.sheet.height=FORMATS[f][1];writeTitleToUI();$('filenameField').value=name;switchTemplate(id);setSheet(f);history.undoStack.length=0;history.redoStack.length=0;closeModal('newDocModal');render();scheduleAutosave();setStatus('Создан новый чертёж');}
-function showNewDoc(){const fm=$('newDocFormat');fm.innerHTML='';['A4','A3','A2'].forEach(f=>{const op=document.createElement('option');op.value=f;op.textContent=f;fm.append(op);});$('newDocTemplate').value=state.templateId;$('newDocFormat').value=state.sheet.format.slice(0,2);$('newDocOrientation').value=state.sheet.format.endsWith('L')?'L':'P';$('newDocName').value='Новый чертёж';renderNewDocPreview();openModal('newDocModal');}
-function renderNewDocPreview(){const p=$('newDocPreview');if(!p)return;const w=210,h=297;p.setAttribute('viewBox',`0 0 ${w} ${h}`);p.replaceChildren();el('rect',{x:4,y:4,width:w-8,height:h-8,fill:'#fff',stroke:'#222','stroke-width':.6},p);el('rect',{x:w-105,y:h-35,width:100,height:30,fill:'none',stroke:'#222','stroke-width':.5},p);addText(p,w-102,h-24,'Основная надпись',4,{fill:'#222'});}
+function populateNewDocTemplateOptions(){
+ const select=$('newDocTemplate');if(!select)return;select.replaceChildren();
+ const groups=[
+  {label:'Мои образцы',items:TEMPLATES.filter(t=>!isGostTemplate(t.id))},
+  {label:'ДСТУ ГОСТ / ЕСКД · основная надпись форма 1',items:TEMPLATES.filter(t=>isGostTemplate(t.id))}
+ ];
+ for(const group of groups){const og=document.createElement('optgroup');og.label=group.label;for(const item of group.items){const op=document.createElement('option');op.value=item.id;op.textContent=`${item.name} · ${item.format}`;og.append(op);}select.append(og);}
+ if(!TEMPLATES.some(t=>t.id===select.value))select.value=state.templateId||TEMPLATES[0].id;
+}
+function populateTemplateSelectors(){
+ const groups=[
+  {label:'Мои образцы',items:TEMPLATES.filter(t=>!isGostTemplate(t.id))},
+  {label:'ДСТУ ГОСТ / ЕСКД · форма 1',items:TEMPLATES.filter(t=>isGostTemplate(t.id))}
+ ];
+ for(const id of ['templateQuickSelect','titleFormSelect']){
+  const select=$(id);if(!select)continue;select.replaceChildren();
+  for(const group of groups){const og=document.createElement('optgroup');og.label=group.label;for(const item of group.items){const op=document.createElement('option');op.value=item.id;op.textContent=`${item.name} · ${item.format}`;og.append(op);}select.append(og);}
+ }
+}
+function createNewDocument(){
+ const name=getVal('newDocName','Новый чертёж').trim()||'Новый чертёж';
+ const templateCandidate=getVal('newDocTemplate',state.templateId);
+ const id=TEMPLATES.some(t=>t.id===templateCandidate)?templateCandidate:(TEMPLATES.some(t=>t.id===state.templateId)?state.templateId:TEMPLATES[0].id);
+ const format=getVal('newDocFormat','A3'),orient=getVal('newDocOrientation','P');
+ // ГОСТ/DСТУ A4 drawing sheets are portrait; do not silently create the unsupported A4 landscape preset.
+ let f=format==='A4'?'A4P':format+orient;if(!FORMATS[f])f='A3P';
+ state.objects=[];state.selected.clear();state.pending=null;state.preview=null;state.name=name;state.title=defaultTitle();state.title.title=name;state.templateId=id;
+ state.sheet.format=f;state.sheet.width=FORMATS[f][0];state.sheet.height=FORMATS[f][1];
+ writeTitleToUI();$('filenameField').value=name;
+ $('titleFormSelect').value=id;$('templateQuickSelect').value=id;$('templateVisible').checked=true;$('templateToggle').checked=true;
+ const description=TEMPLATES.find(t=>t.id===id)?.description||'';$('templateDescription').textContent=description;
+ history.undoStack.length=0;history.redoStack.length=0;state.view={x:0,y:0,w:state.sheet.width,h:state.sheet.height};
+ setSheet(f);closeModal('newDocModal');render();scheduleAutosave();updateHistoryButtons();
+ setStatus(f==='A4P'&&format==='A4'&&orient==='L'?'Создан новый чертёж: для А4 установлена книжная ориентация по стандарту.':'Создан новый чертёж с рамкой: '+(TEMPLATES.find(t=>t.id===id)?.name||'шаблон'));
+}
+function showNewDoc(){
+ const fm=$('newDocFormat');fm.replaceChildren();['A4','A3','A2'].forEach(f=>{const op=document.createElement('option');op.value=f;op.textContent=f;fm.append(op);});
+ populateNewDocTemplateOptions();$('newDocTemplate').value=TEMPLATES.some(t=>t.id===state.templateId)?state.templateId:'technical-gost-a3-portrait';
+ $('newDocFormat').value=state.sheet.format.slice(0,2);$('newDocOrientation').value=state.sheet.format.endsWith('L')?'L':'P';
+ $('newDocName').value='Новый чертёж';renderNewDocPreview();openModal('newDocModal');
+}
+function renderNewDocPreview(){
+ const p=$('newDocPreview');if(!p)return;
+ const format=getVal('newDocFormat','A3'),orientation=format==='A4'?'P':getVal('newDocOrientation','P');
+ const f=format+orientation,[w,h]=FORMATS[f]||FORMATS.A3P,id=getVal('newDocTemplate',state.templateId);
+ p.setAttribute('viewBox',`0 0 ${w} ${h}`);p.replaceChildren();
+ el('rect',{x:0,y:0,width:w,height:h,fill:'#fff',stroke:'#777','stroke-width':.35},p);
+ const b=getTemplateFrame(id,w,h);el('rect',{x:b.x,y:b.y,width:b.width,height:b.height,fill:'none',stroke:'#171717','stroke-width':isGostTemplate(id)?.7:.4},p);
+ if(isGostTemplate(id)){const tb=getForm1Bounds(w,h);renderForm1TitleBlock(p,tb,{title:'Наименование',code:'Обозначение',developer:'Разраб.',checker:'Пров.',normative:'Н.контр.',approved:'Утв.',liter:'У',mass:'—',scale:'1:1',sheet:'1',sheets:'1',company:'Организация'},'#171717');}
+ else if(id==='lab8-reference-template'){el('rect',{x:11,y:5,width:12,height:h-10,fill:'none',stroke:'#162cff','stroke-width':.4},p);el('rect',{x:w-195,y:h-61,width:190,height:56,fill:'none',stroke:'#162cff','stroke-width':.45},p);}
+ else {el('rect',{x:w-195,y:h-65,width:185,height:55,fill:'none',stroke:'#222','stroke-width':.3},p);}
+ const item=TEMPLATES.find(t=>t.id===id);$('newDocTemplateHint').textContent=item?.description||'Предпросмотр выбранного листа и рамки.';
+ p.style.aspectRatio=`${w}/${h}`;p.style.width=`${Math.min(260,360*w/h)}px`;p.style.height=`${Math.min(360,260*h/w)}px`;
+}
 function doGostCheck(){const issues=[];if(state.objects.length===0)issues.push('На листе нет геометрии.');if(!state.title.title)issues.push('Не заполнено наименование документа.');if(!state.title.developer)issues.push('Не заполнен разработчик.');const widths=state.objects.filter(o=>o.width!=null).map(o=>o.width);if(widths.some(w=>w>1.2))issues.push('Есть линии толще 1,2 мм — проверьте назначение толщины.');const dims=state.objects.filter(o=>o.type==='dimension');if(!dims.length)issues.push('Размерные обозначения не найдены.');$('gostSummary').textContent=issues.length?`Проверка завершена: замечаний ${issues.length}. Это вспомогательная проверка, не сертификат соответствия.`:'Базовые проверки пройдены. Это не является официальным подтверждением соответствия стандартам.';$('gostCheckResults').replaceChildren();(issues.length?issues:['Базовые проверки завершены без замечаний.']).forEach(s=>{const d=document.createElement('div');d.className='gost-result';d.textContent='• '+s;$('gostCheckResults').append(d);});openModal('gostModal');}
 
 // Menus and button bindings
@@ -589,13 +678,13 @@ function bind(){
  document.querySelectorAll('[data-panel]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-panel]').forEach(x=>x.classList.toggle('active',x===b));$('toolsPanel').classList.toggle('hidden',b.dataset.panel!=='tools');$('treePanel').classList.toggle('hidden',b.dataset.panel!=='tree');}));
  document.querySelectorAll('[data-tool-category]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-tool-category]').forEach(x=>{x.classList.toggle('active',x===b);x.setAttribute('aria-selected',String(x===b));});const cat=b.dataset.toolCategory;setStatus(cat==='all'?'Показаны все категории инструментов':`Категория: ${b.textContent}`);}));
  document.querySelectorAll('[data-menu]').forEach(b=>b.addEventListener('click',()=>{const m=b.dataset.menu;if(m==='help')openModal('helpModal');else if(m==='file')showNewDoc();else setStatus(`Раздел «${b.textContent}»: используйте соответствующие панели инструментов.`);}));
- $('newBtn').onclick=showNewDoc;$('closeNewDocModal').onclick=()=>closeModal('newDocModal');$('cancelNewDocBtn').onclick=()=>closeModal('newDocModal');$('createNewDocBtn').onclick=createNewDocument;
- $('newDocTemplate').onchange=()=>{$('templateQuickSelect').value=$('newDocTemplate').value;};$('newDocFormat').onchange=renderNewDocPreview;$('newDocOrientation').onchange=renderNewDocPreview;
+ $('panModeBtn')?.addEventListener('click',()=>setTool(state.tool==='pan'?'select':'pan'));$('newBtn').onclick=showNewDoc;$('closeNewDocModal').onclick=()=>closeModal('newDocModal');$('cancelNewDocBtn').onclick=()=>closeModal('newDocModal');$('createNewDocBtn').onclick=createNewDocument;
+ $('newDocTemplate').onchange=()=>{const t=TEMPLATES.find(v=>v.id===getVal('newDocTemplate'));if(t){$('newDocFormat').value=t.format.slice(0,2);$('newDocOrientation').value=t.format.endsWith('L')?'L':'P';}renderNewDocPreview();};$('newDocFormat').onchange=renderNewDocPreview;$('newDocOrientation').onchange=renderNewDocPreview;
  $('openBtn').onclick=openLibrary;$('openLibraryBtn').onclick=openLibrary;$('closeFilesModal').onclick=()=>closeModal('filesModal');$('saveBtn').onclick=saveProject;$('exportProjectBtn').onclick=exportProject;$('saveJsonBtn').onclick=exportProject;$('importProjectBtn').onclick=()=>$('fileInput').click();$('loadJsonBtn').onclick=()=>$('fileInput').click();$('fileInput').onchange=e=>importFile(e.target.files[0],'project');
  $('saveToLibraryBtn').onclick=()=>saveToLibrary(false);$('saveAsLibraryBtn').onclick=()=>saveToLibrary(true);$('restoreAutosaveBtn').onclick=()=>{const s=localStorage.getItem('cad-geometry-autosave-v1');if(s)loadProjectData(s);else setStatus('Автосохранение не найдено');};
  $('undoBtn').onclick=undo;$('redoBtn').onclick=redo;$('deleteBtn').onclick=deleteSelected;$('deleteSelectedBtn').onclick=deleteSelected;$('fitBtn').onclick=fitSheet;$('zoomIn').onclick=()=>setZoom(1.25);$('zoomOut').onclick=()=>setZoom(.8);
  $('gridBtn').onclick=()=>{state.grid=!state.grid;$('gridToggle').checked=state.grid;updateSheetGeometry();};$('gridToggle').onchange=()=>{state.grid=checked('gridToggle');updateSheetGeometry();};$('snapToggle').onchange=()=>state.snapGrid=checked('snapToggle');$('snapBtn').onclick=()=>{$('objectSnapToggle').checked=!$('objectSnapToggle').checked;state.osnap=$('objectSnapToggle').checked;};$('objectSnapToggle').onchange=()=>state.osnap=checked('objectSnapToggle');$('orthoBtn').onclick=()=>{$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';};$('orthoToggle').onchange=()=>{state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';};
- $('paperFormat').onchange=()=>{history.push(snapshot());setSheet(getVal('paperFormat','A3P'));scheduleAutosave();updateHistoryButtons();};$('templateQuickSelect').onchange=()=>{history.push(snapshot());switchTemplate(getVal('templateQuickSelect'));updateHistoryButtons();};$('titleFormSelect').onchange=()=>{history.push(snapshot());switchTemplate(getVal('titleFormSelect'));updateHistoryButtons();};$('templateVisible').onchange=renderTemplate;['geometryVisible','dimensionsVisible','constructionVisible','referenceVisibleToggleSecondary'].forEach(id=>$(id)?.addEventListener('change',updateLayerVisibility));layers.template.addEventListener('dblclick',e=>{const node=e.target.closest('[data-template-key]');if(!node)return;const key=node.getAttribute('data-template-key'),value=prompt(`Изменить поле «${key}»`,state.title[key]||'');if(value!==null){state.title[key]=value;writeTitleToUI();renderTemplate();scheduleAutosave();}});
+ $('paperFormat').onchange=()=>{history.push(snapshot());setSheet(getVal('paperFormat','A3P'));scheduleAutosave();updateHistoryButtons();};$('templateQuickSelect').onchange=()=>{history.push(snapshot());switchTemplate(getVal('templateQuickSelect'));updateHistoryButtons();};$('titleFormSelect').onchange=()=>{history.push(snapshot());switchTemplate(getVal('titleFormSelect'));updateHistoryButtons();};$('templateVisible').onchange=()=>{$('templateToggle').checked=$('templateVisible').checked;renderTemplate();};$('templateToggle').onchange=()=>{$('templateVisible').checked=$('templateToggle').checked;renderTemplate();};['geometryVisible','dimensionsVisible','constructionVisible','referenceVisibleToggleSecondary'].forEach(id=>$(id)?.addEventListener('change',updateLayerVisibility));layers.template.addEventListener('dblclick',e=>{const node=e.target.closest('[data-template-key]');if(!node)return;const key=node.getAttribute('data-template-key'),value=prompt(`Изменить поле «${key}»`,state.title[key]||'');if(value!==null){state.title[key]=value;writeTitleToUI();renderTemplate();scheduleAutosave();}});
  $('applyTitleBtn').onclick=applyTitle;Object.values(titleMap).forEach(id=>$(id)?.addEventListener('change',()=>{readTitleFromUI();renderTemplate();scheduleAutosave();}));
  ['objectColor','objectWidth','objectDash','objectLayer','objectLineRole','objectName','objectLocked'].forEach(id=>$(id)?.addEventListener('change',updateSelectedByProps));$('applyObjectGeometryBtn').onclick=applyBoxProps;$('applyObjectRotationBtn').onclick=()=>{const a=getNum('objectRotationAngle',0);transformSelected(o=>rotateObject(o,a));};$('objectRotationSlider').oninput=()=>{$('objectRotationAngle').value=$('objectRotationSlider').value;};
  $('coordinateApplyBtn').onclick=()=>{const p={x:getNum('coordinateX'),y:getNum('coordinateY')};state.pending=null;clickTool(p,{shiftKey:false,detail:1,target:svg});};
@@ -615,17 +704,17 @@ function bind(){
  $('hatchAngle').onchange=()=>{$('hatchAngleSlider').value=getNum('hatchAngle',45);};$('hatchAngleSlider').oninput=()=>{$('hatchAngle').value=$('hatchAngleSlider').value;};document.querySelectorAll('[data-hatch-angle]').forEach(b=>b.onclick=()=>{$('hatchAngle').value=b.dataset.hatchAngle;$('hatchAngleSlider').value=b.dataset.hatchAngle;});
  $('saveState').title='Локальное автосохранение включено';
  // keyboard, canvas pointer and wheel navigation
- drawing.addEventListener('pointerdown',onPointerDown);window.addEventListener('pointermove',onPointerMove);window.addEventListener('pointerup',onPointerUp);window.addEventListener('pointercancel',onPointerCancel);drawing.addEventListener('dblclick',evt=>{if(['polyline','spline'].includes(state.tool)&&polylinePoints.length>=2){addObject({type:state.tool,points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}});drawing.addEventListener('wheel',evt=>{evt.preventDefault();if(evt.shiftKey){state.view.x+=Math.sign(evt.deltaY)*state.view.w*.05;applyView();}else if(evt.altKey){state.view.y+=Math.sign(evt.deltaY)*state.view.h*.05;applyView();}else zoomFromWheel(evt);},{passive:false});drawing.addEventListener('contextmenu',e=>e.preventDefault());drawing.addEventListener('auxclick',e=>e.preventDefault());
- document.addEventListener('keydown',e=>{if(e.key===' '&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){spaceDown=true;return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;if(e.key==='Escape'){state.pending=null;state.preview=null;polylinePoints=[];state.drag=null;state.drawGesture=null;renderPreview();setTool('select');}if(e.key==='Enter'&&polylinePoints.length>=2){addObject({type:'polyline',points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if(e.key==='F8'){$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if(e.key==='Delete'||e.key==='Backspace')deleteSelected();if(e.key===' '&&!e.repeat){drawing.dataset.space='1';}});document.addEventListener('keyup',e=>{if(e.key===' ')spaceDown=false;});
- window.addEventListener('resize',()=>{const v={...state.view};if(state.zoom===1)fitSheet();else{const {width:w,height:h}=state.sheet;const a=Math.min((drawing.clientWidth-70)/w,(drawing.clientHeight-88)/h);svg.style.width=`${w*a}px`;svg.style.height=`${h*a}px`;}});
+ drawing.addEventListener('mousedown',onCanvasMouseDown);window.addEventListener('mousemove',onCanvasMouseMove);window.addEventListener('mouseup',onCanvasMouseUp);window.addEventListener('blur',cancelCanvasGesture);drawing.addEventListener('dragstart',e=>e.preventDefault());drawing.addEventListener('dblclick',evt=>{if(['polyline','spline'].includes(state.tool)&&polylinePoints.length>=2){addObject({type:state.tool,points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}});drawing.addEventListener('wheel',evt=>{evt.preventDefault();if(evt.shiftKey){state.view.x+=Math.sign(evt.deltaY)*state.view.w*.05;applyView();}else if(evt.altKey){state.view.y+=Math.sign(evt.deltaY)*state.view.h*.05;applyView();}else zoomFromWheel(evt);},{passive:false});drawing.addEventListener('contextmenu',e=>e.preventDefault());drawing.addEventListener('auxclick',e=>e.preventDefault());
+ document.addEventListener('keydown',e=>{if(e.key===' '&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){spaceDown=true;drawing.classList.add('pan-ready');e.preventDefault();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;if(e.key==='Escape'){state.pending=null;state.preview=null;polylinePoints=[];state.drag=null;state.drawGesture=null;renderPreview();setTool('select');}if(e.key==='Enter'&&polylinePoints.length>=2){addObject({type:'polyline',points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if(e.key==='F8'){$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if(e.key==='Delete'||e.key==='Backspace')deleteSelected();if(e.key===' '&&!e.repeat){drawing.dataset.space='1';}});document.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;drawing.classList.remove('pan-ready');}});
+ window.addEventListener('resize',()=>{if(state.zoom===1)fitSheet();else{const {width:w,height:h}=state.sheet;const a=Math.max(.05,Math.min((drawing.clientWidth-56)/w,(drawing.clientHeight-64)/h));svg.style.width=`${w*a}px`;svg.style.height=`${h*a}px`;}});
  document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)m.classList.add('hidden');}));
 }
 
 // Initial UI state
 function init(){
- writeTitleToUI();$('paperFormat').value=state.sheet.format;$('titleFormSelect').value=state.templateId;$('templateQuickSelect').value=state.templateId;$('filenameField').value=state.name;$('templateDescription').textContent=TEMPLATES.find(t=>t.id===state.templateId)?.description||'';
+ populateTemplateSelectors();writeTitleToUI();$('paperFormat').value=state.sheet.format;$('titleFormSelect').value=state.templateId;$('templateQuickSelect').value=state.templateId;$('filenameField').value=state.name;$('templateDescription').textContent=TEMPLATES.find(t=>t.id===state.templateId)?.description||'';
  $('gridPattern').setAttribute('width',getNum('gridStep',5));$('gridPattern').setAttribute('height',getNum('gridStep',5));
  bind();setTool('select');fitSheet();render();
  try{const auto=localStorage.getItem('cad-geometry-autosave-v1');if(auto){const d=JSON.parse(auto);if(d?.objects?.length||d?.name){setStatus('Найдено локальное автосохранение. Нажмите «Восстановить автосохранение» для загрузки.');}}}catch{}
 }
-init();
+try{init();}catch(error){console.error('CAD startup failed:',error);const status=$('statusMessage');if(status)status.textContent=`Ошибка запуска: ${error.message}. Обновите страницу и проверьте консоль.`;throw error;}

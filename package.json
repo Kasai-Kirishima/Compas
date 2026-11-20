@@ -1,6 +1,6 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.58-restored.2",
+  "version": "1.5.58-restored.3",
   "private": true,
   "type": "module",
   "description": "Restored browser-based 2D mechanical CAD editor with editable drawing sheets, SVG geometry, project saving and basic DXF exchange.",

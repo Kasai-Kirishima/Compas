@@ -23,9 +23,19 @@ for (const match of html.matchAll(/<link\b[^>]*\bhref=["']([^"']+)["']/g)) {
   const href = match[1];
   if (!/^(https?:)?\/\//.test(href) && !href.startsWith('#')) assert.ok(existsSync(resolve(root, href)), `Missing linked asset: ${href}`);
 }
-assert.match(js, /drawing\.addEventListener\('pointerdown',onPointerDown\)/, 'drawing surface must receive pointer input');
+assert.match(js, /drawing\.addEventListener\('mousedown',onCanvasMouseDown\)/, 'drawing surface must receive reliable laptop mouse input');
+assert.match(js, /function populateNewDocTemplateOptions\(/, 'new-document template menu must be populated dynamically');
+assert.match(js, /populateNewDocTemplateOptions\(\)/, 'new-document modal must populate frame options');
+assert.match(js, /const margin=blue\?5:10/, 'legacy sample frame drawing must have a defined margin');
+assert.match(js, /spaceDown\|\|evt\.altKey\|\|state\.tool==='pan'/, 'laptop pan fallback must support Space/Alt drag and pan tool');
+assert.match(js, /window\.addEventListener\('mousemove',onCanvasMouseMove\)/, 'drag motion must continue when the cursor leaves the SVG');
+assert.match(js, /window\.addEventListener\('mouseup',onCanvasMouseUp\)/, 'drawing must finish when the mouse is released');
+assert.match(js, /svg\.viewBox\?\.baseVal/, 'SVG coordinates must have a viewBox fallback');
+assert.match(js, /templateToggle.*templateVisible|templateVisible.*templateToggle/, 'template visibility controls must stay synchronized');
 assert.match(js, /drawing\.addEventListener\('wheel'/, 'wheel zoom must work over the drawing area');
 assert.match(js, /evt\.button===1/, 'middle mouse button must pan the sheet');
+assert.match(js, /evt\.button===2/, 'right mouse button must also pan the sheet');
+assert.match(html, /id="panModeBtn"/, 'visible pan mode button must exist for laptops without a middle mouse button');
 assert.match(js, /drawGesture/, 'drag-to-draw gesture handling must be present');
 assert.match(js, /function zoomFromWheel/, 'wheel zoom handler must be present');
 for (const match of js.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
