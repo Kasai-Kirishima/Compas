@@ -17,7 +17,7 @@ const el = (tag, attrs={}, parent=null, text=null) => {
 const round = n => Math.round(Number(n)*1000)/1000;
 const fmt = n => Number(n).toFixed(2).replace(/\.00$/,'');
 const defaultTitle = () => ({title:'Лабораторна робота 4',code:'КТ-24.ЛР5.001',material:'',liter:'У',mass:'—',scale:'',sheet:'',sheets:'1',company:'Шосткинський фаховий коледж імені Івана Кожедуба СумДУ',developer:'Кушвид О.',checker:'Базиль Б.',technical:'',normative:'',approved:''});
-const lab8DefaultTitle = () => ({...defaultTitle(),title:'Корпус',code:'8.090220 ЛР ХХ ХХ 01',material:'',liter:'',mass:'',scale:'1:1',sheet:'',sheets:'1',company:'ШЦМГУ',developer:'Кушвид О.',checker:'Базиль Б.',technical:'',normative:'',approved:'',variant:'Варіант 8',leftHeader:'10 ХХ ХХ д/ 02206018'});
+const lab8DefaultTitle = () => ({...defaultTitle(),title:'Корпус',code:'8.090220 ЛР XX XX 01',material:'',liter:'',mass:'',scale:'1:1',sheet:'',sheets:'1',company:'ШЦМГУ',developer:'Кушвид О.',checker:'Базиль Б.',technical:'',normative:'',approved:'',variant:'Варіант 8',leftHeader:'10 ХХ ХХ д/ 02206018',copy:'Копіював',sheetFormat:'А3'});
 const kompasLab5DefaultTitle = () => ({...defaultTitle(),title:'Лабораторна робота 5',code:'КТ-24.ЛР5.001',material:'',scale:'1:1',sheets:'1',company:'Шосткинський фаховий коледж імені Івана Кожедуба СумДУ',developer:'Кушвид О.А.',checker:'Базиль Б.',kompasTemplateTextOverrides:{
  'tpltext-145_246_6_middle_0-0':{source:'Лабораторна робота 5',text:'Лабораторна робота 4',x:145,y:246.6,size:7,widthFactor:1,font:"GOST type B,Arial,sans-serif",color:'#000000',rotation:0,anchor:'middle',slanted:true},
  'tpltext-55_12_middle_180-0':{source:'Лабораторна робота 5',text:'Лабораторна робота 4',x:55,y:12,size:7,widthFactor:1,font:"GOST type B,Arial,sans-serif",color:'#000000',rotation:180,anchor:'middle',slanted:true},
@@ -142,7 +142,7 @@ function addText(parent,x,y,text,size=3.5,attrs={}){
  const lines=String(text??'').split('\n');const t=el('text',{x,y,'font-size':size,'font-family':'Arial, sans-serif',fill:'#20252a','dominant-baseline':'auto',...attrs},parent);
  lines.forEach((line,i)=>el('tspan',{x,dy:i===0?0:size*1.25},t, line));return t;
 }
-function renderForm1TitleBlock(g, bounds, title, ink='#161616'){
+function renderForm1TitleBlock(g, bounds, title, ink='#000000'){
  const {x,y,width:w,height:h}=bounds;
  const ln=(x1,y1,x2,y2,sw=.25)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':sw,fill:'none'},g);
  const rc=(x1,y1,ww,hh,sw=.35)=>el('rect',{x:x1,y:y1,width:ww,height:hh,fill:'none',stroke:ink,'stroke-width':sw},g);
@@ -180,86 +180,94 @@ function renderForm1TitleBlock(g, bounds, title, ink='#161616'){
 }
 
 function renderLab8SampleTemplate(g,w,h,title){
- const ink='#111111', sw=.38;
- const line=(x1,y1,x2,y2,width=sw)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':width,fill:'none'},g);
- const rect=(x,y,ww,hh,width=sw)=>el('rect',{x,y,width:ww,height:hh,fill:'none',stroke:ink,'stroke-width':width},g);
- const tx=(x,y,s,z=2.2,anchor='start',key=null,rotate=null,italic=true)=>{
-  const attrs={ 'font-family':'Arial, sans-serif','font-style':italic?'italic':'normal','font-weight':'400','text-anchor':anchor,fill:ink };
+ // Faithful, monochrome reconstruction of the supplied A3 landscape frame.
+ // The page is 420×297 mm. Coordinates below are mapped from the reference raster.
+ const ink='#000000';
+ const line=(x1,y1,x2,y2,width=.22)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':width,fill:'none'},g);
+ const rect=(x,y,ww,hh,width=.24)=>el('rect',{x,y,width:ww,height:hh,fill:'none',stroke:ink,'stroke-width':width},g);
+ const tx=(x,y,text,size=2.2,anchor='start',key=null,rotate=null,italic=true)=>{
+  const attrs={'font-family':"'GOST type B',Arial,sans-serif",'font-style':italic?'italic':'normal','font-weight':'400','text-anchor':anchor,fill:ink};
   if(key)attrs['data-template-key']=key;
   if(rotate)attrs.transform=`rotate(${rotate} ${x} ${y})`;
-  return addText(g,x,y,s,z,attrs);
+  return addText(g,x,y,text,size,attrs);
  };
- // A3 landscape: 420 × 297 mm. Main drawing frame: 20 mm left, 5 mm other sides.
- rect(20,5,395,287,.42);
- // Supplementary left-margin boxes. Their narrow caption strip and blank writing field
- // reproduce the visible construction of the user's sample. Tiny vertical captions
- // are reconstructed because the source image does not resolve every character.
- const sideX=8,sideW=12,captionW=3.8;
- const sideBoxes=[
-  {y:5,h:60,text:'Кваліфікація'},
-  {y:65,h:60,text:'№ групи'},
-  {y:144,h:38,text:'Курсова робота'},
-  {y:182,h:46,text:'Дисципліна'},
-  {y:228,h:34,text:'Викладач'},
-  {y:262,h:30,text:'Студент'}
- ];
- sideBoxes.forEach((b)=>{
-  rect(sideX,b.y,sideW,b.h,.34);
-  line(sideX+captionW,b.y,sideX+captionW,b.y+b.h,.3);
-  tx(sideX+captionW/2,b.y+b.h/2+1.2,b.text,2.35,'middle',null,-90);
- });
- // Header box, including its editable document/index text.
- rect(20,5,75,14,.42);
- tx(57.5,14.2,title.leftHeader||'10 ХХ ХХ д/ 02206018',4.8,'middle','leftHeader');
- // 185 × 55 mm title block (form 1 footprint), 5 mm from right and bottom edges.
- const b=getForm1Bounds(w,h),x=b.x,y=b.y;
- rect(x,y,185,55,.48);
- // Form 1 table: longitudinal separators continue through the complete
- // height. Above the header labels there are three intentionally empty rows
- // (5 mm each), matching the supplied title-block reference.
- [65,135].forEach(dx=>line(x+dx,y,x+dx,y+55,.32));
- [7,17,40,55].forEach(dx=>line(x+dx,y,x+dx,y+55,.32));
- [5,10,15,20,27,34,41,48].forEach(dy=>line(x,y+dy,x+65,y+dy,.28));
+ // Thin sheet perimeter visible in the provided scan, plus the actual working frame.
+ rect(.6,.6,418.8,295.8,.18);
+ rect(4.5,4,409,285,.30);
+ // Left filing strip: 4.5 / 9.5 / 16.3 mm rails.
+ line(9.5,4,9.5,124.5,.24);
+ line(9.5,145,9.5,289,.24);
+ line(16.3,4,16.3,289,.30);
+ // Two upper cells, separated by a blank interval, then six lower cells.
+ [64.5,124.5,145,180.5,187,216,224.5,261.5].forEach(y=>line(4.5,y,16.3,y,.22));
+ // Vertical captions are deliberately kept short enough to remain inside the narrow strip.
+ // The tiny words in the raster are not fully legible; these Ukrainian labels preserve their function.
+ tx(7.0,39.0,'ПЕРШИЙ АРКУШ',1.55,'middle',null,-90);
+ tx(7.0,97.5,'НАСТУПНІ АРКУШІ',1.45,'middle',null,-90);
+ tx(7.0,163.0,'ПОЗНАЧЕННЯ',1.35,'middle',null,-90);
+ tx(7.0,183.8,'ЗМІНИ',1.25,'middle',null,-90);
+ tx(7.0,201.5,'ПЕРЕВІРКА',1.35,'middle',null,-90);
+ tx(7.0,220.2,'ПІДПИС',1.25,'middle',null,-90);
+ tx(7.0,243.0,'ДАТА',1.35,'middle',null,-90);
+ tx(7.0,275.0,'АРКУШ',1.35,'middle',null,-90);
+ // Upper-left designation/index field. Exact 70.5×14 mm footprint in the reference.
+ rect(16.3,4,70.5,14,.30);
+ tx(51.55,13.9,title.leftHeader||'10 ХХ ХХ д/ 02206018',5.8,'middle','leftHeader');
+
+ // Main title block: 185×55 mm, flush with the right and lower working-frame edges.
+ // Reference raster places it at x=228.5, y=234.0 on a 420×297 mm sheet.
+ const x=228.5,y=234.0,bw=185,bh=55;
+ rect(x,y,bw,bh,.34);
+ // Left change/approval register, with five vertical columns and three empty upper rows.
+ [7,17,40,55,65].forEach(dx=>line(x+dx,y,x+dx,y+bh,.25));
+ [5,10,15,20,27,34,41,48].forEach(dy=>line(x,y+dy,x+65,y+dy,.20));
  const colCenters=[3.5,12,28.5,47.5,60];
- ['Зм.','Арк.','№ докум.','Підп.','Дата'].forEach((label,i)=>tx(x+colCenters[i],y+18.4,label,2.25,'middle',null,null,false));
- const roles=[['Розроб.',title.developer||''],['Перев.',title.checker||''],['Т. контр.',title.technical||''],['Н. контр.',title.normative||''],['Затв.',title.approved||'']];
+ ['Зм.','Арк.','№ докум.','Підп.','Дата'].forEach((label,i)=>tx(x+colCenters[i],y+18.55,label,2.0,'middle',null,null,true));
+ const roles=[
+  ['Розроб.',title.developer||'Кушвид О.'],
+  ['Перев.',title.checker||'Базиль Б.'],
+  ['Т. контр.',title.technical||''],
+  ['Н. контр.',title.normative||''],
+  ['Затв.',title.approved||'']
+ ];
  roles.forEach((r,i)=>{
   const yy=y+24.6+i*7.0;
-  tx(x+1.2,yy,r[0],2.15,'start',null,null,false);
-  if(r[1])tx(x+18.5,yy,r[1],2.1,'start',i===0?'developer':i===1?'checker':i===2?'technical':i===3?'normative':'approved',null,false);
+  tx(x+1.15,yy,r[0],1.75,'start',null,null,true);
+  // Keep personal names in the signature column; the document-number column stays empty.
+  if(r[1])tx(x+47.5,yy,r[1],2.25,'middle',i===0?'developer':i===1?'checker':null,null,true);
  });
- // Designation, product name and assignment variant. The code row is one
- // uninterrupted cell across the whole right-hand 120 mm (no extra divider).
- line(x+65,y+15,x+185,y+15,.34);
- tx(x+125,y+10.1,title.code||'8.090220 ЛР ХХ ХХ 01',4.5,'middle','code');
- line(x+65,y+40,x+135,y+40,.34);
- tx(x+100,y+30.5,title.title||'Корпус',10.5,'middle','title');
- tx(x+100,y+52.0,title.variant||'Варіант 8',6.0,'middle','variant');
- // Right-hand fields: literature, mass, scale, sheet count and the institution name.
- line(x+135,y+15,x+135,y+55,.32);
- line(x+150,y+15,x+150,y+35,.28);
- line(x+167,y+15,x+167,y+35,.28);
- line(x+135,y+22,x+185,y+22,.28);
- tx(x+142.5,y+19.4,'Літ.',2.2,'middle',null,null,false);
- tx(x+158.5,y+19.4,'Маса',2.1,'middle',null,null,false);
- tx(x+176,y+19.4,'Масштаб',2.0,'middle',null,null,false);
- tx(x+142.5,y+31.2,title.liter||'У',2.7,'middle','liter',null,false);
- tx(x+158.5,y+31.2,title.mass||'—',2.7,'middle','mass',null,false);
- tx(x+176,y+31.2,title.scale||'1:1',2.7,'middle','scale',null,false);
- line(x+135,y+35,x+185,y+35,.28);
- line(x+160,y+35,x+160,y+45,.28);
- line(x+135,y+45,x+185,y+45,.28);
- tx(x+147.5,y+39.2,'Арк.',2.1,'middle',null,null,false);
- tx(x+172.5,y+39.2,'Аркушів',2.1,'middle',null,null,false);
- tx(x+147.5,y+44.1,title.sheet||'1',2.2,'middle','sheet',null,false);
- tx(x+172.5,y+44.1,title.sheets||'1',2.2,'middle','sheets',null,false);
- tx(x+160,y+53.0,title.company||'ШЦМГУ',6.8,'middle','company',null,false);
- // Footer labels are below the title-block border, as in the reference drawing.
- tx(x+67.5,h-2.1,title.copy||'Копіював',2.6,'middle','copy',null,false);
- tx(x+160,h-2.1,`Формат ${title.sheetFormat||'А3'}`,2.6,'middle','sheetFormat',null,false);
+ // Code band across the complete 120 mm right section (no extra separator).
+ line(x+65,y+15,x+185,y+15,.27);
+ tx(x+125,y+10.1,title.code||'8.090220 ЛР XX XX 01',6.2,'middle','code');
+ // Product name and variant occupy the 70 mm central panel.
+ line(x+65,y+40,x+135,y+40,.27);
+ tx(x+100,y+30.7,title.title||'Корпус',10.3,'middle','title');
+ tx(x+100,y+52.0,title.variant||'Варіант 8',7.0,'middle','variant');
+ // Right 50 mm data table: literature / mass / scale, sheet / sheet count and institution.
+ line(x+135,y+15,x+135,y+55,.25);
+ line(x+150,y+15,x+150,y+35,.22);
+ line(x+167,y+15,x+167,y+35,.22);
+ line(x+135,y+22,x+185,y+22,.20);
+ tx(x+142.5,y+19.35,'Літ.',2.15,'middle',null,null,true);
+ tx(x+158.5,y+19.35,'Маса',2.15,'middle',null,null,true);
+ tx(x+176,y+19.35,'Масштаб',2.0,'middle',null,null,true);
+ tx(x+142.5,y+31.2,title.liter||'У',3.0,'middle','liter');
+ tx(x+158.5,y+31.2,title.mass||'—',3.0,'middle','mass');
+ tx(x+176,y+31.2,title.scale||'1:1',3.0,'middle','scale');
+ line(x+135,y+35,x+185,y+35,.22);
+ line(x+160,y+35,x+160,y+45,.20);
+ line(x+135,y+45,x+185,y+45,.22);
+ tx(x+147.5,y+39.2,'Арк.',2.1,'middle',null,null,true);
+ tx(x+172.5,y+39.2,'Аркушів',2.1,'middle',null,null,true);
+ tx(x+147.5,y+44.1,title.sheet||'1',3.0,'middle','sheet');
+ tx(x+172.5,y+44.1,title.sheets||'1',3.0,'middle','sheets');
+ tx(x+160,y+53.0,title.company||'ШЦМГУ',6.35,'middle','company');
+ // Two footer labels sit in the narrow strip below the title-block border, as in the source.
+ tx(x+67.5,294.1,title.copy||'Копіював',2.4,'middle','copy');
+ tx(x+160,294.1,`Формат ${title.sheetFormat||'А3'}`,2.4,'middle','sheetFormat');
 }
 function renderKompasLab5Template(g,w,h,title){
- const ink='#111111',sw=.38;
+ const ink='#000000',sw=.38;
  const line=(x1,y1,x2,y2,width=sw)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':width,fill:'none'},g);
  const rect=(x,y,ww,hh,width=sw)=>el('rect',{x,y,width:ww,height:hh,fill:'none',stroke:ink,'stroke-width':width},g);
  // Reconstructed from the uploaded Kompas Online v14 document: A4 portrait,
@@ -296,7 +304,7 @@ function renderTemplate(){
  const g=layers.template;g.replaceChildren();
  if((!checked('templateVisible')||!checked('templateToggle')) && $('templateVisible'))return;
  if(!state.templateId||state.templateId==='blank')return;
- const {width:w,height:h}=state.sheet;const t=state.templateId;const ink='#111111';const sw=.35;
+ const {width:w,height:h}=state.sheet;const t=state.templateId;const ink='#000000';const sw=.35;
  if(t==='lab8-reference-template'||t==='lab8-a3-landscape-template'){renderLab8SampleTemplate(g,w,h,state.title);return;}
  if(t==='kompas-lab5-a4-template'||t==='kompas-import-a4-template'){renderKompasLab5Template(g,w,h,state.title);return;}
  const line=(x1,y1,x2,y2,width=sw)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':width,fill:'none'},g);
@@ -826,8 +834,8 @@ function renderNewDocPreview(){
  const id=getVal('newDocTemplate',state.templateId),f=id==='lab8-a3-landscape-template'?'A3L':format+orientation,[w,h]=FORMATS[f]||FORMATS.A3P;
  p.setAttribute('viewBox',`0 0 ${w} ${h}`);p.replaceChildren();
  el('rect',{x:0,y:0,width:w,height:h,fill:'#fff',stroke:'#777','stroke-width':.35},p);
- if(id!=='lab8-reference-template'&&id!=='lab8-a3-landscape-template'){const b=getTemplateFrame(id,w,h);el('rect',{x:b.x,y:b.y,width:b.width,height:b.height,fill:'none',stroke:'#171717','stroke-width':isGostTemplate(id)?.7:.4},p);}
- if(isGostTemplate(id)){const tb=getForm1Bounds(w,h);renderForm1TitleBlock(p,tb,{title:'Найменування',code:'Позначення',developer:'Розроб.',checker:'Перев.',normative:'Н.контр.',approved:'Затв.',liter:'У',mass:'—',scale:'1:1',sheet:'1',sheets:'1',company:'Організація'},'#111111');}
+ if(id!=='lab8-reference-template'&&id!=='lab8-a3-landscape-template'){const b=getTemplateFrame(id,w,h);el('rect',{x:b.x,y:b.y,width:b.width,height:b.height,fill:'none',stroke:'#000000','stroke-width':isGostTemplate(id)?.7:.4},p);}
+ if(isGostTemplate(id)){const tb=getForm1Bounds(w,h);renderForm1TitleBlock(p,tb,{title:'Найменування',code:'Позначення',developer:'Розроб.',checker:'Перев.',normative:'Н.контр.',approved:'Затв.',liter:'У',mass:'—',scale:'1:1',sheet:'1',sheets:'1',company:'Організація'},'#000000');}
  else if(id==='lab8-reference-template'||id==='lab8-a3-landscape-template'){renderLab8SampleTemplate(p,w,h,lab8DefaultTitle());}
  else if(id==='kompas-lab5-a4-template'||id==='kompas-import-a4-template'){renderKompasLab5Template(p,w,h,kompasLab5DefaultTitle());}
  else {el('rect',{x:w-195,y:h-65,width:185,height:55,fill:'none',stroke:'#111','stroke-width':.3},p);}

@@ -1,7 +1,7 @@
 export const TEMPLATES = [
  {id:'lab4-reference-template',name:'Лабораторна робота №4',format:'A3P',description:'Навчальний зразок А3, книжкова орієнтація. Реконструкція за описом архіву.'},
- {id:'lab8-reference-template',name:'Лабораторна робота №8 — зразок «Корпус» (чорна рамка)',format:'A3L',description:'А3 альбомний 420×297 мм: чорна рамка з полями 20/5 мм, основний напис 185×55 мм і підписи за зразком «Корпус / Варіант 8 / ШЦМГУ».'},
- {id:'lab8-a3-landscape-template',name:'Окрема рамка А3 альбомна — зразок користувача',format:'A3L',description:'Окремий шаблон А3 альбомний 420×297 мм за наданим зразком: рамка, бокові графи, верхній індекс і основний напис форми 1. Усі лінії та написи чорні.'},
+ {id:'lab8-reference-template',name:'Лабораторна робота №8 — зразок «Корпус» (чорна рамка)',format:'A3L',description:'А3 альбомний 420×297 мм, перемальований за наданим зображенням: зовнішній контур, ліва смуга, верхній індекс та штамп 185×55 мм з іменами Кушвид О. і Базиль Б.'},
+ {id:'lab8-a3-landscape-template',name:'Окрема рамка зразка — А3 альбомна (Кушвид / Базиль)',format:'A3L',description:'Окремий повністю чорний шаблон А3 альбомний 420×297 мм: ліва смуга із секціями, індекс та штамп 185×55 мм за зразком; Кушвид О. — розробник, Базиль Б. — перевірив.'},
  {id:'kompas-lab5-a4-template',name:'Імпортована рамка Kompas Online — ЛР №4/5',format:'A4P',description:'А4 книжковий 210×297 мм: чорна рамка й основний напис 185×55 мм, відновлені із завантаженого файла Kompas Online «лаб4КушвидОКт-24.kcad».'},
  {id:'lab5-a4-reference-template',name:'Лабораторна робота №5',format:'A4P',description:'Навчальний зразок А4, книжкова орієнтація. Реконструкція за описом архіву.'},
  {id:'lab5-gost-a4-portrait',name:'ЛР №5 — ДСТУ ГОСТ / ЄСКД, форма 1',format:'A4P',description:'А4 книжковий: рамка 20 мм ліворуч і 5 мм з інших боків; основний напис форми 1, 185×55 мм.'},
@@ -27,7 +27,8 @@ export function isGostTemplate(id) {
 }
 export function getTemplateFrame(id,width,height) {
  if (!isGostTemplate(id)) {
-  if(id==='lab8-reference-template'||id==='lab8-a3-landscape-template'||id==='kompas-lab5-a4-template'||id==='kompas-import-a4-template')return {x:20,y:5,width:width-25,height:height-10};
+  if(id==='lab8-reference-template'||id==='lab8-a3-landscape-template')return {x:4.5,y:4,width:409,height:285};
+  if(id==='kompas-lab5-a4-template'||id==='kompas-import-a4-template')return {x:20,y:5,width:width-25,height:height-10};
   const margin=10;
   return {x:margin,y:margin,width:width-margin*2,height:height-margin*2};
  }
