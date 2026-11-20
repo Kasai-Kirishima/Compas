@@ -302,3 +302,5 @@ html,body{font-size:15px;}
  .drawing-area #sheetSvg{position:static!important;width:var(--sheet-print-width,420mm)!important;height:var(--sheet-print-height,297mm)!important;background:#fff!important;filter:none!important;}
  #sheetRoot{filter:none!important;}
 }
+
+.reference-scale-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:8px 0}.reference-scale-actions button:last-child{grid-column:1/-1}.reference-scale-actions button{min-height:34px;padding:6px;font-size:12px}#referenceLayer image{image-rendering:auto}#selectionLayer [data-reference-resize-handle]{pointer-events:all;cursor:nwse-resize}

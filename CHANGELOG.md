@@ -215,3 +215,17 @@
 - Developer/checker names are now constrained to 12.2 mm in the 15 mm signature cell.
 - Reduced narrow role labels to 5.35 mm in the 7 mm first column.
 - Slightly reduced the long index/code/header strings and footer captions for safer cell margins.
+
+
+## 1.5.58-restored.14
+- Reference images now retain their native aspect ratio when imported and resized.
+- Added reference scale up/down controls and a draggable bottom-right resize handle.
+- Wired the preserve-proportions checkbox and reference rotation field.
+- Fixed old references on load by reading the embedded image dimensions and repairing distorted width/height values.
+- SVG image rendering uses aspect-preserving fit by default; intentional stretching is available only when the user disables the proportions lock.
+
+
+## 1.5.58-restored.14 — Reference image scaling
+- Preserve natural image aspect ratio on raster reference import and render.
+- Add ratio-locked width/height editing, 1.25× and 2× enlarge buttons, 0.8× reduce button, sheet-fit, rotation support, and a draggable resize grip.
+- Repair legacy reference proportions from embedded image dimensions when loading older projects.

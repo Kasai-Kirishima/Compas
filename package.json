@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.58-restored.13",
+  "version": "1.5.58-restored.14",
   "private": true,
   "type": "module",
-  "description": "Browser-based 2D CAD editor with monochrome A3 landscape Lab 8 frame with fitted technical lettering.",
+  "description": "Browser-based 2D CAD editor with non-distorting scalable reference-image underlays.",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/geometry.mjs",
@@ -11,11 +11,12 @@
     "./templates": "./src/templates.mjs",
     "./project-file": "./src/project-file.mjs",
     "./operations": "./src/operations.mjs",
-    "./viewport": "./src/viewport.mjs"
+    "./viewport": "./src/viewport.mjs",
+    "./reference": "./src/reference.mjs"
   },
   "scripts": {
-    "check": "node --check js/app.js && node --check js/template.js && node --check start-server.mjs && node --check src/index.mjs && node --check src/geometry.mjs && node --check src/history.mjs && node --check src/templates.mjs && node --check src/project-file.mjs && node --check src/operations.mjs && node --check src/viewport.mjs",
-    "test": "npm run check && node tests/test-geometry.mjs && node tests/test-history.mjs && node tests/test-project-file.mjs && node tests/test-templates.mjs && node tests/test-app-contract.mjs && node tests/test-server.mjs && node tests/test-operations.mjs && node tests/test-viewport.mjs",
+    "check": "node --check js/app.js && node --check js/template.js && node --check start-server.mjs && node --check src/index.mjs && node --check src/geometry.mjs && node --check src/history.mjs && node --check src/templates.mjs && node --check src/project-file.mjs && node --check src/operations.mjs && node --check src/viewport.mjs && node --check src/reference.mjs",
+    "test": "npm run check && node tests/test-geometry.mjs && node tests/test-history.mjs && node tests/test-project-file.mjs && node tests/test-templates.mjs && node tests/test-app-contract.mjs && node tests/test-server.mjs && node tests/test-operations.mjs && node tests/test-viewport.mjs && node tests/test-reference.mjs",
     "start": "node start-server.mjs"
   },
   "engines": {

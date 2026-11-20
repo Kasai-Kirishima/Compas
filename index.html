@@ -466,6 +466,8 @@ R17
             <label class="check-row"><input type="checkbox" id="referenceKeepAspect" checked> Сохранять пропорции при изменении размера</label>
             <div class="two-fields"><label class="field-label">Положение X, мм<input type="number" id="referenceX" step="0.1" value="55"></label><label class="field-label">Положение Y, мм<input type="number" id="referenceY" step="0.1" value="98"></label></div>
             <div class="two-fields"><label class="field-label">Ширина, мм<input type="number" id="referenceWidth" min="1" max="2000" step="1" value="100"></label><label class="field-label">Высота, мм<input type="number" id="referenceHeight" min="1" max="2000" step="1" value="60"></label></div>
+            <div class="reference-scale-actions"><button class="secondary-btn" id="referenceEnlargeBtn" type="button">Увеличить ×1,25</button><button class="secondary-btn" id="referenceEnlarge2Btn" type="button">Увеличить ×2</button><button class="secondary-btn" id="referenceReduceBtn" type="button">Уменьшить ×0,8</button></div>
+            <p class="muted-hint">Можно тянуть нижний правый маркер рамки референса. При включённых пропорциях изображение увеличивается без растяжения.</p>
             <label class="field-label">Поворот, °<input type="number" id="referenceRotation" min="-360" max="360" step="1" value="0"></label>
             <button class="secondary-btn" id="referenceCalibrateBtn">Калибровать по известной длине</button>
             <div class="muted-hint">После нажатия укажи две точки на изображении и введи реальное расстояние между ними в мм.</div>

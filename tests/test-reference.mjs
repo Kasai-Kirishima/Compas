@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {referenceImportSize, referenceAspectRatio, resizeReference, scaleReference, fitReferenceToSheet} from '../src/reference.mjs';
+const landscape=referenceImportSize(1600,900,100);
+assert.equal(landscape.w,100);assert.equal(landscape.h,56.25);assert.equal(landscape.aspectRatio,1600/900);
+const portrait=referenceImportSize(900,1600,100);
+assert.equal(portrait.h,100);assert.equal(portrait.w,56.25);
+const changed=resizeReference({...landscape},'width',200,true);
+assert.equal(changed.w,200);assert.equal(changed.h,112.5);
+const changedH=resizeReference({...landscape},'height',90,true);
+assert.equal(changedH.h,90);assert.equal(changedH.w,160);
+const stretched=resizeReference({...landscape},'width',150,false);
+assert.equal(stretched.w,150);assert.equal(stretched.h,56.25);
+const doubled=scaleReference({...landscape},2);
+assert.equal(doubled.w,200);assert.equal(doubled.h,112.5);
+const fitted=fitReferenceToSheet({...landscape},420,297,10);
+assert.ok(fitted.w<=400&&fitted.h<=277);
+assert.ok(Math.abs(fitted.w/fitted.h-referenceAspectRatio(landscape))<1e-9);
+console.log('reference image scaling/aspect: ok');

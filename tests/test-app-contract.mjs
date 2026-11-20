@@ -96,3 +96,10 @@ for (const match of js.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
 console.log(`app contract: ok (${ids.length} unique HTML ids, ${referencedIds.size} static JS references)`);
 
 assert.match(js, /nameText\.setAttribute\('textLength','11\.8'\)/, 'signature names keep safe inner margins');
+
+assert.match(js, /preserveAspectRatio:aspectMode/, 'reference image rendering must preserve aspect ratio by default');
+assert.match(js, /function importReference\([\s\S]*?referenceImportSize\(/, 'reference import must use natural image dimensions');
+assert.match(js, /function resizeSelectedReference\(/, 'reference width/height properties must support aspect-locked resizing');
+assert.match(js, /referenceEnlarge2Btn/, 'reference must have a direct enlarge control');
+assert.match(js, /data-reference-resize-handle/, 'selected reference must expose a proportional resize handle');
+assert.match(js, /\$\('referenceKeepAspect'\)\.onchange/, 'preserve-aspect checkbox must be wired');
