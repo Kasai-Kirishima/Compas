@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.58-restored.20",
+  "version": "1.5.58-restored.21",
   "private": true,
   "type": "module",
-  "description": "Browser-based 2D CAD editor with tabbed tools, editable arrowheads, independent dimension text height, object property editing, compact grips and view-preserving undo.",
+  "description": "Browser-based 2D CAD editor with editable dimensions, independently draggable/rotatable/scalable dimension labels, configurable inward/outward arrows, and object transforms.",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/geometry.mjs",
@@ -14,11 +14,12 @@
     "./viewport": "./src/viewport.mjs",
     "./reference": "./src/reference.mjs",
     "./object-edit": "./src/object-edit.mjs",
-    "./transforms": "./src/transforms.mjs"
+    "./transforms": "./src/transforms.mjs",
+    "./dimensions": "./src/dimensions.mjs"
   },
   "scripts": {
-    "check": "node --check js/app.js && node --check js/template.js && node --check start-server.mjs && node --check src/index.mjs && node --check src/geometry.mjs && node --check src/history.mjs && node --check src/templates.mjs && node --check src/project-file.mjs && node --check src/operations.mjs && node --check src/viewport.mjs && node --check src/reference.mjs && node --check src/object-edit.mjs && node --check src/transforms.mjs",
-    "test": "npm run check && node tests/test-geometry.mjs && node tests/test-history.mjs && node tests/test-project-file.mjs && node tests/test-templates.mjs && node tests/test-app-contract.mjs && node tests/test-server.mjs && node tests/test-operations.mjs && node tests/test-viewport.mjs && node tests/test-reference.mjs && node tests/test-object-edit.mjs && node tests/test-transforms.mjs",
+    "check": "node --check js/app.js && node --check js/template.js && node --check start-server.mjs && node --check src/index.mjs && node --check src/geometry.mjs && node --check src/history.mjs && node --check src/templates.mjs && node --check src/project-file.mjs && node --check src/operations.mjs && node --check src/viewport.mjs && node --check src/reference.mjs && node --check src/object-edit.mjs && node --check src/transforms.mjs && node --check src/dimensions.mjs",
+    "test": "npm run check && node tests/test-geometry.mjs && node tests/test-history.mjs && node tests/test-project-file.mjs && node tests/test-templates.mjs && node tests/test-app-contract.mjs && node tests/test-server.mjs && node tests/test-operations.mjs && node tests/test-viewport.mjs && node tests/test-reference.mjs && node tests/test-object-edit.mjs && node tests/test-transforms.mjs && node tests/test-dimensions.mjs",
     "start": "node start-server.mjs"
   },
   "engines": {

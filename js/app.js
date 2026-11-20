@@ -7,6 +7,7 @@ import {zoomView, panView, wheelZoomFactor} from '../src/viewport.mjs';
 import {referenceImportSize, referenceAspectRatio, resizeReference, scaleReference, fitReferenceToSheet} from '../src/reference.mjs';
 import {circleGeometryFromInputs, parsePointRows, lineGeometryFromInputs} from '../src/object-edit.mjs';
 import {rotateGeometryObject, scaleGeometryObject, scaleObjectToBounds} from '../src/transforms.mjs';
+import {isDimensionObject, getDimensionGeometry, getDimensionLabelLayout, getDimensionArrowPlacement} from '../src/dimensions.mjs';
 
 const $ = (id) => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
@@ -275,6 +276,29 @@ function addText(parent,x,y,text,size=3.5,attrs={}){
  const lines=String(text??'').split('\n');const t=el('text',{x,y,'font-size':size,'font-family':'Arial, sans-serif',fill:'#20252a','dominant-baseline':'auto',...attrs},parent);
  lines.forEach((line,i)=>el('tspan',{x,dy:i===0?0:size*1.25},t, line));return t;
 }
+function drawDimensionArrow(parent,tip,toward,size,color,style='filled',axis={x:1,y:0}){
+ if(style==='none'||!style)return;
+ if(style==='dot'){el('circle',{cx:tip.x,cy:tip.y,r:Math.max(.18,size*.16),fill:color,stroke:color,'stroke-width':.12},parent);return;}
+ if(style==='tick'){
+  const nx=-axis.y,ny=axis.x,k=Math.max(.35,size*.36);
+  el('line',{x1:tip.x-nx*k+axis.x*k,y1:tip.y-ny*k+axis.y*k,x2:tip.x+nx*k-axis.x*k,y2:tip.y+ny*k-axis.y*k,stroke:color,'stroke-width':.3},parent);return;
+ }
+ const pts=arrowHeadPoints(tip,toward,size,14);if(pts.length!==3)return;
+ if(style==='open'){
+  el('path',{d:`M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} M ${pts[0].x} ${pts[0].y} L ${pts[2].x} ${pts[2].y}`,fill:'none',stroke:color,'stroke-width':.28,'stroke-linejoin':'round'},parent);return;
+ }
+ el('polygon',{points:pts.map(p=>`${round(p.x)},${round(p.y)}`).join(' '),fill:color,stroke:color,'stroke-width':.12,'stroke-linejoin':'round'},parent);
+}
+function dimensionArrowStyles(o){
+ const both=o.arrowStyle||'filled';
+ const start=o.arrowStartStyle&&o.arrowStartStyle!=='inherit'?o.arrowStartStyle:(both==='single'?'none':both);
+ const end=o.arrowEndStyle&&o.arrowEndStyle!=='inherit'?o.arrowEndStyle:both;
+ return {start,end};
+}
+function dimensionLabelLayoutWorld(o){
+ const geometry=getDimensionGeometry(o),label=getDimensionLabelLayout(o,geometry);
+ return {...label,geometry,x:label.x+(o.dx||0),y:label.y+(o.dy||0)};
+}
 function renderForm1TitleBlock(g, bounds, title, ink='#000000'){
  const {x,y,width:w,height:h}=bounds;
  const ln=(x1,y1,x2,y2,sw=.25)=>el('line',{x1,y1,x2,y2,stroke:ink,'stroke-width':sw,fill:'none'},g);
@@ -502,18 +526,27 @@ function renderObject(o,parent){
    break;
  }
  case 'dimension':case 'dimH':case 'dimV':case 'dimRad':case 'dimDia':case 'dimAngle':{
-   const a=o.a,b=o.b,offset=o.offset??getNum('dimensionOffset',2);let p1={...a},p2={...b};
-   const kind=o.kind||o.type,dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1;
-   if(kind==='dimDia') { p1={x:a.x-dx,y:a.y-dy};p2={...b}; }
-   else if(kind==='dimH'){p1.y+=offset;p2.y+=offset;}
-   else if(kind==='dimV'){p1.x+=offset;p2.x+=offset;}
-   else if(kind!=='dimRad') {p1.x+=-dy/len*offset;p1.y+=dx/len*offset;p2.x+=-dy/len*offset;p2.y+=dx/len*offset;}
-   if(kind!=='dimDia') {add('line',{x1:a.x,y1:a.y,x2:p1.x,y2:p1.y,'stroke-width':.2});add('line',{x1:b.x,y1:b.y,x2:p2.x,y2:p2.y,'stroke-width':.2});}
+   const geometry=getDimensionGeometry(o),{a,b,p1,p2,axis}=geometry,color=o.color||'#20252a';
+   const kind=geometry.kind;
+   if(kind!=='dimDia'&&kind!=='diameter'){
+    add('line',{x1:a.x,y1:a.y,x2:p1.x,y2:p1.y,'stroke-width':.2});
+    add('line',{x1:b.x,y1:b.y,x2:p2.x,y2:p2.y,'stroke-width':.2});
+   }
    add('line',{x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,'stroke-width':.25});
-   const arrowSize=Math.max(.5,Number(o.arrowSize??2.5));drawArrow(wrap,p1,p2,arrowSize,o.color||'#20252a');drawArrow(wrap,p2,p1,arrowSize,o.color||'#20252a');
-   const mid={x:(p1.x+p2.x)/2+(o.labelDx||0),y:(p1.y+p2.y)/2-1.2+(o.labelDy||0)};
-   const label=o.label||(kind==='dimDia'?`⌀${fmt(len*2)}`:kind==='dimRad'?`R${fmt(len)}`:fmt(len));
-   addText(wrap,mid.x,mid.y,label,o.textSize||getNum('defaultDimensionTextHeight',2.5),{fill:o.color||'#20252a','text-anchor':'middle','paint-order':'normal','stroke':'none'});break;
+   const arrowSize=Math.max(.5,Number(o.arrowSize??2.5));
+   const labelLayout=getDimensionLabelLayout(o,geometry);
+   const placement=getDimensionArrowPlacement(o,geometry,labelLayout);
+   const inside=placement==='inside',styles=dimensionArrowStyles(o);
+   const startToward={x:p1.x+(inside?axis.x:-axis.x),y:p1.y+(inside?axis.y:-axis.y)};
+   const endToward={x:p2.x+(inside?-axis.x:axis.x),y:p2.y+(inside?-axis.y:axis.y)};
+   drawDimensionArrow(wrap,p1,startToward,arrowSize,color,styles.start,axis);
+   drawDimensionArrow(wrap,p2,endToward,arrowSize,color,styles.end,axis);
+   if(o.showValue!==false){
+    const labelRotation=labelLayout.rotation;
+    const transform=labelRotation?`rotate(${labelRotation} ${labelLayout.x} ${labelLayout.y})`:null;
+    addText(wrap,labelLayout.x,labelLayout.y,labelLayout.text,labelLayout.textSize,{fill:color,'text-anchor':'middle','paint-order':'normal','stroke':'none',transform,'pointer-events':'all','data-dimension-label-hit':'true','data-object-id':o.id,'aria-label':'Переместить размерное число'});
+   }
+   break;
  }
  case 'leader':{
    const pts=o.points||[];if(pts.length>1){add('path',{d:pathData(pts),fill:'none'});drawArrow(wrap,pts[0],pts[1],2.5,o.color||'#20252a');addText(wrap,pts.at(-1).x+1,pts.at(-1).y-1,o.text||'',o.textSize||3.5,{fill:o.color||'#20252a'});}break;
@@ -551,6 +584,11 @@ function renderObject(o,parent){
    const pts=o.points||[];let d='';if(o.a&&o.b)d=`M ${o.a.x} ${o.a.y} L ${o.b.x} ${o.b.y}`;else if(pts.length)d=o.type==='spline'||o.type==='curvedArrow'?splinePathData(pts,false):pathData(pts,false);
    if(d)el('path',{d,fill:'none',stroke:'transparent','stroke-width':Math.max(3,sw+2),'pointer-events':'stroke'},wrap);
  }
+ // Keep a dedicated label hitbox above the dimension-line hit strip so the value can be grabbed independently.
+ if(isDimensionObject(o)&&o.showValue!==false){
+  const label=dimensionLabelLayoutWorld(o),rotation=label.rotation?`rotate(${label.rotation} ${label.x-(o.dx||0)} ${label.y-(o.dy||0)})`:null;
+  el('rect',{x:label.x-(o.dx||0)-label.width/2,y:label.y-(o.dy||0)-label.textSize*1.12,width:label.width,height:label.textSize*1.5,transform:rotation,fill:'transparent',stroke:'none','pointer-events':'all','data-dimension-label-hit':'true','data-object-id':o.id,cursor:'move'},wrap);
+ }
  // Filled transparent hit targets let a user select closed geometry from its interior,
  // instead of having to hit a sub-pixel outline (especially useful for circles on laptops).
  if(o.type==='circle')el('circle',{cx:o.center.x,cy:o.center.y,r:o.r,fill:'transparent',stroke:'transparent','stroke-width':Math.max(3,sw+2),'pointer-events':'all'},wrap);
@@ -577,12 +615,28 @@ function renderSelection(){
   }
   if(o.type==='reference'&&!o.locked){el('rect',{x:b.x+b.w-1.8,y:b.y+b.h-1.8,width:3.6,height:3.6,rx:.45,fill:'#fff',stroke:'#087fa8','stroke-width':.7,cursor:'nwse-resize','data-reference-resize-handle':'true','data-object-id':o.id},g);}
   if(!o.locked){
+   if(isDimensionObject(o)&&o.showValue!==false){
+    const label=dimensionLabelLayoutWorld(o),axis=label.geometry.axis;
+    const cx=label.x,cy=label.y,scale=Math.max(.1,state.zoom);
+    const free={x:cx,y:cy+label.textSize*.8};
+    const along={x:cx+axis.x*(label.width/2+2.2),y:cy+axis.y*(label.width/2+2.2)};
+    const size={x:cx+label.width/2+1.1,y:cy-label.textSize*.55};
+    const rotate={x:cx,y:cy-label.textSize*2.05};
+    el('line',{x1:free.x,y1:free.y-1.2/scale,x2:free.x,y2:cy+label.textSize*.25,stroke:'#0786a4','stroke-width':.3/scale,'pointer-events':'none'},g);
+    el('rect',{x:free.x-1.15/scale,y:free.y-1.15/scale,width:2.3/scale,height:2.3/scale,fill:'#eafaff',stroke:'#0786a4','stroke-width':.55/scale,'vector-effect':'non-scaling-stroke',cursor:'move','pointer-events':'all','data-dimension-label-move-handle':'true','data-object-id':o.id,'aria-label':'Свободно переместить размерное число'},g);
+    el('line',{x1:cx,y1:cy,x2:along.x,y2:along.y,stroke:'#0786a4','stroke-width':.25/scale,'stroke-dasharray':'1 1','pointer-events':'none'},g);
+    el('rect',{x:along.x-1.35/scale,y:along.y-1.35/scale,width:2.7/scale,height:2.7/scale,transform:`rotate(45 ${along.x} ${along.y})`,fill:'#d8f5ff',stroke:'#087fa8','stroke-width':.55/scale,'vector-effect':'non-scaling-stroke',cursor:'move','pointer-events':'all','data-dimension-label-axis-handle':'true','data-object-id':o.id,'aria-label':'Переместить число вдоль размерной оси'},g);
+    el('rect',{x:size.x-1.25/scale,y:size.y-1.25/scale,width:2.5/scale,height:2.5/scale,rx:.3/scale,fill:'#fff',stroke:'#087fa8','stroke-width':.6/scale,'vector-effect':'non-scaling-stroke',cursor:'nwse-resize','pointer-events':'all','data-dimension-label-size-handle':'true','data-object-id':o.id,'aria-label':'Изменить высоту цифры'},g);
+    el('line',{x1:cx,y1:cy-label.textSize*.65,x2:rotate.x,y2:rotate.y+1.2/scale,stroke:'#e39a2d','stroke-width':.3/scale,'stroke-dasharray':'1 1','pointer-events':'none'},g);
+    el('circle',{cx:rotate.x,cy:rotate.y,r:1.45/scale,fill:'#f3a83b',stroke:'#20252a','stroke-width':.25/scale,'vector-effect':'non-scaling-stroke',cursor:'grab','pointer-events':'all','data-dimension-label-rotate-handle':'true','data-object-id':o.id,'aria-label':'Повернуть размерное число'},g);
+   }
    const addGrip=(point,kind,index)=>{
     const r=1.45/Math.max(.1,state.zoom),visible=.28/Math.max(.1,state.zoom);
     el('circle',{cx:point.x+(o.dx||0),cy:point.y+(o.dy||0),r,fill:'transparent',stroke:'none','pointer-events':'all',cursor:'grab','data-edit-point-handle':'true','data-handle-kind':kind,'data-point-index':index,'data-object-id':o.id},g);
     el('circle',{cx:point.x+(o.dx||0),cy:point.y+(o.dy||0),r:visible,fill:'#0786a4',stroke:'none','stroke-width':0,'vector-effect':'non-scaling-stroke','pointer-events':'none'},g);
    };
    if(['line','arrowLine','construction','xline','ray','ruler','centerline'].includes(o.type)){addGrip(o.a,'line-end',0);addGrip(o.b,'line-end',1);}
+   else if(isDimensionObject(o)){addGrip(o.a,'dimension-point',0);addGrip(o.b,'dimension-point',1);}
    else if(['polyline','spline','curvedArrow','polygon','freehand','breakline'].includes(o.type))(o.points||[]).forEach((pt,i)=>addGrip(pt,'vertex',i));
    else if(o.type==='circle'&&o.center){addGrip(o.center,'circle-center',0);addGrip({x:o.center.x+o.r,y:o.center.y},'circle-radius',0);}
    else if(o.type==='ellipse'&&o.center){addGrip(o.center,'ellipse-center',0);addGrip({x:o.center.x+o.rx,y:o.center.y},'ellipse-rx',0);addGrip({x:o.center.x,y:o.center.y+o.ry},'ellipse-ry',0);}
@@ -659,6 +713,15 @@ function showProperties(){
   put('dimensionTextHeight',o.textSize??getNum('defaultDimensionTextHeight',2.5));
   put('dimensionTextHeightSlider',o.textSize??getNum('defaultDimensionTextHeight',2.5));
   put('dimensionArrowSize',o.arrowSize??2.5);
+  chk('dimensionShowValue',o.showValue!==false);
+  put('dimensionArrowPlacement',o.arrowPlacement||'auto');
+  put('dimensionArrowStyle',o.arrowStyle||'filled');
+  put('dimensionArrowStartStyle',o.arrowStartStyle||'inherit');
+  put('dimensionArrowEndStyle',o.arrowEndStyle||'inherit');
+  put('dimensionTextOrientation',o.textOrientation||'horizontal');
+  put('dimensionLabelRotation',o.labelRotation??0);put('dimensionLabelRotationSlider',o.labelRotation??0);
+  put('dimensionLabelDx',o.labelDx??0);put('dimensionLabelDy',o.labelDy??0);
+  put('dimensionValueText',o.label??'');
  }
  if(o.type==='reference'){put('referenceX',o.x);put('referenceY',o.y);put('referenceWidth',o.w);put('referenceHeight',o.h);put('referenceRotation',o.rotation||0);put('referenceOpacity',Math.round((o.opacity??.35)*100));chk('referenceKeepAspect',o.keepAspect!==false);chk('referenceExportable',o.exportable);chk('objectLocked',o.locked);$('referenceOpacityValue').textContent=`${Math.round((o.opacity??.88)*100)}%`;}
  renderObjectSpecificFields(o);
@@ -667,8 +730,17 @@ function updateSelectedDimensionProps(){
  const o=findSelected().find(v=>v.type==='dimension'||String(v.type).startsWith('dim'));if(!o||o.locked)return;
  history.push(snapshot());
  o.offset=Math.max(.01,getNum('dimensionSelectedOffset',o.offset??2));
- o.textSize=Math.max(.5,getNum('dimensionTextHeight',o.textSize??2.5));
- o.arrowSize=Math.max(.5,getNum('dimensionArrowSize',o.arrowSize??2.5));
+ o.textSize=Math.max(.5,getNum('dimensionTextHeight',o.textSize??2.5));o.textSize=Math.min(30,o.textSize);
+ o.arrowSize=Math.max(.5,Math.min(12,getNum('dimensionArrowSize',o.arrowSize??2.5)));
+ o.showValue=checked('dimensionShowValue');
+ o.arrowPlacement=getVal('dimensionArrowPlacement','auto');
+ o.arrowStyle=getVal('dimensionArrowStyle','filled');
+ o.arrowStartStyle=getVal('dimensionArrowStartStyle','inherit');
+ o.arrowEndStyle=getVal('dimensionArrowEndStyle','inherit');
+ o.textOrientation=getVal('dimensionTextOrientation','horizontal');
+ o.labelRotation=getNum('dimensionLabelRotation',o.labelRotation??0);
+ o.labelDx=getNum('dimensionLabelDx',o.labelDx??0);o.labelDy=getNum('dimensionLabelDy',o.labelDy??0);
+ o.label=String(getVal('dimensionValueText',o.label||'')).trim()||undefined;
  render();showProperties();scheduleAutosave();updateHistoryButtons();setStatus('Параметры размера обновлены');
 }
 function findSelected(){return state.objects.filter(o=>state.selected.has(o.id));}
@@ -793,7 +865,7 @@ function clickTool(p,evt){
  }
  if(t==='dimension'||t==='dimAuto'||t==='dimH'||t==='dimV'||t==='dimRad'||t==='dimDia'||t==='dimAngle'||t==='measure'){
   if(!state.pending){state.pending={start:p};state.preview={type:'line',a:p,b:p};renderPreview();setStatus('Укажите вторую точку размера');return;}
-  if(!state.pending.end){state.pending.end=p;const kind=t==='dimAuto'?'dimension':t==='measure'?'dimension':t;state.preview={type:'line',a:state.pending.start,b:p};renderPreview();if(['dimRad','dimDia'].includes(t)){addObject({type:'dimension',kind:t,a:state.pending.start,b:p,offset:0,label:t==='dimDia'?`⌀${fmt(distance(state.pending.start,p)*2)}`:`R${fmt(distance(state.pending.start,p))}`,...st});state.pending=null;state.preview=null;return;}setStatus('Укажите положение размерной линии');return;}
+  if(!state.pending.end){state.pending.end=p;const kind=t==='dimAuto'?'dimension':t==='measure'?'dimension':t;state.preview={type:'line',a:state.pending.start,b:p};renderPreview();if(['dimRad','dimDia'].includes(t)){addObject({type:'dimension',kind:t,a:state.pending.start,b:p,offset:0,textSize:getNum('defaultDimensionTextHeight',2.5),...st});state.pending=null;state.preview=null;return;}setStatus('Укажите положение размерной линии');return;}
   const a=state.pending.start,b=state.pending.end,base=state.pending.end,off=Math.abs(t==='dimV'?p.x-base.x:t==='dimH'?p.y-base.y:((p.x-base.x)+(p.y-base.y))/2)||getNum('dimensionOffset',2);
   addObject({type:'dimension',kind:t==='dimH'?'dimH':t==='dimV'?'dimV':t==='dimAngle'?'dimAngle':'dimension',a,b,offset:off,textSize:getNum('defaultDimensionTextHeight',2.5),...st});state.pending=null;state.preview=null;return;
  }
@@ -833,6 +905,17 @@ function onCanvasMouseDown(evt){
  if(evt.button!==0)return;
  const raw=screenPoint(evt),p=applyPrecision(raw,evt);
  evt.preventDefault();
+ const dimensionLabelHandle=evt.target.closest?.('[data-dimension-label-move-handle],[data-dimension-label-axis-handle],[data-dimension-label-size-handle],[data-dimension-label-rotate-handle],[data-dimension-label-hit]');
+ if(dimensionLabelHandle){
+  const id=dimensionLabelHandle.getAttribute('data-object-id'),o=state.objects.find(v=>v.id===id);
+  if(o&&isDimensionObject(o)&&!o.locked){
+   const before=snapshot();selectObject(id,false);
+   const type=dimensionLabelHandle.hasAttribute('data-dimension-label-axis-handle')?'dimensionLabelAxis':dimensionLabelHandle.hasAttribute('data-dimension-label-size-handle')?'dimensionLabelSize':dimensionLabelHandle.hasAttribute('data-dimension-label-rotate-handle')?'dimensionLabelRotate':'dimensionLabelMove';
+   const layout=dimensionLabelLayoutWorld(o),pivot={x:layout.x,y:layout.y};
+   state.drag={type,id,before,start:raw,last:raw,initialDx:Number(o.labelDx)||0,initialDy:Number(o.labelDy)||0,initialSize:Number(o.textSize)||2.5,initialRotation:Number(o.labelRotation)||0,pivot,axis:{...layout.geometry.axis},startDistance:Math.max(.01,Math.hypot(raw.x-pivot.x,raw.y-pivot.y)),startAngle:Math.atan2(raw.y-pivot.y,raw.x-pivot.x)};
+  }
+  return;
+ }
  const scaleHandle=evt.target.closest?.('[data-object-scale-handle]');
  if(scaleHandle){
   const id=scaleHandle.getAttribute('data-object-id'),o=state.objects.find(v=>v.id===id),corner=scaleHandle.getAttribute('data-scale-corner');
@@ -875,6 +958,27 @@ function onCanvasMouseMove(evt){
   if(dragDrawTools.has(g.tool)&&distPx>=3){g.moved=true;g.last=applyPrecision(p,evt);updateDrawPreview(g,g.last);}
   return;
  }
+ if(state.drag?.type==='dimensionLabelMove'||state.drag?.type==='dimensionLabelAxis'){
+  const d=state.drag,o=state.objects.find(v=>v.id===d.id);if(!o)return;
+  const dx=p.x-d.start.x,dy=p.y-d.start.y;
+  if(d.type==='dimensionLabelAxis'){
+   const amount=dx*d.axis.x+dy*d.axis.y;
+   o.labelDx=d.initialDx+d.axis.x*amount;o.labelDy=d.initialDy+d.axis.y*amount;
+  }else{o.labelDx=d.initialDx+dx;o.labelDy=d.initialDy+dy;}
+  d.last=p;renderObjects();return;
+ }
+ if(state.drag?.type==='dimensionLabelSize'){
+  const d=state.drag,o=state.objects.find(v=>v.id===d.id);if(!o)return;
+  const current=Math.max(.01,Math.hypot(p.x-d.pivot.x,p.y-d.pivot.y));
+  o.textSize=Math.max(.5,Math.min(30,d.initialSize*current/d.startDistance));
+  d.last=p;renderObjects();return;
+ }
+ if(state.drag?.type==='dimensionLabelRotate'){
+  const d=state.drag,o=state.objects.find(v=>v.id===d.id);if(!o)return;
+  let delta=(Math.atan2(p.y-d.pivot.y,p.x-d.pivot.x)-d.startAngle)*180/Math.PI;
+  delta=((delta+540)%360)-180;if(evt.shiftKey)delta=Math.round(delta/15)*15;
+  o.labelRotation=d.initialRotation+delta;d.last=p;renderObjects();return;
+ }
  if(state.drag?.type==='objectRotate'){
   const o=state.objects.find(v=>v.id===state.drag.id);if(!o)return;
   let delta=(Math.atan2(p.y-state.drag.pivot.y,p.x-state.drag.pivot.x)-state.drag.startAngle)*180/Math.PI;
@@ -896,6 +1000,7 @@ function onCanvasMouseMove(evt){
  if(state.drag?.type==='objectPoint'){
   const o=state.objects.find(v=>v.id===state.drag.id);if(!o)return;const q=applyPrecision(p,evt),kind=state.drag.kind,index=state.drag.index;
   if(kind==='line-end'){if(index===0)o.a={...q};else o.b={...q};}
+  else if(kind==='dimension-point'){const local={x:q.x-(o.dx||0),y:q.y-(o.dy||0)};if(index===0)o.a=local;else o.b=local;}
   else if(kind==='vertex'&&o.points?.[index])o.points[index]={...q};
   else if(kind==='circle-center')o.center={...q};
   else if(kind==='circle-radius')o.r=Math.max(.05,distance(o.center,q));
@@ -943,13 +1048,18 @@ function onCanvasMouseUp(evt){
  }
  if(state.drag?.type==='freehand'){const points=state.drag.points;if(points.length>1)addObject({type:'freehand',points,color:getVal('objectColor','#20252a'),width:getNum('freehandWidth',.25)});state.drag=null;state.preview=null;renderPreview();return;}
  if(state.drag?.type==='region'){const {start,current}=state.drag;const ids=state.objects.filter(o=>{const b=objectBounds(o);return b.x>=Math.min(start.x,current.x)&&b.y>=Math.min(start.y,current.y)&&b.x+b.w<=Math.max(start.x,current.x)&&b.y+b.h<=Math.max(start.y,current.y);}).map(o=>o.id);state.selected=new Set(ids);state.drag=null;renderPreview();renderObjects();showProperties();return;}
+ if(['dimensionLabelMove','dimensionLabelAxis','dimensionLabelSize','dimensionLabelRotate'].includes(state.drag?.type)){
+  const d=state.drag,moved=d.last.x!==d.start.x||d.last.y!==d.start.y;
+  if(moved){history.push(d.before);scheduleAutosave();updateHistoryButtons();}
+  state.drag=null;render();showProperties();if(moved)setStatus('Размерное число изменено');return;
+ }
  if(state.drag?.type==='objectRotate'){const moved=Math.abs(state.drag.lastDelta||0)>.05;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
  if(state.drag?.type==='objectScale'){const moved=state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
  if(state.drag?.type==='objectPoint'){const moved=state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
  if(state.drag?.type==='referenceResize'){const moved=state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
  if(state.drag?.type==='objects'){if(state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();return;}
 }
-function cancelCanvasGesture(){if(state.drag?.before&&['objectRotate','objectScale','objectPoint','objects','referenceResize'].includes(state.drag.type)){const before=state.drag.before;state.objects=structuredClone(before.objects||[]);state.selected=new Set(before.selected||[]);}state.pan=null;state.drawGesture=null;state.drag=null;drawing.classList.remove('dragging');state.preview=null;render();showProperties();}
+function cancelCanvasGesture(){if(state.drag?.before&&['objectRotate','objectScale','objectPoint','objects','referenceResize','dimensionLabelMove','dimensionLabelAxis','dimensionLabelSize','dimensionLabelRotate'].includes(state.drag.type)){const before=state.drag.before;state.objects=structuredClone(before.objects||[]);state.selected=new Set(before.selected||[]);}state.pan=null;state.drawGesture=null;state.drag=null;drawing.classList.remove('dragging');state.preview=null;render();showProperties();}
 function updateSelectionByProps(){const id=[...state.selected][0];const o=state.objects.find(v=>v.id===id);if(!o)return;history.push(snapshot());o.color=getVal('objectColor',o.color);o.width=getNum('objectWidth',o.width);o.dash=getVal('objectDash','solid');o.layer=getVal('objectLayer',o.layer);o.role=getVal('objectLineRole',o.role);o.name=getVal('objectName',o.name);o.locked=checked('objectLocked');render();scheduleAutosave();updateHistoryButtons();}
 function replaceObjectData(target,source){for(const key of Object.keys(target))delete target[key];Object.assign(target,source);}
 function applyBoxProps(){
@@ -1167,6 +1277,14 @@ function bind(){
  $('dimensionArrowSize')?.addEventListener('change',updateSelectedDimensionProps);
  $('dimensionTextHeightSlider')?.addEventListener('input',()=>{if($('dimensionTextHeight'))$('dimensionTextHeight').value=$('dimensionTextHeightSlider').value;});
  $('dimensionTextHeightSlider')?.addEventListener('change',updateSelectedDimensionProps);
+ $('dimensionTextHeight')?.addEventListener('input',()=>{if($('dimensionTextHeightSlider'))$('dimensionTextHeightSlider').value=String(Math.max(.5,Math.min(30,getNum('dimensionTextHeight',2.5))));});
+ $('dimensionLabelRotation')?.addEventListener('input',()=>{if($('dimensionLabelRotationSlider'))$('dimensionLabelRotationSlider').value=$('dimensionLabelRotation').value;});
+ $('dimensionLabelRotation')?.addEventListener('change',updateSelectedDimensionProps);
+ $('dimensionLabelRotationSlider')?.addEventListener('input',()=>{if($('dimensionLabelRotation'))$('dimensionLabelRotation').value=$('dimensionLabelRotationSlider').value;});
+ $('dimensionLabelRotationSlider')?.addEventListener('change',updateSelectedDimensionProps);
+ ['dimensionLabelDx','dimensionLabelDy','dimensionValueText','dimensionShowValue','dimensionArrowPlacement','dimensionArrowStyle','dimensionArrowStartStyle','dimensionArrowEndStyle','dimensionTextOrientation'].forEach(id=>$(id)?.addEventListener('change',updateSelectedDimensionProps));
+ document.querySelectorAll('[data-dimension-text-step]').forEach(btn=>btn.addEventListener('click',()=>{const next=Math.max(.5,Math.min(30,getNum('dimensionTextHeight',2.5)+Number(btn.dataset.dimensionTextStep)));if($('dimensionTextHeight'))$('dimensionTextHeight').value=String(next);if($('dimensionTextHeightSlider'))$('dimensionTextHeightSlider').value=String(next);updateSelectedDimensionProps();}));
+ document.querySelectorAll('[data-dimension-rotation-step]').forEach(btn=>btn.addEventListener('click',()=>{const next=getNum('dimensionLabelRotation',0)+Number(btn.dataset.dimensionRotationStep);if($('dimensionLabelRotation'))$('dimensionLabelRotation').value=String(next);if($('dimensionLabelRotationSlider'))$('dimensionLabelRotationSlider').value=String(next);updateSelectedDimensionProps();}));
  $('coordinateApplyBtn').onclick=()=>{const p={x:getNum('coordinateX'),y:getNum('coordinateY')};state.pending=null;clickTool(p,{shiftKey:false,detail:1,target:svg});};
  $('circleInputMode').onchange=()=>setStatus(`Режим окружности: ${getVal('circleInputMode')}`);
  $('addReferenceRibbonBtn').onclick=()=>{showReferencesPanel();$('referenceInput').click();};$('addReferenceBtn').onclick=()=>$('referenceInput').click();$('referenceInput').onchange=e=>{importFile(e.target.files[0],'image');e.target.value='';};

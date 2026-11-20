@@ -379,3 +379,14 @@ html,body{font-size:15px;}
 #selectionLayer [data-object-scale-handle]{fill:#f4fbff;stroke:#087f9d;stroke-width:.48;cursor:nwse-resize;}
 .scale-presets{display:flex;gap:5px;}
 .scale-presets button{flex:1;min-width:0;}
+
+/* Independent dimension-number editing grips (move, axis move, size and rotation). */
+#selectionLayer [data-dimension-label-move-handle],
+#selectionLayer [data-dimension-label-axis-handle],
+#selectionLayer [data-dimension-label-size-handle],
+#selectionLayer [data-dimension-label-rotate-handle]{pointer-events:all!important;touch-action:none;}
+#selectionLayer [data-dimension-label-move-handle],
+#selectionLayer [data-dimension-label-axis-handle]{cursor:move!important;}
+#selectionLayer [data-dimension-label-size-handle]{cursor:nwse-resize!important;}
+#selectionLayer [data-dimension-label-rotate-handle]{cursor:grab!important;}
+#selectionLayer [data-dimension-label-rotate-handle]:active{cursor:grabbing!important;}

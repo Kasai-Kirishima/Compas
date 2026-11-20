@@ -7,3 +7,5 @@ export {zoomView,panView,wheelZoomFactor} from './viewport.mjs';
 export {convertKompasObject} from './project-file.mjs';
 
 export { rotateGeometryObject } from './transforms.mjs';
+
+export { dimensionKind, isDimensionObject, getDimensionGeometry, getDimensionLabelText, getDimensionLabelLayout, getDimensionArrowPlacement } from './dimensions.mjs';

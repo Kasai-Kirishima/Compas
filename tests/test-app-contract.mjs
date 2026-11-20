@@ -159,6 +159,16 @@ assert.match(js, /data-object-rotate-handle/, 'selected objects expose a mouse r
 assert.match(js, /rotateGeometryObject\(state.drag.original,delta,state.drag.pivot\)/, 'mouse rotation operates from original geometry and stable pivot');
 assert.match(js, /document.querySelectorAll\('\[data-rotate-step\]'\)/, 'quick angle buttons are wired');
 assert.match(js, /objectRotationSlider'\)\.onchange/, 'rotation slider applies its selected angle');
+
+assert.match(js, /data-dimension-label-hit/, 'the rendered value has its own hit target');
+assert.match(js, /dimensionLabelAxis/, 'the label has an axis-constrained move operation');
+assert.match(js, /dimensionLabelSize/, 'the label has an independent size drag operation');
+assert.match(js, /dimensionLabelRotate/, 'the label has an independent rotation drag operation');
+assert.match(js, /drawDimensionArrow\(wrap,p1,startToward[\s\S]*drawDimensionArrow\(wrap,p2,endToward/, 'both dimension arrowheads follow the inside/outside placement setting');
+assert.match(html, /id="dimensionArrowPlacement"[\s\S]*option value="inside"[\s\S]*option value="outside"/, 'dimension arrow placement is exposed in Properties');
+assert.match(html, /data-dimension-text-step/, 'dimension number height has convenient step buttons');
+console.log('restored.21 dimension label and arrow interaction contract: ok');
+
 console.log('restored.20 rotation interaction contract: ok');
 
 assert.match(html, /id="applyObjectScaleBtn"/, 'selected objects expose an explicit scale control');
