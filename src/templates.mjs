@@ -1,6 +1,7 @@
 export const TEMPLATES = [
  {id:'lab4-reference-template',name:'Лабораторная работа №4',format:'A3P',description:'Учебный образец А3, книжная ориентация. Реконструкция по описанию архива.'},
- {id:'lab8-reference-template',name:'Лабораторная работа №8 — синий образец',format:'A3L',description:'Синий образец А3, альбомная ориентация, по присланному чертежу «Корпус / Вариант 8 / ШЦМГУ».'},
+ {id:'lab8-reference-template',name:'Лабораторная работа №8 — образец «Корпус» (чёрная рамка)',format:'A3L',description:'А3 альбомный 420×297 мм: чёрная рамка по полям 20/5 мм, основная надпись 185×55 мм и подписи по образцу «Корпус / Вариант 8 / ШЦМГУ».'},
+ {id:'kompas-lab5-a4-template',name:'Импортированная рамка Kompas Online — ЛР №4/5',format:'A4P',description:'А4 книжный 210×297 мм: чёрная рамка и основная надпись 185×55 мм, восстановленные из загруженного файла Kompas Online «лаб4КушвидОКт-24.kcad».'},
  {id:'lab5-a4-reference-template',name:'Лабораторная работа №5',format:'A4P',description:'Учебный образец А4, книжная ориентация. Реконструкция по описанию архива.'},
  {id:'lab5-gost-a4-portrait',name:'ЛР №5 — ДСТУ ГОСТ / ЕСКД, форма 1',format:'A4P',description:'А4 книжный: рамка 20 мм слева и 5 мм с остальных сторон; основная надпись формы 1, 185×55 мм.'},
  {id:'technical-gost-a4-portrait',name:'Технический чертёж — ДСТУ ГОСТ / ЕСКД, форма 1',format:'A4P',description:'А4 книжный: рамка 20 мм слева и 5 мм с остальных сторон; основная надпись формы 1, 185×55 мм.'},
@@ -25,7 +26,8 @@ export function isGostTemplate(id) {
 }
 export function getTemplateFrame(id,width,height) {
  if (!isGostTemplate(id)) {
-  const margin=id==='lab8-reference-template'?5:10;
+  if(id==='lab8-reference-template'||id==='kompas-lab5-a4-template'||id==='kompas-import-a4-template')return {x:20,y:5,width:width-25,height:height-10};
+  const margin=10;
   return {x:margin,y:margin,width:width-margin*2,height:height-margin*2};
  }
  return {x:20,y:5,width:width-25,height:height-10};

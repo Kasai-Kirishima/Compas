@@ -116,14 +116,11 @@
 .quick-rotate-row button:hover,.hatch-presets button:hover{border-color:#16a2c5;background:#344d56;}
 .hatch-presets span{color:#aeb8bf;font-size:10px;margin-right:3px;}
 #undoBtn:disabled,#redoBtn:disabled{opacity:.34;cursor:not-allowed;filter:grayscale(1);}
-#templateLayer{color:#000;}
 @media print{#templateLayer{display:block!important;}#templateLayer *{stroke:#000!important;fill:#000!important;}#templateLayer rect{fill:none!important;}}
 
-/* Version 1.7 — persistent black sheet frame, hatch and history polish */
+/* Keep screen template colours as authored; print output is forced to black above. */
 #sheetFrameLayer{pointer-events:none;}
-#sheetFrameLayer rect{fill:none!important;stroke:#000!important;shape-rendering:geometricPrecision;}
-#templateLayer line,#templateLayer rect,#templateLayer path,#templateLayer polygon{stroke:#000!important;}
-#templateLayer text{fill:#000!important;stroke:none!important;}
+#sheetFrameLayer rect{fill:none!important;shape-rendering:geometricPrecision;}
 #undoBtn:not(:disabled),#redoBtn:not(:disabled){opacity:1;color:#f4fbff;border-color:#178eaa;}
 #selectionLayer [data-rotate-handle]{filter:drop-shadow(0 0 1px #0005);}
 @media print{#sheetFrameLayer{display:block!important;}#sheetFrameLayer *{stroke:#000!important;fill:none!important;}}
@@ -294,3 +291,14 @@ html,body{font-size:15px;}
 .drawing-area[data-tool="pan"]{cursor:grab!important;}
 .drawing-area.pan-ready{cursor:grab!important;}
 .drawing-area.dragging{cursor:grabbing!important;}
+
+/* CAD workspace camera: the SVG fills the free work area; the A3 page is a
+   separate group inside it. Panning therefore moves the whole paper in space. */
+.drawing-area{display:block!important;padding:0!important;position:relative;overflow:hidden;background:#41464b;}
+.drawing-area #sheetSvg{position:absolute;inset:0;display:block;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;flex:none!important;background:transparent!important;box-shadow:none!important;overflow:visible;touch-action:none;user-select:none;}
+#sheetRoot{isolation:isolate;}
+@media print{
+ .drawing-area{overflow:visible!important;padding:0!important;background:#fff!important;}
+ .drawing-area #sheetSvg{position:static!important;width:var(--sheet-print-width,420mm)!important;height:var(--sheet-print-height,297mm)!important;background:#fff!important;filter:none!important;}
+ #sheetRoot{filter:none!important;}
+}

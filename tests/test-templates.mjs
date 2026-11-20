@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {TEMPLATES,FORMATS,formatForTemplate,isGostTemplate,getTemplateFrame,getForm1Bounds} from '../src/templates.mjs';
-assert.equal(TEMPLATES.length,12);
+assert.equal(TEMPLATES.length,13);
 assert.equal(formatForTemplate('lab8-reference-template'),'A3L');
+assert.equal(formatForTemplate('kompas-lab5-a4-template'),'A4P');
 assert.deepEqual(FORMATS.A3L,[420,297]);
 assert.deepEqual(FORMATS.A4P,[210,297]);
 assert.deepEqual(FORMATS.A2L,[594,420]);
@@ -11,6 +12,8 @@ assert.equal(formatForTemplate('technical-gost-a4-portrait'),'A4P');
 assert.equal(formatForTemplate('technical-gost-a2-landscape'),'A2L');
 assert.equal(isGostTemplate('lab8-reference-template'),false);
 assert.deepEqual(getTemplateFrame('technical-gost-a3-landscape',420,297),{x:20,y:5,width:395,height:287});
+assert.deepEqual(getTemplateFrame('lab8-reference-template',420,297),{x:20,y:5,width:395,height:287},'the supplied A3 sheet keeps GOST 20/5 mm margins');
+assert.deepEqual(getTemplateFrame('kompas-lab5-a4-template',210,297),{x:20,y:5,width:185,height:287},'imported Kompas A4 sheet keeps 20/5 mm margins');
 assert.deepEqual(getTemplateFrame('technical-gost-a3-portrait',297,420),{x:20,y:5,width:272,height:410});
 assert.deepEqual(getForm1Bounds(420,297),{x:230,y:237,width:185,height:55});
 assert.deepEqual(getForm1Bounds(297,420),{x:107,y:360,width:185,height:55});

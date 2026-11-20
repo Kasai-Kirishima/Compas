@@ -483,11 +483,13 @@ R17
       <div class="document-bar"><span class="doc-icon">▤</span><span id="docName">Чертёж БЕЗ ИМЕНИ1</span><span class="doc-dot"></span><span class="doc-meta">А3 · 297×420 мм · 1:1</span><div class="workspace-spacer"></div><button id="panModeBtn" type="button" title="Режим панорамирования: перетаскивай лист левой кнопкой мыши или тачпадом" aria-label="Перемещение листа">✋</button><button id="zoomOut" type="button" title="Отдалить лист" aria-label="Отдалить лист">−</button><span id="zoomLabel" aria-live="polite">100%</span><button id="zoomIn" type="button" title="Приблизить лист" aria-label="Приблизить лист">＋</button></div>
       <div class="drawing-area" id="drawingArea">
         <div class="canvas-hint" id="canvasHint">Выберите инструмент · Колесо / прокрутка тачпада — масштаб · Средняя или правая кнопка — перемещение · На ноутбуке: Space + перетаскивание или кнопка ✋ · ЛКМ — черчение</div>
-        <svg id="sheetSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 297 420" role="img" aria-label="Лист чертежа">
+        <svg id="sheetSvg" xmlns="http://www.w3.org/2000/svg" viewBox="-40 -40 500 377" role="img" aria-label="Рабочее пространство и лист чертежа" preserveAspectRatio="xMidYMid meet">
           <defs><pattern id="gridPattern" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M 5 0 L 0 0 0 5" fill="none" stroke="#dfe4e8" stroke-width="0.12"/></pattern></defs>
-          <rect id="paperRect" x="0" y="0" width="297" height="420" fill="#fff"/>
-          <rect id="gridRect" x="0" y="0" width="297" height="420" fill="url(#gridPattern)" visibility="hidden"/>
-          <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="sheetFrameLayer" pointer-events="none"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g><g id="selectionLayer"></g><g id="snapIndicatorLayer" pointer-events="none"></g>
+          <g id="sheetRoot" filter="drop-shadow(0 2px 4px #15191d88)">
+            <rect id="paperRect" x="0" y="0" width="420" height="297" fill="#fff"/>
+            <rect id="gridRect" x="0" y="0" width="420" height="297" fill="url(#gridPattern)" visibility="hidden"/>
+            <g id="referenceLayer"></g><g id="templateLayer"></g><g id="geometryLayer"></g><g id="constructionLayer"></g><g id="annotationLayer"></g><g id="sheetFrameLayer" pointer-events="none"></g><g id="rulerLayer" pointer-events="none"></g><g id="previewLayer" pointer-events="none"></g><g id="selectionLayer"></g><g id="snapIndicatorLayer" pointer-events="none"></g>
+          </g>
         </svg>
       </div>
       <div class="statusbar"><span id="statusMessage">Готово</span><span class="coordinates" id="coordinates">X: 0.00 · Y: 0.00 мм</span><span class="status-spacer"></span><span>Ортогонально: <b id="orthoStatus">Выкл.</b></span><span>Выбрано: <b id="selectedStatus">0</b></span></div>
