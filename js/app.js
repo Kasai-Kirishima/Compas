@@ -6,7 +6,7 @@ import {removePathWindow, splitOpenPath, splitClosedPolygon} from '../src/operat
 import {zoomView, panView, wheelZoomFactor} from '../src/viewport.mjs';
 import {referenceImportSize, referenceAspectRatio, resizeReference, scaleReference, fitReferenceToSheet} from '../src/reference.mjs';
 import {circleGeometryFromInputs, parsePointRows, lineGeometryFromInputs} from '../src/object-edit.mjs';
-import {rotateGeometryObject} from '../src/transforms.mjs';
+import {rotateGeometryObject, scaleGeometryObject, scaleObjectToBounds} from '../src/transforms.mjs';
 
 const $ = (id) => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
@@ -573,7 +573,7 @@ function renderSelection(){
   if(!o.locked&&o.type!=='circle'){
    const cx=b.x+b.w/2,top=b.y,hy=top-8.5;
    el('line',{x1:cx,y1:top-1,x2:cx,y2:hy,stroke:'#f3a83b','stroke-width':.32,'stroke-dasharray':'1 0.7','pointer-events':'none'},g);
-   el('circle',{cx,cy:hy,r:1.45,fill:'#f3a83b',stroke:'#20252a','stroke-width':.25,cursor:'grab','data-object-rotate-handle':'true','data-object-id':o.id,'aria-label':'Повернуть объект'},g);
+   el('circle',{cx,cy:hy,r:1.45,fill:'#f3a83b',stroke:'#20252a','stroke-width':.25,cursor:'grab','pointer-events':'all','data-object-rotate-handle':'true','data-object-id':o.id,'aria-label':'Повернуть объект'},g);
   }
   if(o.type==='reference'&&!o.locked){el('rect',{x:b.x+b.w-1.8,y:b.y+b.h-1.8,width:3.6,height:3.6,rx:.45,fill:'#fff',stroke:'#087fa8','stroke-width':.7,cursor:'nwse-resize','data-reference-resize-handle':'true','data-object-id':o.id},g);}
   if(!o.locked){
@@ -586,6 +586,14 @@ function renderSelection(){
    else if(['polyline','spline','curvedArrow','polygon','freehand','breakline'].includes(o.type))(o.points||[]).forEach((pt,i)=>addGrip(pt,'vertex',i));
    else if(o.type==='circle'&&o.center){addGrip(o.center,'circle-center',0);addGrip({x:o.center.x+o.r,y:o.center.y},'circle-radius',0);}
    else if(o.type==='ellipse'&&o.center){addGrip(o.center,'ellipse-center',0);addGrip({x:o.center.x+o.rx,y:o.center.y},'ellipse-rx',0);addGrip({x:o.center.x,y:o.center.y+o.ry},'ellipse-ry',0);}
+   // Visible, hit-testable corner grips for box scaling. Use explicit pointer-events
+   // because the parent selection layer intentionally ignores pointer input.
+   if(['circle','ellipse','rect','hatch'].includes(o.type)&&b.w>.05&&b.h>.05){
+    const hs=2.7/Math.max(.1,state.zoom);
+    for(const [corner,x,y] of [['nw',b.x,b.y],['ne',b.x+b.w,b.y],['se',b.x+b.w,b.y+b.h],['sw',b.x,b.y+b.h]]){
+     el('rect',{x:x-hs/2,y:y-hs/2,width:hs,height:hs,rx:.25/Math.max(.1,state.zoom),fill:'#f4fbff',stroke:'#087f9d','stroke-width':.48/Math.max(.1,state.zoom),'vector-effect':'non-scaling-stroke','pointer-events':'all',cursor:corner==='nw'||corner==='se'?'nwse-resize':'nesw-resize','data-object-scale-handle':'true','data-scale-corner':corner,'data-object-id':o.id},g);
+    }
+   }
   }
  }
  $('selectedStatus').textContent=String(state.selected.size);
@@ -825,6 +833,17 @@ function onCanvasMouseDown(evt){
  if(evt.button!==0)return;
  const raw=screenPoint(evt),p=applyPrecision(raw,evt);
  evt.preventDefault();
+ const scaleHandle=evt.target.closest?.('[data-object-scale-handle]');
+ if(scaleHandle){
+  const id=scaleHandle.getAttribute('data-object-id'),o=state.objects.find(v=>v.id===id),corner=scaleHandle.getAttribute('data-scale-corner');
+  if(o&&!o.locked){
+   const before=snapshot(),original=materializedObject(o),b=boundsOfObject(original);
+   const anchor={x:corner.includes('w')?b.x+b.w:b.x,y:corner.startsWith('n')?b.y+b.h:b.y};
+   const start={x:corner.includes('e')?b.x+b.w:b.x,y:corner.startsWith('s')?b.y+b.h:b.y};
+   state.drag={type:'objectScale',id,before,original,bounds:b,anchor,start,corner,last:{...start}};
+  }
+  evt.preventDefault();return;
+ }
  const rotateHandle=evt.target.closest?.('[data-object-rotate-handle]');
  if(rotateHandle){
   const id=rotateHandle.getAttribute('data-object-id'),o=state.objects.find(v=>v.id===id);
@@ -859,9 +878,20 @@ function onCanvasMouseMove(evt){
  if(state.drag?.type==='objectRotate'){
   const o=state.objects.find(v=>v.id===state.drag.id);if(!o)return;
   let delta=(Math.atan2(p.y-state.drag.pivot.y,p.x-state.drag.pivot.x)-state.drag.startAngle)*180/Math.PI;
+  delta=((delta+540)%360)-180;
   if(evt.shiftKey)delta=Math.round(delta/15)*15;
   const rotated=rotateGeometryObject(state.drag.original,delta,state.drag.pivot);
   for(const key of Object.keys(o))delete o[key];Object.assign(o,rotated);state.drag.lastDelta=delta;renderObjects();return;
+ }
+ if(state.drag?.type==='objectScale'){
+  const d=state.drag,o=state.objects.find(v=>v.id===d.id);if(!o)return;
+  const q=applyPrecision(p,evt),b=d.bounds,c=d.corner;
+  let sx=Math.max(.02,Math.min(100,1+(c.includes('e')?1:-1)*(q.x-d.start.x)/Math.max(.05,b.w)));
+  let sy=Math.max(.02,Math.min(100,1+(c.startsWith('s')?1:-1)*(q.y-d.start.y)/Math.max(.05,b.h)));
+  const preserve=['circle','arc','text'].includes(o.type)||(o.type==='reference'&&o.keepAspect!==false)||evt.shiftKey;
+  if(preserve){const f=Math.max(sx,sy);sx=f;sy=f;}
+  const scaled=scaleGeometryObject(d.original,sx,sy,d.anchor);
+  for(const key of Object.keys(o))delete o[key];Object.assign(o,scaled);d.last=q;renderObjects();return;
  }
  if(state.drag?.type==='objectPoint'){
   const o=state.objects.find(v=>v.id===state.drag.id);if(!o)return;const q=applyPrecision(p,evt),kind=state.drag.kind,index=state.drag.index;
@@ -914,29 +944,31 @@ function onCanvasMouseUp(evt){
  if(state.drag?.type==='freehand'){const points=state.drag.points;if(points.length>1)addObject({type:'freehand',points,color:getVal('objectColor','#20252a'),width:getNum('freehandWidth',.25)});state.drag=null;state.preview=null;renderPreview();return;}
  if(state.drag?.type==='region'){const {start,current}=state.drag;const ids=state.objects.filter(o=>{const b=objectBounds(o);return b.x>=Math.min(start.x,current.x)&&b.y>=Math.min(start.y,current.y)&&b.x+b.w<=Math.max(start.x,current.x)&&b.y+b.h<=Math.max(start.y,current.y);}).map(o=>o.id);state.selected=new Set(ids);state.drag=null;renderPreview();renderObjects();showProperties();return;}
  if(state.drag?.type==='objectRotate'){const moved=Math.abs(state.drag.lastDelta||0)>.05;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
+ if(state.drag?.type==='objectScale'){const moved=state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
  if(state.drag?.type==='objectPoint'){const moved=state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
  if(state.drag?.type==='referenceResize'){const moved=state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y;if(moved){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();showProperties();return;}
  if(state.drag?.type==='objects'){if(state.drag.last.x!==state.drag.start.x||state.drag.last.y!==state.drag.start.y){history.push(state.drag.before);scheduleAutosave();updateHistoryButtons();}state.drag=null;render();return;}
 }
-function cancelCanvasGesture(){if(state.drag?.before&&['objectRotate','objectPoint','objects','referenceResize'].includes(state.drag.type)){const before=state.drag.before;state.objects=structuredClone(before.objects||[]);state.selected=new Set(before.selected||[]);}state.pan=null;state.drawGesture=null;state.drag=null;drawing.classList.remove('dragging');state.preview=null;render();showProperties();}
+function cancelCanvasGesture(){if(state.drag?.before&&['objectRotate','objectScale','objectPoint','objects','referenceResize'].includes(state.drag.type)){const before=state.drag.before;state.objects=structuredClone(before.objects||[]);state.selected=new Set(before.selected||[]);}state.pan=null;state.drawGesture=null;state.drag=null;drawing.classList.remove('dragging');state.preview=null;render();showProperties();}
 function updateSelectionByProps(){const id=[...state.selected][0];const o=state.objects.find(v=>v.id===id);if(!o)return;history.push(snapshot());o.color=getVal('objectColor',o.color);o.width=getNum('objectWidth',o.width);o.dash=getVal('objectDash','solid');o.layer=getVal('objectLayer',o.layer);o.role=getVal('objectLineRole',o.role);o.name=getVal('objectName',o.name);o.locked=checked('objectLocked');render();scheduleAutosave();updateHistoryButtons();}
+function replaceObjectData(target,source){for(const key of Object.keys(target))delete target[key];Object.assign(target,source);}
 function applyBoxProps(){
- const id=[...state.selected][0],o=state.objects.find(v=>v.id===id);if(!o)return;
- history.push(snapshot());bakeOffset(o);const b=boundsOfObject(o),x=getNum('objectBoxX',b.x),y=getNum('objectBoxY',b.y),w=getNum('objectBoxW',b.w),h=getNum('objectBoxH',b.h);const sx=b.w? w/b.w:1,sy=b.h?h/b.h:1;
- const map=p=>({x:x+(p.x-b.x)*sx,y:y+(p.y-b.y)*sy});
- if(o.points)o.points=o.points.map(map);
- if(o.a)o.a=map(o.a);if(o.b)o.b=map(o.b);if(o.center)o.center=map(o.center);
- if(o.type==='rect'){o.x=x;o.y=y;o.w=w;o.h=h;}
- else if(o.type==='circle')o.r=Math.max(w,h)/2;
- else if(o.type==='ellipse'){o.rx=w/2;o.ry=h/2;}
- else if(o.type==='text'){o.x=x;o.y=y;}
- else if(o.type==='reference'){
-  o.x=x;o.y=y;
-  if(checked('referenceKeepAspect')){const ratio=referenceAspectRatio(o),dw=Math.abs(w-b.w),dh=Math.abs(h-b.h);if(dw>=dh){o.w=Math.max(1,w);o.h=o.w/ratio;}else{o.h=Math.max(1,h);o.w=o.h*ratio;}o.aspectRatio=ratio;o.keepAspect=true;}
-  else{o.w=w;o.h=h;o.keepAspect=false;}
- }
- render();showProperties();scheduleAutosave();updateHistoryButtons();
+ const id=[...state.selected][0],o=state.objects.find(v=>v.id===id);if(!o||o.locked)return;
+ const b=objectBounds(o),x=getNum('objectBoxX',b.x),y=getNum('objectBoxY',b.y),w=getNum('objectBoxW',b.w),h=getNum('objectBoxH',b.h);
+ if(![x,y,w,h].every(Number.isFinite)||w<0||h<0){setStatus('Положение и размеры должны быть корректными числами.');return;}
+ let scaled;
+ try{scaled=scaleObjectToBounds(o,{x,y,w,h},{keepAspect:checked('referenceKeepAspect')});}
+ catch(error){setStatus(error.message);return;}
+ history.push(snapshot());replaceObjectData(o,scaled);
+ render();showProperties();scheduleAutosave();updateHistoryButtons();setStatus('Положение и размер объекта обновлены');
 }
+
+function scaleSelectedByFactor(factor){
+ const f=Number(factor);if(!Number.isFinite(f)||f<=0||f>100){setStatus('Коэффициент масштаба должен быть больше 0 и не больше 100.');return;}
+ transformSelected(o=>{const b=objectBounds(o),pivot={x:b.x+b.w/2,y:b.y+b.h/2};replaceObjectData(o,scaleGeometryObject(o,f,f,pivot));});
+ setStatus(`Выбранные объекты масштабированы ×${fmt(f)}`);
+}
+
 function deleteSelected(){if(!state.selected.size)return;history.push(snapshot());state.objects=state.objects.filter(o=>!state.selected.has(o.id));state.selected.clear();render();showProperties();scheduleAutosave();updateHistoryButtons();setStatus('Выбранное удалено');}
 function duplicateSelected(){const picked=findSelected();if(!picked.length)return;history.push(snapshot());const copies=picked.map(o=>({...structuredClone(o),id:nextId(),dx:(o.dx||0)+5,dy:(o.dy||0)+5,name:o.name?`${o.name} копия`:''}));state.objects.push(...copies);state.selected=new Set(copies.map(o=>o.id));render();showProperties();scheduleAutosave();updateHistoryButtons();}
 function transformSelected(fn){const picked=findSelected();if(!picked.length)return;history.push(snapshot());for(const o of picked)fn(o);render();showProperties();scheduleAutosave();updateHistoryButtons();}
@@ -964,7 +996,7 @@ function performAction(action){
  if(action==='rotate'){const v=Number(prompt('Угол поворота, °','90'));if(Number.isFinite(v))transformSelected(o=>rotateObject(o,v));return;}
  if(action==='mirror'){openModal('mirrorModal');return;}
  if(action==='moveBy'){const dx=Number(prompt('Смещение X, мм','0')),dy=Number(prompt('Смещение Y, мм','0'));if(Number.isFinite(dx)&&Number.isFinite(dy))transformSelected(o=>{o.dx=(o.dx||0)+dx;o.dy=(o.dy||0)+dy;});return;}
- if(action==='scale'){const f=Number(prompt('Коэффициент масштаба','2'));if(Number.isFinite(f)&&f>0)transformSelected(o=>{bakeOffset(o);const b=objectBounds(o),cx=b.x+b.w/2,cy=b.y+b.h/2;if(o.points)o.points=o.points.map(p=>({x:cx+(p.x-cx)*f,y:cy+(p.y-cy)*f}));if(o.center)o.r*=f,o.rx*=f,o.ry*=f;if(o.type==='rect')o.w*=f,o.h*=f;});return;}
+ if(action==='scale'){const f=Number(prompt('Коэффициент масштаба','1.25'));if(Number.isFinite(f)&&f>0)scaleSelectedByFactor(f);return;}
  if(action==='offset'){setStatus('Offset для контуров произвольной формы пока ограничен; используйте копирование и точный сдвиг.');return;}
  if(action==='fillet'||action==='chamfer'||action==='trim'||action==='split'){setStatus(`${action}: операция требует устойчивой топологии контуров и не включена в восстановленное ядро.`);return;}
  if(action==='arrayPolar'){openPolarArray();return;}
@@ -1127,7 +1159,7 @@ function bind(){
  $('gridBtn').onclick=()=>{state.grid=!state.grid;$('gridToggle').checked=state.grid;updateSheetGeometry();};$('gridToggle').onchange=()=>{state.grid=checked('gridToggle');updateSheetGeometry();};$('snapToggle').onchange=()=>state.snapGrid=checked('snapToggle');$('snapBtn').onclick=()=>{$('objectSnapToggle').checked=!$('objectSnapToggle').checked;state.osnap=$('objectSnapToggle').checked;};$('objectSnapToggle').onchange=()=>state.osnap=checked('objectSnapToggle');$('orthoBtn').onclick=()=>{$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';};$('orthoToggle').onchange=()=>{state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';};
  $('paperFormat').onchange=()=>{history.push(snapshot());setSheet(getVal('paperFormat','A3P'));scheduleAutosave();updateHistoryButtons();};$('templateQuickSelect').onchange=()=>{history.push(snapshot());switchTemplate(getVal('templateQuickSelect'));updateHistoryButtons();};$('titleFormSelect').onchange=()=>{history.push(snapshot());switchTemplate(getVal('titleFormSelect'));updateHistoryButtons();};$('templateVisible').onchange=()=>{$('templateToggle').checked=$('templateVisible').checked;renderTemplate();};$('templateToggle').onchange=()=>{$('templateVisible').checked=$('templateToggle').checked;renderTemplate();};['geometryVisible','dimensionsVisible','constructionVisible'].forEach(id=>$(id)?.addEventListener('change',updateLayerVisibility));['referenceVisibleToggle','referenceVisibleToggleSecondary'].forEach(id=>$(id)?.addEventListener('change',e=>{const other=$(e.target.id==='referenceVisibleToggle'?'referenceVisibleToggleSecondary':'referenceVisibleToggle');if(other)other.checked=e.target.checked;updateLayerVisibility();}));layers.template.addEventListener('dblclick',e=>{const node=e.target.closest('[data-template-key]');if(!node)return;const key=node.getAttribute('data-template-key'),value=prompt(`Изменить поле «${key}»`,state.title[key]||'');if(value!==null){state.title[key]=value;writeTitleToUI();renderTemplate();scheduleAutosave();}});
  $('applyTitleBtn').onclick=applyTitle;Object.values(titleMap).forEach(id=>$(id)?.addEventListener('change',()=>{readTitleFromUI();renderTemplate();scheduleAutosave();}));
- ['objectColor','objectWidth','objectDash','objectLayer','objectLineRole','objectName','objectLocked'].forEach(id=>$(id)?.addEventListener('change',updateSelectionByProps));$('applyObjectGeometryBtn').onclick=applyBoxProps;$('applyObjectSpecificBtn')?.addEventListener('click',applyObjectSpecificProps);$('applyObjectRotationBtn').onclick=()=>{const a=getNum('objectRotationAngle',0);transformSelected(o=>rotateObject(o,a));};$('objectRotationSlider').oninput=()=>{$('objectRotationAngle').value=$('objectRotationSlider').value;};$('objectRotationSlider').onchange=()=>{const target=getNum('objectRotationSlider',0);transformSelected(o=>rotateObject(o,target-(Number(o.rotation)||0)));};document.querySelectorAll('[data-rotate-step]').forEach(btn=>btn.addEventListener('click',()=>transformSelected(o=>rotateObject(o,Number(btn.dataset.rotateStep)||0))));
+ ['objectColor','objectWidth','objectDash','objectLayer','objectLineRole','objectName','objectLocked'].forEach(id=>$(id)?.addEventListener('change',updateSelectionByProps));$('applyObjectGeometryBtn').onclick=applyBoxProps;$('applyObjectSpecificBtn')?.addEventListener('click',applyObjectSpecificProps);$('applyObjectRotationBtn').onclick=()=>{const target=getNum('objectRotationAngle',0);transformSelected(o=>rotateObject(o,target-(Number(o.rotation)||0)));};$('applyObjectScaleBtn')?.addEventListener('click',()=>scaleSelectedByFactor(getNum('objectScaleFactor',1.25)));document.querySelectorAll('[data-object-scale]').forEach(btn=>btn.addEventListener('click',()=>scaleSelectedByFactor(Number(btn.dataset.objectScale)||1)));$('objectRotationSlider').oninput=()=>{$('objectRotationAngle').value=$('objectRotationSlider').value;};$('objectRotationSlider').onchange=()=>{const target=getNum('objectRotationSlider',0);transformSelected(o=>rotateObject(o,target-(Number(o.rotation)||0)));};document.querySelectorAll('[data-rotate-step]').forEach(btn=>btn.addEventListener('click',()=>transformSelected(o=>rotateObject(o,Number(btn.dataset.rotateStep)||0))));
  $('dimensionSelectedOffset')?.addEventListener('change',()=>{if($('dimensionSelectedOffsetSlider'))$('dimensionSelectedOffsetSlider').value=$('dimensionSelectedOffset').value;updateSelectedDimensionProps();});
  $('dimensionSelectedOffsetSlider')?.addEventListener('input',()=>{if($('dimensionSelectedOffset'))$('dimensionSelectedOffset').value=$('dimensionSelectedOffsetSlider').value;});
  $('dimensionSelectedOffsetSlider')?.addEventListener('change',updateSelectedDimensionProps);

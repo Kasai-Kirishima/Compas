@@ -153,10 +153,22 @@ assert.match(js, /dimensionSelectedOffsetSlider.*addEventListener\('change',upda
 assert.match(js, /Math\.max\(\.5,Number\(o\.arrowSize\?\?3\.2\)\),o\.color\|\|'#20252a',15\)/, 'curved arrow head uses an independently adjustable smaller size');
 assert.match(js, /visible=\.28\/Math\.max/, 'vertex grips are reduced to compact dots');
 assert.match(html, /id="dimensionSelectedOffset" type="number" min="0\.01"/, 'dimension offset supports very short extension legs');
-console.log('restored.19 UX contract: tabs, object editing, compact points, smaller arrows and undo camera preservation');
+console.log('restored.20 UX contract: tabs, object editing, compact points, smaller arrows and undo camera preservation');
 
 assert.match(js, /data-object-rotate-handle/, 'selected objects expose a mouse rotation grip');
 assert.match(js, /rotateGeometryObject\(state.drag.original,delta,state.drag.pivot\)/, 'mouse rotation operates from original geometry and stable pivot');
 assert.match(js, /document.querySelectorAll\('\[data-rotate-step\]'\)/, 'quick angle buttons are wired');
 assert.match(js, /objectRotationSlider'\)\.onchange/, 'rotation slider applies its selected angle');
-console.log('restored.19 rotation interaction contract: ok');
+console.log('restored.20 rotation interaction contract: ok');
+
+assert.match(html, /id="applyObjectScaleBtn"/, 'selected objects expose an explicit scale control');
+assert.match(html, /id="objectScaleFactor"/, 'selected objects expose a numeric scale factor');
+assert.match(js, /data-object-scale-handle/, 'selection box exposes interactive resize grips');
+assert.match(js, /state\.drag=\{type:'objectScale'/, 'scale grip starts an actual geometry transform');
+assert.match(js, /state\.drag\?\.type==='objectScale'/, 'scale grip updates geometry while dragging');
+assert.match(js, /scaleGeometryObject\(o,f,f,pivot\)/, 'scale-by-factor transforms actual object geometry');
+assert.match(js, /scaleObjectToBounds\(o,\{x,y,w,h\}/, 'numeric width/height fields apply geometry changes');
+assert.match(js, /target-\(Number\(o\.rotation\)\|\|0\)/, 'rotation field uses an absolute target angle');
+assert.match(js, /'pointer-events':'all',[^}]*'data-object-rotate-handle':'true'/, 'rotation handle can receive mouse input');
+assert.match(css, /\[data-object-rotate-handle\][\s\S]*?pointer-events:all!important/, 'rotation handle overrides non-interactive selection layer');
+console.log('restored.20 transform UI contract: scale handles, numeric scale and functional rotation hit testing');

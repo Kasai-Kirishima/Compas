@@ -369,3 +369,13 @@ html,body{font-size:15px;}
  .left-panel{max-height:46vh}
  .left-panel #selectionPanel{display:block!important}
 }
+
+/* Explicit hit-testing for the transformation handles. The selection layer itself
+   ignores pointer input so only these handles and vertex grips are interactive. */
+#selectionLayer [data-object-rotate-handle],
+#selectionLayer [data-object-scale-handle]{pointer-events:all!important;touch-action:none;}
+#selectionLayer [data-object-rotate-handle]{cursor:grab!important;}
+#selectionLayer [data-object-rotate-handle]:active{cursor:grabbing!important;}
+#selectionLayer [data-object-scale-handle]{fill:#f4fbff;stroke:#087f9d;stroke-width:.48;cursor:nwse-resize;}
+.scale-presets{display:flex;gap:5px;}
+.scale-presets button{flex:1;min-width:0;}

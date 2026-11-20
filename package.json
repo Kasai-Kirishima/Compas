@@ -1,6 +1,6 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.58-restored.19",
+  "version": "1.5.58-restored.20",
   "private": true,
   "type": "module",
   "description": "Browser-based 2D CAD editor with tabbed tools, editable arrowheads, independent dimension text height, object property editing, compact grips and view-preserving undo.",

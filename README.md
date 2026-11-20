@@ -1,4 +1,4 @@
-# CAD Geometry Core 1.5.58 — восстановленная сборка (.10)
+# CAD Geometry Core 1.5.58-restored.20 — восстановленная сборка (.10)
 
 Браузерный 2D-CAD для учебных технических чертежей в миллиметрах. В исходном ZIP остались интерфейс (`index.html`, `styles.css`) и документация, но отсутствовали все программные модули и тесты. Эта сборка восстанавливает рабочее ядро по сохранившимся интерфейсу, README, START_HERE и CHANGELOG.
 
@@ -100,3 +100,10 @@ The left tool area is separated into Tools, Document, Properties, References and
 - Existing dimension labels can be resized separately from their arrowheads using the numeric **Размер цифры этого размера** field or its slider (0.5–30 mm).
 - The default height for newly created dimension numbers is independently configurable in Drawing Settings.
 - Arrowhead size, dimension number height, and dimension arrow size are stored independently in `.kcad` files.
+
+
+## restored.20 — поворот и масштаб объектов
+
+Выделите объект и откройте вкладку «Свойства». В блоке «Масштаб объекта» задайте коэффициент (например, 1,5) или нажмите пресет ×0,5 / ×0,8 / ×1,25 / ×2. Для окружности, эллипса и прямоугольника можно также тянуть угловые маркеры рамки выделения. Shift при перетаскивании сохраняет пропорции.
+
+Поворот задаётся абсолютным целевым углом в поле «Угол поворота», кнопкой «Повернуть», быстрыми шагами или янтарной ручкой над выделением.
