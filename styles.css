@@ -409,6 +409,13 @@ html,body{font-size:15px;}
 @media print{
   .drawing-area svg text,
   .drawing-area svg tspan{stroke:none!important;stroke-width:0!important;}
+  /* Broad monochrome selectors also matched SVG text and added a black outline.
+     Cancel it explicitly so regular template lettering stays at normal weight. */
   #templateLayer text,#templateLayer tspan,
-  #sheetFrameLayer text,#sheetFrameLayer tspan{fill:#000!important;}
+  #sheetFrameLayer text,#sheetFrameLayer tspan,
+  #printStage svg text,#printStage svg tspan{
+    stroke:none!important;
+    stroke-width:0!important;
+    fill:#000!important;
+  }
 }

@@ -73,7 +73,7 @@ const css = readFileSync(resolve(root, 'styles.css'), 'utf8');
 assert.match(css, /#templateLayer/, 'template layer styling is present');
 assert.match(css, /@media print[^{]*\{[^}]*#templateLayer/s, 'monochrome black remains a print-only override');
 assert.match(css, /\.drawing-area svg text,\s*\.drawing-area svg tspan\{stroke:none!important;stroke-width:0!important;\}/, 'PDF text must not inherit a black outline stroke that makes letters look bold');
-assert.match(css, /#templateLayer text,#templateLayer tspan,\s*#sheetFrameLayer text,#sheetFrameLayer tspan\{fill:#000!important;\}/, 'template and frame text must remain solid black after disabling the print stroke');
+assert.match(css, /#templateLayer text,#templateLayer tspan,\s*#sheetFrameLayer text,#sheetFrameLayer tspan,\s*#printStage svg text,#printStage svg tspan\{\s*stroke:none!important;\s*stroke-width:0!important;\s*fill:#000!important;\s*\}/, 'template, frame and print-stage text must remain solid black without an outline stroke');
 assert.match(js, /title\.company\|\|'ШЦМГУ'/, 'institution text from the sample must be printed in the title block');
 assert.match(js, /developer:'Кушвид О\.',checker:'Базиль Б\.'/,'developer and checker names are included by default');
 assert.match(js, /title\.copy\|\|'Копіював'/, 'the copy footer from the reference must be present');
