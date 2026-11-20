@@ -1,73 +1,50 @@
-# CAD Geometry Core 1.5.58
+# CAD Geometry Core 1.6.0 — Лаба 8
 
-2D mechanical CAD editor for technical drawings in millimetres. The template gallery now exposes the distinct drawing-frame layouts supplied in the conversation or generated for this project.
+Офлайн 2D-редактор технических чертежей с векторной рамкой «Лаба 8» для A3/A4. Программа создана заново под HTML/CSS-интерфейс, который сохранился в присланном исходном архиве. В оригинале отсутствовали `js/app.js`, `js/template.js` и модули `src/`; восстановить отсутствующие байты нельзя, поэтому текущий runtime — новая базовая реализация, а не копия прежнего движка.
 
-## Seven available drawing-frame variants
+## Шаблоны листа
 
-### User reference layouts
+- **A3, альбомный:** 420 × 297 мм.
+- **A4, альбомный:** 297 × 210 мм.
+- Синяя рамка, двойная левая служебная полоса, поле «Лабораторная работа № 8» и штамп «Корпус / Вариант 8 / ШЦМГУ».
+- Векторные SVG лежат в `templates/Лаба_8/`; встроенная копия в `js/template.js` позволяет запускать редактор без интернета и без загрузки шаблонов через сеть.
 
-- **Лабораторная работа №4** — A3 portrait (297 × 420 mm), based on the supplied vertical sheet. Developer field: **Кушвид О.**
-- **Лабораторная работа №8** — A3 landscape (420 × 297 mm), based on the supplied blue technical sheet with the title block **«Корпус / Вариант 8 / ШЦМГУ»**. The Lab 8 title block has enlarged lettering and corrected role/name cell widths; defaults are **Кушвид О.** (developer) and **Базиль Б.** (checker).
-- **Лабораторная работа №5** — A4 portrait (210 × 297 mm), reconstructed from the supplied mobile KOMPAS screenshot.
+## Реализовано
 
-### Generated GOST / ESKD-style variants
+- Создание и переключение листов A3/A4, шаблон «Лаба 8» или пустой лист.
+- 2D-геометрия: выбор, ластик, точка, отрезок, стрелка, прямоугольник, скруглённый прямоугольник, окружность, эллипс, ломаная, свободная линия.
+- Текст: создание и редактирование, размер, шрифт, цвет, поворот, выравнивание, рамка, жирный/курсив/подчёркивание/надчёркивание/зачёркивание.
+- Простые линейные, горизонтальные и вертикальные размеры.
+- Перемещение, свойства, цвет/толщина/слой, копирование, поворот, удаление, Undo/Redo.
+- Сетка, привязка, ортогональный режим F8 и масштабирование.
+- Сохранение и открытие `.kcad` (JSON), локальная библиотека/автосохранение с резервом в памяти сессии, если `localStorage` запрещён.
+- Экспорт SVG, PNG, JPEG, WebP, DXF и CSV; импорт базовых SVG/DXF/CSV.
+- Печать и сохранение в PDF через браузер с физическими размерами листа.
 
-- **Лабораторная работа №5 — Form 1** — A3 landscape.
-- **Technical drawing — Form 1** — A3 landscape.
-- **Лабораторная работа №5 — Form 1** — A3 portrait.
-- **Technical drawing — Form 1** — A3 portrait.
+## Запуск
 
-The four generated layouts are separate because portrait and landscape layouts have different title-block placement and auxiliary designation fields. They are editable educational reconstructions, not certified official forms. The early file `CAD-A3-Technical-Template.svg` is geometrically the same blue layout as Lab 8 and is not duplicated as an eighth option.
+- Windows: распакуйте архив полностью и запустите `Открыть_программу.bat`.
+- Любая ОС: откройте `index.html` в Chrome или Edge.
+- Node.js / npm для обычного запуска не требуются. Проверка проекта: `npm test` (Node.js 18+).
+- Дополнительный HTTP-запуск: `npm start`, затем `http://localhost:8000`.
 
-All seven variants appear in the sidebar gallery, the title-block selector, and the new-document dialog. Supported standard sheet sizes include A4 210×297 mm, A3 297×420 mm, and A2 420×594 mm; landscape orientation swaps the sides. Choosing a preset sets its recommended starting size and orientation, but does not lock the paper format. The paper-size selector can freely switch between A4, A3 and A2 in portrait or landscape; the saved project, SVG export and print/PDF output use the selected physical dimensions. The developer value for the user's custom Lab 4 and Lab 5 samples is **Кушвид О.**.
+## Структура проекта
 
-## Compatibility with older drawings
-
-Legacy template IDs remain in the renderer so older `.kcad` documents can still be opened. Existing project files retain their saved page format, title fields, and frozen frame snapshot. Hidden legacy options are not offered for new drawings; they are retained solely for old-document compatibility.
-
-## Main drafting tools
-
-- Line and **Arrow 1** (a segment-style tool with an open first end and one filled arrowhead at the second end), ray, infinite construction line, circle by radius/diameter, arc, rectangle, polyline, spline.
-- OSNAP: endpoint, midpoint, center, intersection, quadrant and tangent; Ortho (F8).
-- Offset, Trim, Mirror, supported Fillet operations, hatch with shared angle/spacing. The straight pass-cut tool now offers all walls (default), no bottom wall, and no walls. Cutouts support both **outside-to-inside** notches on external profiles and **inside-to-outside** cuts from selected hole/pocket contours; straight passes support all three wall modes in both directions.
-- Main/thin/center line roles and weights; dimensions, center marks and editable title-block text.
-- SVG, DXF, PDF/print and image export.
-
-## Tool-panel tabs
-
-The sidebar is grouped into Geometry, Dimensions, Annotations, Editing, Precision, ESKD/GOST, Reference, Sheet, and All. See [`docs/TOOL-TABS.md`](docs/TOOL-TABS.md) for the full contents of each tab.
-
-## Known limitations
-
-- Fillet for arbitrary circle/arc pairings is not fully implemented; supported line-line and rectangle fillets remain available.
-- Spline offset is approximated from stored points and may be less smooth than the original curve.
-- Check the target CAD application's compatibility when importing exported DXF.
-- GOST/ESKD-style layouts use standard-form geometry as a drafting aid; verify typography and institutional fields before formal submission.
-
-## Run
-
-Unzip the package and open `index.html` in a modern browser. For the test suite, use Node.js 18+ and run:
-
-```bash
-npm test
+```text
+index.html                     интерфейс и SVG-холст
+styles.css                     оформление
+js/app.js                      рабочая логика приложения
+js/template.js                 встроенные шаблоны A3/A4
+src/geometry.mjs               геометрические утилиты
+src/project-schema.mjs         нормализация проекта .kcad
+templates/Лаба_8/              исходные векторные рамки
+assets/Лаба_8/preview/          PNG-предпросмотры
+assets/Лаба_8/reference/        изображение образца
+examples/                       пример .kcad
+tests/                           быстрые проверки
+docs/                            архитектура, клавиши, отчёт и скриншоты
 ```
 
-No external npm dependencies are required to run the editor.
+## Ограничения
 
-
-Arrow 1: the filled arrowhead grows or shrinks proportionally with the line weight. The default reference is 0.50 mm line weight and a visibly enlarged 4.725 mm triangle length (1.35× base scale), with a wider 28° included angle. This relationship is retained in saved projects and CSV exports.
-
-### Исправление выреза изнутри наружу — 1.5.56
-Теперь предварительное выделение не обязательно: начни жест внутри отверстия/паза или внутри внешнего контура детали. Вложенные контуры распознаются автоматически; для одиночного внешнего контура строится выходной паз внутрь материала от края к точке начала.
-
-### Вырез из внутреннего отверстия наружу (1.5.56)
-
-Инструмент автоматически собирает замкнутую область даже из отдельных соединённых отрезков/дуг. Если жест начинается внутри отверстия, внешний контур открывается к отверстию, соответствующий участок внутренней дуги удаляется, а боковые стенки соединяются с ней. Для этого протяни линию из отверстия за внешний край детали.
-
-### Lab 8 A3 landscape title block update (1.5.58)
-The Lab 8 title block uses larger lettering. The role column is widened to 13 mm and the name field is merged to 27 mm, so `Т. контр.` and `Н. контр.` no longer overlap adjacent cells. The default name rows are `Кушвид О.` (Разраб.) and `Базиль Б.` (Пров.).
-
-### ЛР8 — финальная сверка шрифта и расположения (1.5.58)
-- Увеличены надписи в левой вертикальной полосе, мелкие заголовки таблицы и значения масштаба `1:1`.
-- Текст обозначения в верхнем левом поле центрирован и уменьшен по высоте относительно предыдущего черновика, чтобы не выходить за границу прямоугольника.
-- Сохранена геометрия рамки по исходному прототипу: две левые колонки, верхняя ячейка обозначения, нижний правый штамп и интервалы служебных полей.
+Это не полная реконструкция оригинального CAD-редактора и не промышленный CAD. Пока не реализованы булевы операции/вырезы, полноценные сплайны и дуги, штриховка, растровые подложки, расширенные размерные обозначения, импорт HPGL/PLT, массивы, зеркало, сложные модификации и нативные CDW/DWG. Неактивные команды отключены. DXF-поддержка ограничена базовыми геометрическими типами. Предварительная проверка оформления не является подтверждением соответствия ГОСТ/ЕСКД.

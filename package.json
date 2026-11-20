@@ -1,28 +1,13 @@
 {
-  "name": "cad-geometry-core",
-  "version": "1.5.58",
+  "name": "cad-geometry-core-lab8",
+  "version": "1.6.0",
   "private": true,
+  "description": "Offline 2D CAD editor with Lab 8 A3/A4 frame templates.",
   "type": "module",
-  "description": "2D mechanical CAD editor with editable drawing templates, prototype-checked Lab 8 landscape A3 title block typography, and inside-out cutouts.",
-  "exports": {
-    ".": "./src/index.mjs",
-    "./geometry": "./src/cad-geometry-trim.mjs",
-    "./eraser": "./src/eraser.mjs",
-    "./history": "./src/history.mjs",
-    "./templates": "./src/templates.mjs",
-    "./cutouts": "./src/cutouts.mjs",
-    "./wheel-navigation": "./src/wheel-navigation.mjs",
-    "./project-file": "./src/project-file.mjs",
-    "./sketch-advanced": "./src/sketch-advanced.mjs",
-    "./polygon-edit": "./src/polygon-edit.mjs",
-    "./dimension-extensions": "./src/dimension-extensions.mjs",
-    "./arrow-scaling": "./src/arrow-scaling.mjs",
-    "./cutout-targets": "./src/cutout-targets.mjs",
-    "./inside-out-cut": "./src/cutouts.mjs"
-  },
   "scripts": {
-    "check": "node --check src/line-types.mjs && node --check tests/test-line-types.mjs && node --check tests/test-app-line-styles.mjs && node --check src/wheel-navigation.mjs && node --check tests/test-wheel-navigation.mjs && node --check src/cutout-targets.mjs && node --check tests/test-cutout-targets.mjs && node --check tests/test-inside-out-hole-pass.mjs && node --check tests/test-app-inside-out-cut.mjs && node --check src/cutouts.mjs && node --check tests/test-straight-pass-cut.mjs && node --check tests/test-cutouts.mjs && node --check src/cad-geometry-trim.mjs && node --check src/eraser.mjs && node --check src/history.mjs && node --check src/index.mjs && node --check src/sketch-advanced.mjs && node --check src/polygon-edit.mjs && node --check src/dimension-extensions.mjs && node --check tests/test-dimension-resize.mjs && node --check tests/test-dimension-extensions.mjs && node --check tests/test-app-dimension-independent-legs.mjs && node --check tests/test-polygon-edit.mjs && node --check tests/test-app-polygon-face-edit.mjs && node --check tests/test-sketch-advanced.mjs && node --check tests/test-app-advanced-sketch.mjs && node --check tests/test-app-diameter-arrow-placement.mjs && node --check src/templates.mjs && node --check examples/demo.mjs && node --check js/app.js && node --check tests/test-arrow-line-tool.mjs && node --check tests/test-app-cutout-dimension.mjs && node --check tests/test-app-duplicate-dimension.mjs && node --check tests/test-text-and-diameter-ui.mjs && node --check tests/test-app-dimension-editing.mjs && node --check tests/test-cad-geometry.mjs && node --check tests/test-eraser.mjs && node --check tests/test-eraser-properties.mjs && node --check tests/test-history.mjs && node --check tests/test-templates.mjs && node --check tests/test-dimension-render.mjs && node --check tests/test-sample-project.mjs && node --check tests/test-demo-contract.mjs && node --check tests/test-app-straight-pass-cut.mjs && node --check src/project-file.mjs && node --check tests/test-project-file.mjs && node --check tests/test-app-project-file.mjs && node --check tests/test-dimension-ergonomics.mjs && node --check tests/test-technical-a3-template.mjs && node --check tests/test-template-preset-gallery.mjs && node --check tests/test-app-drafting-tools.mjs && node --check tests/test-project-template-isolation.mjs && node --check tests/test-template-catalog-runtime.mjs && node --check src/arrow-scaling.mjs && node --check tests/test-arrow-scaling.mjs",
-    "test": "npm run check && node tests/test-line-types.mjs && node tests/test-app-line-styles.mjs && node tests/test-wheel-navigation.mjs && node tests/test-cad-geometry.mjs && node tests/test-sketch-advanced.mjs && node tests/test-polygon-edit.mjs && node tests/test-dimension-extensions.mjs && node tests/test-dimension-resize.mjs && node tests/test-app-dimension-independent-legs.mjs && node tests/test-app-polygon-face-edit.mjs && node tests/test-app-advanced-sketch.mjs && node tests/test-eraser.mjs && node tests/test-eraser-properties.mjs && node tests/test-history.mjs && node tests/test-templates.mjs && node tests/test-dimension-render.mjs && node tests/test-cutouts.mjs && node tests/test-cutout-targets.mjs && node tests/test-inside-out-hole-pass.mjs && node tests/test-app-inside-out-cut.mjs && node tests/test-straight-pass-cut.mjs && node tests/test-sample-project.mjs && node tests/test-demo-contract.mjs && node tests/test-app-cutout-dimension.mjs && node tests/test-app-duplicate-dimension.mjs && node tests/test-text-and-diameter-ui.mjs && node tests/test-app-dimension-editing.mjs && node tests/test-app-diameter-arrow-placement.mjs && node tests/test-app-straight-pass-cut.mjs && node tests/test-project-file.mjs && node tests/test-app-project-file.mjs && node tests/test-dimension-ergonomics.mjs && node tests/test-technical-a3-template.mjs && node tests/test-template-preset-gallery.mjs && node tests/test-app-drafting-tools.mjs && node tests/test-project-template-isolation.mjs && node tests/test-template-catalog-runtime.mjs && node tests/test-arrow-line-tool.mjs && node tests/test-arrow-scaling.mjs"
+    "check": "node --check js/app.js && node --check js/template.js && node --check src/geometry.mjs && node --check src/project-schema.mjs && node --check tests/test-core.mjs",
+    "test": "npm run check && node tests/test-core.mjs",
+    "start": "python -m http.server 8000"
   },
   "engines": {
     "node": ">=18"

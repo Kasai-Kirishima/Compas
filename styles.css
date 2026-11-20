@@ -287,3 +287,6 @@ html,body{font-size:15px;}
 .template-preset-copy{display:grid;gap:2px;min-width:0}
 .template-preset-copy b{font-size:12px;font-weight:650;line-height:1.25}
 .template-preset-copy small{font-size:10px;line-height:1.25;color:var(--muted,#657080)}
+
+/* Unsupported legacy-shell commands are visibly disabled, not presented as working tools. */
+button:disabled,.ribbon-btn:disabled,.tool-tile:disabled,input:disabled,select:disabled,textarea:disabled{opacity:.38!important;filter:grayscale(.75);cursor:not-allowed!important;pointer-events:auto;}
