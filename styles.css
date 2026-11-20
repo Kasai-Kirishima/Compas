@@ -402,3 +402,13 @@ html,body{font-size:15px;}
 #selectionLayer [data-text-label-size-handle]{cursor:nwse-resize!important;}
 #selectionLayer [data-text-label-rotate-handle]{cursor:grab!important;}
 #selectionLayer [data-text-label-rotate-handle]:active{cursor:grabbing!important;}
+
+
+/* PDF/print: SVG text must stay fill-rendered, never inherit the forced black
+   outline stroke used for technical frame/template geometry. */
+@media print{
+  .drawing-area svg text,
+  .drawing-area svg tspan{stroke:none!important;stroke-width:0!important;}
+  #templateLayer text,#templateLayer tspan,
+  #sheetFrameLayer text,#sheetFrameLayer tspan{fill:#000!important;}
+}
