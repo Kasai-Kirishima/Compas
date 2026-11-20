@@ -24,6 +24,9 @@ for (const match of html.matchAll(/<link\b[^>]*\bhref=["']([^"']+)["']/g)) {
   if (!/^(https?:)?\/\//.test(href) && !href.startsWith('#')) assert.ok(existsSync(resolve(root, href)), `Missing linked asset: ${href}`);
 }
 assert.match(js, /drawing\.addEventListener\('mousedown',onCanvasMouseDown\)/, 'drawing surface must receive reliable laptop mouse input');
+assert.match(js, /function updateSelectionByProps\(/, 'property-panel change handler must exist before bind() finishes');
+assert.match(js, /addEventListener\('change',updateSelectionByProps\)/, 'property controls must bind to the declared property updater');
+assert.doesNotMatch(js, /updateSelectedByProps/, 'misspelled callback must not abort application initialization');
 assert.match(js, /function populateNewDocTemplateOptions\(/, 'new-document template menu must be populated dynamically');
 assert.match(js, /populateNewDocTemplateOptions\(\)/, 'new-document modal must populate frame options');
 assert.match(js, /const margin=blue\?5:10/, 'legacy sample frame drawing must have a defined margin');
@@ -38,6 +41,13 @@ assert.match(js, /evt\.button===2/, 'right mouse button must also pan the sheet'
 assert.match(html, /id="panModeBtn"/, 'visible pan mode button must exist for laptops without a middle mouse button');
 assert.match(js, /drawGesture/, 'drag-to-draw gesture handling must be present');
 assert.match(js, /function zoomFromWheel/, 'wheel zoom handler must be present');
+assert.match(js, /drawing\.addEventListener\('pointerdown',handlePointerDown\)/, 'modern pointerdown must drive drawing tools');
+assert.match(js, /drawing\.setPointerCapture\(evt\.pointerId\)/, 'pointer capture must keep drawing and panning active outside the canvas');
+assert.match(js, /window\.addEventListener\('pointermove',onCanvasMouseMove\)/, 'pointer movement must reach canvas navigation');
+assert.match(js, /window\.addEventListener\('pointerup',onCanvasMouseUp\)/, 'pointer release must finish canvas gestures');
+assert.match(js, /function onCanvasWheel\(/, 'wheel and touchpad navigation handler must be present');
+assert.match(js, /wheelZoomFactor/, 'wheel zoom must use normalized input deltas');
+
 for (const match of js.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
   const spec = match[1];
   if (spec.startsWith('.')) assert.ok(existsSync(resolve(root, 'js', spec)), `Missing JavaScript module: ${spec}`);

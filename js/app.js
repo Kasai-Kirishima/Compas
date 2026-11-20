@@ -3,6 +3,7 @@ import {History} from '../src/history.mjs';
 import {distance, constrainAngle, nearestPoint, boundsOfObject, pathData, svgEscape} from '../src/geometry.mjs';
 import {createProject, parseProject} from '../src/project-file.mjs';
 import {removePathWindow, splitOpenPath, splitClosedPolygon} from '../src/operations.mjs';
+import {zoomView, panView, wheelZoomFactor} from '../src/viewport.mjs';
 
 const $ = (id) => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
@@ -57,20 +58,35 @@ function applyView(){
  $('zoomLabel').textContent=`${Math.round(state.zoom*100)}%`;
 }
 function setZoom(factor,clientPoint=null){
- const old=state.view, rect=svg.getBoundingClientRect();
- const fx=clientPoint?Math.max(0,Math.min(1,(clientPoint.x-rect.left)/Math.max(1,rect.width))):.5;
- const fy=clientPoint?Math.max(0,Math.min(1,(clientPoint.y-rect.top)/Math.max(1,rect.height))):.5;
- const anchorX=old.x+old.w*fx,anchorY=old.y+old.h*fy;
- const nw=Math.max(state.sheet.width/64,Math.min(state.sheet.width/.05,old.w/factor));
- const nh=nw*old.h/old.w;
- state.view={x:anchorX-nw*fx,y:anchorY-nh*fy,w:nw,h:nh};
+ const rect=svg.getBoundingClientRect();
+ const anchor=clientPoint?{
+  x:Math.max(0,Math.min(1,(clientPoint.x-rect.left)/Math.max(1,rect.width))),
+  y:Math.max(0,Math.min(1,(clientPoint.y-rect.top)/Math.max(1,rect.height)))
+ }:{x:.5,y:.5};
+ const next=zoomView({x:state.view.x,y:state.view.y,width:state.view.w,height:state.view.h},factor,anchor,{
+  minWidth:state.sheet.width/64,maxWidth:state.sheet.width/.05
+ });
+ state.view={x:next.x,y:next.y,w:next.width,h:next.height};
  applyView();
 }
 function zoomFromWheel(evt){
- const unit=evt.deltaMode===1?16:evt.deltaMode===2?Math.max(1,drawing.clientHeight):1;
- const delta=evt.deltaY*unit;
- const factor=Math.exp(-delta*(evt.ctrlKey?.0032:.0016));
+ const factor=wheelZoomFactor(evt.deltaY,evt.deltaMode,evt.ctrlKey,drawing.clientHeight);
  setZoom(factor,{x:evt.clientX,y:evt.clientY});
+}
+function onCanvasWheel(evt){
+ if(evt.cancelable)evt.preventDefault();
+ const unit=evt.deltaMode===1?16:evt.deltaMode===2?Math.max(1,drawing.clientHeight):1;
+ const dx=evt.deltaX*unit,dy=evt.deltaY*unit;
+ // Horizontal two-finger trackpad scroll pans; vertical scroll and pinch zoom the sheet.
+ if(evt.shiftKey||(!evt.ctrlKey&&Math.abs(dx)>Math.abs(dy)*1.25)){
+  const deltaX=evt.shiftKey?(Math.abs(dx)>0?dx:dy):dx;
+  const r=svg.getBoundingClientRect();
+  const next=panView(state.view,deltaX,0,r.width,r.height);
+  state.view={x:next.x,y:next.y,w:next.width,h:next.height};
+  applyView();return;
+ }
+ if(evt.altKey){const r=svg.getBoundingClientRect();const next=panView(state.view,0,dy,r.width,r.height);state.view={x:next.x,y:next.y,w:next.width,h:next.height};applyView();return;}
+ zoomFromWheel(evt);
 }
 function screenPoint(evt){
  const rect=svg.getBoundingClientRect();
@@ -475,7 +491,7 @@ function onCanvasMouseDown(evt){
 }
 function onCanvasMouseMove(evt){
  const p=screenPoint(evt);$('coordinates').textContent=`X: ${fmt(p.x)} · Y: ${fmt(p.y)} мм`;
- if(state.pan){const r=svg.getBoundingClientRect(),dx=(evt.clientX-state.pan.clientX)/Math.max(1,r.width)*state.pan.view.w,dy=(evt.clientY-state.pan.clientY)/Math.max(1,r.height)*state.pan.view.h;const v=state.pan.view;state.view={...v,x:v.x-dx,y:v.y-dy};applyView();return;}
+ if(state.pan){const r=svg.getBoundingClientRect(),v=state.pan.view,next=panView({x:v.x,y:v.y,width:v.w,height:v.h},evt.clientX-state.pan.clientX,evt.clientY-state.pan.clientY,r.width,r.height);state.view={x:next.x,y:next.y,w:next.width,h:next.height};applyView();return;}
  if(state.drawGesture){
   const g=state.drawGesture,distPx=Math.hypot(evt.clientX-g.clientX,evt.clientY-g.clientY);
   if(!g.pendingAtStart&&dragDrawTools.has(g.tool)&&distPx>=3){g.moved=true;g.last=applyPrecision(p,evt);updateDrawPreview(g,g.last);}
@@ -686,7 +702,7 @@ function bind(){
  $('gridBtn').onclick=()=>{state.grid=!state.grid;$('gridToggle').checked=state.grid;updateSheetGeometry();};$('gridToggle').onchange=()=>{state.grid=checked('gridToggle');updateSheetGeometry();};$('snapToggle').onchange=()=>state.snapGrid=checked('snapToggle');$('snapBtn').onclick=()=>{$('objectSnapToggle').checked=!$('objectSnapToggle').checked;state.osnap=$('objectSnapToggle').checked;};$('objectSnapToggle').onchange=()=>state.osnap=checked('objectSnapToggle');$('orthoBtn').onclick=()=>{$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';};$('orthoToggle').onchange=()=>{state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';};
  $('paperFormat').onchange=()=>{history.push(snapshot());setSheet(getVal('paperFormat','A3P'));scheduleAutosave();updateHistoryButtons();};$('templateQuickSelect').onchange=()=>{history.push(snapshot());switchTemplate(getVal('templateQuickSelect'));updateHistoryButtons();};$('titleFormSelect').onchange=()=>{history.push(snapshot());switchTemplate(getVal('titleFormSelect'));updateHistoryButtons();};$('templateVisible').onchange=()=>{$('templateToggle').checked=$('templateVisible').checked;renderTemplate();};$('templateToggle').onchange=()=>{$('templateVisible').checked=$('templateToggle').checked;renderTemplate();};['geometryVisible','dimensionsVisible','constructionVisible','referenceVisibleToggleSecondary'].forEach(id=>$(id)?.addEventListener('change',updateLayerVisibility));layers.template.addEventListener('dblclick',e=>{const node=e.target.closest('[data-template-key]');if(!node)return;const key=node.getAttribute('data-template-key'),value=prompt(`Изменить поле «${key}»`,state.title[key]||'');if(value!==null){state.title[key]=value;writeTitleToUI();renderTemplate();scheduleAutosave();}});
  $('applyTitleBtn').onclick=applyTitle;Object.values(titleMap).forEach(id=>$(id)?.addEventListener('change',()=>{readTitleFromUI();renderTemplate();scheduleAutosave();}));
- ['objectColor','objectWidth','objectDash','objectLayer','objectLineRole','objectName','objectLocked'].forEach(id=>$(id)?.addEventListener('change',updateSelectedByProps));$('applyObjectGeometryBtn').onclick=applyBoxProps;$('applyObjectRotationBtn').onclick=()=>{const a=getNum('objectRotationAngle',0);transformSelected(o=>rotateObject(o,a));};$('objectRotationSlider').oninput=()=>{$('objectRotationAngle').value=$('objectRotationSlider').value;};
+ ['objectColor','objectWidth','objectDash','objectLayer','objectLineRole','objectName','objectLocked'].forEach(id=>$(id)?.addEventListener('change',updateSelectionByProps));$('applyObjectGeometryBtn').onclick=applyBoxProps;$('applyObjectRotationBtn').onclick=()=>{const a=getNum('objectRotationAngle',0);transformSelected(o=>rotateObject(o,a));};$('objectRotationSlider').oninput=()=>{$('objectRotationAngle').value=$('objectRotationSlider').value;};
  $('coordinateApplyBtn').onclick=()=>{const p={x:getNum('coordinateX'),y:getNum('coordinateY')};state.pending=null;clickTool(p,{shiftKey:false,detail:1,target:svg});};
  $('circleInputMode').onchange=()=>setStatus(`Режим окружности: ${getVal('circleInputMode')}`);
  $('addReferenceRibbonBtn').onclick=()=>$('referenceInput').click();$('addReferenceBtn').onclick=()=>$('referenceInput').click();$('referenceInput').onchange=e=>importFile(e.target.files[0],'image');
@@ -703,8 +719,28 @@ function bind(){
  $('placeInnerCutoutBtn').onclick=()=>setTool('innerCutout');$('applyPolygonFaceOffsetBtn').onclick=()=>setStatus('Редактирование отдельных граней многоугольника пока не включено.');$('lockAllObjectsBtn').onclick=()=>{if(!state.objects.length)return;history.push(snapshot());state.objects.forEach(o=>o.locked=true);render();scheduleAutosave();updateHistoryButtons();};$('unlockAllObjectsBtn').onclick=()=>{if(!state.objects.length)return;history.push(snapshot());state.objects.forEach(o=>o.locked=false);render();scheduleAutosave();updateHistoryButtons();};$('clearRulerBtn').onclick=()=>{history.push(snapshot());state.objects=state.objects.filter(o=>o.type!=='ruler');commit();};$('saveGostSettingsBtn').onclick=()=>setStatus('Параметры ГОСТ применены к новым объектам.');$('applyGostBtn').onclick=()=>setStatus('Новые объекты используют миллиметры и заданную толщину линий.');$('normalizeGostBtn').onclick=()=>updateSelected(o=>{o.width=.35;});$('increaseDrawingTextBtn').onclick=()=>transformSelected(o=>{if(o.type==='text')o.size=5;});$('saveAssignmentDimensionsBtn').onclick=()=>localStorage.setItem('cad-assignment-dimensions',getVal('assignmentDimensions'));
  $('hatchAngle').onchange=()=>{$('hatchAngleSlider').value=getNum('hatchAngle',45);};$('hatchAngleSlider').oninput=()=>{$('hatchAngle').value=$('hatchAngleSlider').value;};document.querySelectorAll('[data-hatch-angle]').forEach(b=>b.onclick=()=>{$('hatchAngle').value=b.dataset.hatchAngle;$('hatchAngleSlider').value=b.dataset.hatchAngle;});
  $('saveState').title='Локальное автосохранение включено';
- // keyboard, canvas pointer and wheel navigation
- drawing.addEventListener('mousedown',onCanvasMouseDown);window.addEventListener('mousemove',onCanvasMouseMove);window.addEventListener('mouseup',onCanvasMouseUp);window.addEventListener('blur',cancelCanvasGesture);drawing.addEventListener('dragstart',e=>e.preventDefault());drawing.addEventListener('dblclick',evt=>{if(['polyline','spline'].includes(state.tool)&&polylinePoints.length>=2){addObject({type:state.tool,points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}});drawing.addEventListener('wheel',evt=>{evt.preventDefault();if(evt.shiftKey){state.view.x+=Math.sign(evt.deltaY)*state.view.w*.05;applyView();}else if(evt.altKey){state.view.y+=Math.sign(evt.deltaY)*state.view.h*.05;applyView();}else zoomFromWheel(evt);},{passive:false});drawing.addEventListener('contextmenu',e=>e.preventDefault());drawing.addEventListener('auxclick',e=>e.preventDefault());
+ // Unified pointer input: works with mouse, pen and touchpad-emulated mouse gestures.
+ // Capture the pointer so an in-progress line/pan is completed even when the cursor leaves the sheet.
+ const handlePointerDown=evt=>{
+  if(evt.pointerType==='mouse'&&evt.button===0&&evt.target.closest?.('button,input,select,textarea'))return;
+  onCanvasMouseDown(evt);
+  try{drawing.setPointerCapture(evt.pointerId);}catch{}
+ };
+ if(window.PointerEvent){
+  drawing.addEventListener('pointerdown',handlePointerDown);
+  window.addEventListener('pointermove',onCanvasMouseMove);
+  window.addEventListener('pointerup',onCanvasMouseUp);
+  window.addEventListener('pointercancel',cancelCanvasGesture);
+ }else{
+  drawing.addEventListener('mousedown',onCanvasMouseDown);
+  window.addEventListener('mousemove',onCanvasMouseMove);
+  window.addEventListener('mouseup',onCanvasMouseUp);
+ }
+ window.addEventListener('blur',cancelCanvasGesture);
+ drawing.addEventListener('dragstart',e=>e.preventDefault());
+ drawing.addEventListener('dblclick',evt=>{if(['polyline','spline'].includes(state.tool)&&polylinePoints.length>=2){addObject({type:state.tool,points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}});
+ drawing.addEventListener('wheel',onCanvasWheel,{passive:false});
+ drawing.addEventListener('contextmenu',e=>e.preventDefault());drawing.addEventListener('auxclick',e=>e.preventDefault());
  document.addEventListener('keydown',e=>{if(e.key===' '&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){spaceDown=true;drawing.classList.add('pan-ready');e.preventDefault();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;if(e.key==='Escape'){state.pending=null;state.preview=null;polylinePoints=[];state.drag=null;state.drawGesture=null;renderPreview();setTool('select');}if(e.key==='Enter'&&polylinePoints.length>=2){addObject({type:'polyline',points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if(e.key==='F8'){$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if(e.key==='Delete'||e.key==='Backspace')deleteSelected();if(e.key===' '&&!e.repeat){drawing.dataset.space='1';}});document.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;drawing.classList.remove('pan-ready');}});
  window.addEventListener('resize',()=>{if(state.zoom===1)fitSheet();else{const {width:w,height:h}=state.sheet;const a=Math.max(.05,Math.min((drawing.clientWidth-56)/w,(drawing.clientHeight-64)/h));svg.style.width=`${w*a}px`;svg.style.height=`${h*a}px`;}});
  document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)m.classList.add('hidden');}));

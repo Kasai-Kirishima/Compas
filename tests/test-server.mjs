@@ -25,8 +25,11 @@ try {
   const module = await fetch(`${base}/src/geometry.mjs`);
   assert.equal(module.status, 200);
   assert.match(module.headers.get('content-type')||'', /javascript/);
+  const viewport = await fetch(`${base}/src/viewport.mjs`);
+  assert.equal(viewport.status, 200);
+  assert.match(viewport.headers.get('content-type')||'', /javascript/);
   assert.equal((await fetch(`${base}/missing-file.js`)).status, 404);
-  console.log('server: ok (HTML and ES modules served with expected MIME types)');
+  console.log('server: ok (HTML and all required ES modules served with expected MIME types)');
 } finally {
   child.kill('SIGTERM');
   await Promise.race([new Promise(resolve=>child.once('exit',resolve)),delay(1000)]);
