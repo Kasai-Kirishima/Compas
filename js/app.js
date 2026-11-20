@@ -105,14 +105,21 @@ function inspectorField(parent,label,key,value,opts={}){
 function renderObjectSpecificFields(o){
  const root=$('objectSpecificFields');if(!root)return;root.replaceChildren();
  const add=(label,key,val,opts)=>inspectorField(root,label,key,val,opts);
+ const addArrowHeadSize=(value)=>{
+  const input=add('Размер наконечника, мм','arrowSize',value??3.2,{min:.5,max:20,step:.1});
+  const slider=document.createElement('input');slider.type='range';slider.className='dimension-fine-slider';slider.min='.5';slider.max='20';slider.step='.1';slider.value=String(value??3.2);slider.setAttribute('aria-label','Увеличить или уменьшить наконечник стрелки');
+  slider.addEventListener('input',()=>{input.value=slider.value;});
+  input.addEventListener('input',()=>{const n=Number(input.value);if(Number.isFinite(n))slider.value=String(Math.max(.5,Math.min(20,n)));});
+  root.append(slider);
+ };
  const point=(prefix,p)=>{add(`${prefix} X, мм`,`${prefix.toLowerCase()}X`,p?.x??0);add(`${prefix} Y, мм`,`${prefix.toLowerCase()}Y`,p?.y??0);};
  if(o.type==='circle'){
   root.append(Object.assign(document.createElement('div'),{className:'specific-help',textContent:'Окружность: меняйте координаты центра и радиус. Диаметр рассчитывается автоматически.'}));
   point('Центр',o.center);add('Радиус, мм','radius',o.r,{min:.05,step:.1});add('Диаметр, мм','diameter',(o.r||0)*2,{min:.1,step:.1});
  }else if(['line','arrowLine','construction','centerline','ray','xline','ruler'].includes(o.type)){
-  point('Начало',o.a);point('Конец',o.b);add('Длина, мм','lineLength',distance(o.a,o.b).toFixed(2),{min:.05,step:.1});add('Угол, °','lineAngle',(Math.atan2(o.b.y-o.a.y,o.b.x-o.a.x)*180/Math.PI).toFixed(2),{step:.1});
+  point('Начало',o.a);point('Конец',o.b);add('Длина, мм','lineLength',distance(o.a,o.b).toFixed(2),{min:.05,step:.1});add('Угол, °','lineAngle',(Math.atan2(o.b.y-o.a.y,o.b.x-o.a.x)*180/Math.PI).toFixed(2),{step:.1});if(o.type==='arrowLine')addArrowHeadSize(o.arrowSize??3.2);
  }else if(['polyline','spline','curvedArrow','polygon','freehand','breakline'].includes(o.type)){
-  add('Вершины X;Y (одна точка на строку)','points',(o.points||[]).map(p=>`${round(p.x)}; ${round(p.y)}`).join('\n'),{multiline:true,rows:Math.max(4,Math.min(12,o.points?.length||4)),placeholder:'10; 20\n40; 30\n55; 15'});
+  add('Вершины X;Y (одна точка на строку)','points',(o.points||[]).map(p=>`${round(p.x)}; ${round(p.y)}`).join('\n'),{multiline:true,rows:Math.max(4,Math.min(12,o.points?.length||4)),placeholder:'10; 20\n40; 30\n55; 15'});if(o.type==='curvedArrow')addArrowHeadSize(o.arrowSize??3.2);
   root.append(Object.assign(document.createElement('div'),{className:'muted-hint',textContent:'Изменяйте координаты, добавляйте или удаляйте строки — так можно редактировать каждую вершину ломаной/сплайна.'}));
  }else if(o.type==='rect'){
   add('X, мм','x',o.x);add('Y, мм','y',o.y);add('Ширина, мм','w',o.w,{min:.05});add('Высота, мм','h',o.h,{min:.05});add('Радиус углов, мм','rx',o.rx||0,{min:0});
@@ -139,8 +146,10 @@ function applyObjectSpecificProps(){
   try{Object.assign(values,circleGeometryFromInputs(o,values));}catch(error){setStatus(error.message);return;}
  }else if(['line','arrowLine','construction','centerline','ray','xline','ruler'].includes(o.type)){
   try{Object.assign(values,lineGeometryFromInputs(o,values));}catch(error){setStatus(error.message);return;}
+  if(o.type==='arrowLine'){const size=num('arrowSize');if(!Number.isFinite(size)||size<.5||size>20){setStatus('Размер наконечника должен быть от 0,5 до 20 мм');return;}values.arrowSize=size;}
  }else if(['polyline','spline','curvedArrow','polygon','freehand','breakline'].includes(o.type)){
   try{values.points=parsePointRows(values.points,o.type==='polygon'?3:2);}catch(error){setStatus(error.message);return;}
+  if(o.type==='curvedArrow'){const size=num('arrowSize');if(!Number.isFinite(size)||size<.5||size>20){setStatus('Размер наконечника должен быть от 0,5 до 20 мм');return;}values.arrowSize=size;}
  }else if(o.type==='rect'){
   const [x,y,w,h]=['x','y','w','h'].map(num);if(![x,y,w,h].every(Number.isFinite)||w<=0||h<=0){setStatus('Ширина и высота должны быть больше нуля');return;}
   Object.assign(values,{x,y,w,h,rx:Math.max(0,num('rx')??0)});
@@ -157,8 +166,8 @@ function applyObjectSpecificProps(){
  }
  history.push(snapshot());
  if(o.type==='circle'){o.center=values.center;o.r=values.r;}
- else if(['line','arrowLine','construction','centerline','ray','xline','ruler'].includes(o.type)){o.a=values.a;o.b=values.b;}
- else if(['polyline','spline','curvedArrow','polygon','freehand','breakline'].includes(o.type))o.points=values.points;
+ else if(['line','arrowLine','construction','centerline','ray','xline','ruler'].includes(o.type)){o.a=values.a;o.b=values.b;if(o.type==='arrowLine')o.arrowSize=values.arrowSize;}
+ else if(['polyline','spline','curvedArrow','polygon','freehand','breakline'].includes(o.type)){o.points=values.points;if(o.type==='curvedArrow')o.arrowSize=values.arrowSize;}
  else Object.assign(o,values);
  render();showProperties();scheduleAutosave();updateHistoryButtons();setStatus('Параметры объекта обновлены');
 }
@@ -469,7 +478,7 @@ function renderObject(o,parent){
    a=o.type==='xline'?{x:a.x-ux*extent,y:a.y-uy*extent}:a;b={x:a.x+ux*extent,y:a.y+uy*extent};
   }
   add('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,fill:'none','stroke-dasharray':o.type==='construction'||o.type==='centerline'?'4 2':common['stroke-dasharray']});
-  if(o.type==='arrowLine')drawArrow(wrap,b,a,Math.max(5.0,(o.width||.5)*9.2),o.color||'#20252a',18);
+  if(o.type==='arrowLine')drawArrow(wrap,b,a,Math.max(.5,Number(o.arrowSize??3.2)),o.color||'#20252a',15);
   if(o.type==='centerline'){
    const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};add('line',{x1:mid.x-1,y1:mid.y-1,x2:mid.x+1,y2:mid.y+1,'stroke-width':sw});
   }
@@ -481,7 +490,7 @@ function renderObject(o,parent){
  case 'polygon':add('polygon',{points:o.points.map(p=>`${p.x},${p.y}`).join(' ')});break;
  case 'polyline':case 'freehand':case 'breakline':add('path',{d:pathData(o.points,!!o.closed),fill:'none'});break;
  case 'spline':add('path',{d:splinePathData(o.points||[],!!o.closed),fill:'none'});break;
- case 'curvedArrow':{const pts=o.points||[];if(pts.length>=2){add('path',{d:splinePathData(pts,false),fill:'none'});drawArrow(wrap,pts[pts.length-1],pts[pts.length-2],Math.max(4.35,(o.width||.5)*8.6),o.color||'#20252a',16);}break;}
+ case 'curvedArrow':{const pts=o.points||[];if(pts.length>=2){add('path',{d:splinePathData(pts,false),fill:'none'});drawArrow(wrap,pts[pts.length-1],pts[pts.length-2],Math.max(.5,Number(o.arrowSize??3.2)),o.color||'#20252a',15);}break;}
  case 'arc':{
    const a=o.startAngle*Math.PI/180,b=o.endAngle*Math.PI/180;
    const p1={x:o.center.x+o.r*Math.cos(a),y:o.center.y+o.r*Math.sin(a)},p2={x:o.center.x+o.r*Math.cos(b),y:o.center.y+o.r*Math.sin(b)};
@@ -501,7 +510,7 @@ function renderObject(o,parent){
    else if(kind!=='dimRad') {p1.x+=-dy/len*offset;p1.y+=dx/len*offset;p2.x+=-dy/len*offset;p2.y+=dx/len*offset;}
    if(kind!=='dimDia') {add('line',{x1:a.x,y1:a.y,x2:p1.x,y2:p1.y,'stroke-width':.2});add('line',{x1:b.x,y1:b.y,x2:p2.x,y2:p2.y,'stroke-width':.2});}
    add('line',{x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,'stroke-width':.25});
-   const arrowSize=Math.max(1.8,o.arrowSize||2.5);drawArrow(wrap,p1,p2,arrowSize,o.color||'#20252a');drawArrow(wrap,p2,p1,arrowSize,o.color||'#20252a');
+   const arrowSize=Math.max(.5,Number(o.arrowSize??2.5));drawArrow(wrap,p1,p2,arrowSize,o.color||'#20252a');drawArrow(wrap,p2,p1,arrowSize,o.color||'#20252a');
    const mid={x:(p1.x+p2.x)/2+(o.labelDx||0),y:(p1.y+p2.y)/2-1.2+(o.labelDy||0)};
    const label=o.label||(kind==='dimDia'?`⌀${fmt(len*2)}`:kind==='dimRad'?`R${fmt(len)}`:fmt(len));
    addText(wrap,mid.x,mid.y,label,o.textSize||getNum('defaultDimensionTextHeight',2.5),{fill:o.color||'#20252a','text-anchor':'middle','paint-order':'normal','stroke':'none'});break;
@@ -640,6 +649,7 @@ function showProperties(){
  if(o.type==='dimension'||String(o.type).startsWith('dim')){
   put('dimensionSelectedOffset',o.offset??2);put('dimensionSelectedOffsetSlider',o.offset??2);
   put('dimensionTextHeight',o.textSize??getNum('defaultDimensionTextHeight',2.5));
+  put('dimensionTextHeightSlider',o.textSize??getNum('defaultDimensionTextHeight',2.5));
   put('dimensionArrowSize',o.arrowSize??2.5);
  }
  if(o.type==='reference'){put('referenceX',o.x);put('referenceY',o.y);put('referenceWidth',o.w);put('referenceHeight',o.h);put('referenceRotation',o.rotation||0);put('referenceOpacity',Math.round((o.opacity??.35)*100));chk('referenceKeepAspect',o.keepAspect!==false);chk('referenceExportable',o.exportable);chk('objectLocked',o.locked);$('referenceOpacityValue').textContent=`${Math.round((o.opacity??.88)*100)}%`;}
@@ -650,7 +660,7 @@ function updateSelectedDimensionProps(){
  history.push(snapshot());
  o.offset=Math.max(.01,getNum('dimensionSelectedOffset',o.offset??2));
  o.textSize=Math.max(.5,getNum('dimensionTextHeight',o.textSize??2.5));
- o.arrowSize=Math.max(.8,getNum('dimensionArrowSize',o.arrowSize??2.5));
+ o.arrowSize=Math.max(.5,getNum('dimensionArrowSize',o.arrowSize??2.5));
  render();showProperties();scheduleAutosave();updateHistoryButtons();setStatus('Параметры размера обновлены');
 }
 function findSelected(){return state.objects.filter(o=>state.selected.has(o.id));}
@@ -726,7 +736,8 @@ function makeTwoPointObject(t,a,p,evt={}){
  let b=p;
  if((state.ortho||checked('orthoToggle'))||evt.shiftKey)b=constrainAngle(a,p,getNum('angleStep',15));
  if(t==='spline')return {type:'spline',points:[a,b],...st};
- if(t==='line'||t==='arrowLine'||t==='construction'||t==='xline'||t==='ray'||t==='centerline'||t==='ruler')return {type:t,a,b,...st};
+ if(t==='arrowLine')return {type:t,a,b,arrowSize:3.2,...st};
+ if(t==='line'||t==='construction'||t==='xline'||t==='ray'||t==='centerline'||t==='ruler')return {type:t,a,b,...st};
  if(t==='circle'){const diameter=getVal('circleInputMode','radius')==='diameter';return {type:'circle',center:a,r:distance(a,b)/(diameter?2:1),...st};}
  if(t==='rect'||t==='roundRect')return {type:'rect',x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(b.x-a.x),h:Math.abs(b.y-a.y),rx:t==='roundRect'?getNum('roundingRadius',3):0,...st};
  if(t==='ellipse')return {type:'ellipse',center:{x:(a.x+b.x)/2,y:(a.y+b.y)/2},rx:Math.abs(b.x-a.x)/2,ry:Math.abs(b.y-a.y)/2,...st};
@@ -769,7 +780,7 @@ function clickTool(p,evt){
  if(t==='centerMark'){const hit=evt.target.closest('[data-object-id]');const o=hit&&state.objects.find(v=>v.id===hit.getAttribute('data-object-id'));const c=o?.center||p;addObject({type:'centerMark',center:c,r:5,...st});return;}
  if(t==='text'){addTextAt(p);return;}
  if(t==='polyline'||t==='spline'||t==='curvedArrow'){
-  if(evt.detail>=2&&polylinePoints.length>=2){polylinePoints.push(p);addObject({type:t==='spline'?'spline':t==='curvedArrow'?'curvedArrow':'polyline',points:polylinePoints,...st});polylinePoints=[];state.preview=null;setTool('select');return;}
+  if(evt.detail>=2&&polylinePoints.length>=2){polylinePoints.push(p);addObject({type:t==='spline'?'spline':t==='curvedArrow'?'curvedArrow':'polyline',points:polylinePoints,...(t==='curvedArrow'?{arrowSize:3.2}:{}),...st});polylinePoints=[];state.preview=null;setTool('select');return;}
   polylinePoints.push(p);state.preview={type:t==='spline'?'spline':t==='curvedArrow'?'curvedArrow':'polyline',points:[...polylinePoints,p],...st};renderPreview();setStatus(`Точок кривої: ${polylinePoints.length}. Подвійне клацання або Enter — завершити.`);return;
  }
  if(t==='dimension'||t==='dimAuto'||t==='dimH'||t==='dimV'||t==='dimRad'||t==='dimDia'||t==='dimAngle'||t==='measure'){
@@ -1120,7 +1131,10 @@ function bind(){
  $('dimensionSelectedOffset')?.addEventListener('change',()=>{if($('dimensionSelectedOffsetSlider'))$('dimensionSelectedOffsetSlider').value=$('dimensionSelectedOffset').value;updateSelectedDimensionProps();});
  $('dimensionSelectedOffsetSlider')?.addEventListener('input',()=>{if($('dimensionSelectedOffset'))$('dimensionSelectedOffset').value=$('dimensionSelectedOffsetSlider').value;});
  $('dimensionSelectedOffsetSlider')?.addEventListener('change',updateSelectedDimensionProps);
- $('dimensionTextHeight')?.addEventListener('change',updateSelectedDimensionProps);$('dimensionArrowSize')?.addEventListener('change',updateSelectedDimensionProps);
+ $('dimensionTextHeight')?.addEventListener('change',()=>{if($('dimensionTextHeightSlider'))$('dimensionTextHeightSlider').value=$('dimensionTextHeight').value;updateSelectedDimensionProps();});
+ $('dimensionArrowSize')?.addEventListener('change',updateSelectedDimensionProps);
+ $('dimensionTextHeightSlider')?.addEventListener('input',()=>{if($('dimensionTextHeight'))$('dimensionTextHeight').value=$('dimensionTextHeightSlider').value;});
+ $('dimensionTextHeightSlider')?.addEventListener('change',updateSelectedDimensionProps);
  $('coordinateApplyBtn').onclick=()=>{const p={x:getNum('coordinateX'),y:getNum('coordinateY')};state.pending=null;clickTool(p,{shiftKey:false,detail:1,target:svg});};
  $('circleInputMode').onchange=()=>setStatus(`Режим окружности: ${getVal('circleInputMode')}`);
  $('addReferenceRibbonBtn').onclick=()=>{showReferencesPanel();$('referenceInput').click();};$('addReferenceBtn').onclick=()=>$('referenceInput').click();$('referenceInput').onchange=e=>{importFile(e.target.files[0],'image');e.target.value='';};
@@ -1170,7 +1184,7 @@ function bind(){
  drawing.addEventListener('dblclick',evt=>{if(['polyline','spline','curvedArrow'].includes(state.tool)&&polylinePoints.length>=2){addObject({type:state.tool,points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}});
  drawing.addEventListener('wheel',onCanvasWheel,{passive:false});
  drawing.addEventListener('contextmenu',e=>e.preventDefault());drawing.addEventListener('auxclick',e=>e.preventDefault());
- document.addEventListener('keydown',e=>{if(e.key===' '&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){spaceDown=true;drawing.classList.add('pan-ready');e.preventDefault();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;if(e.key==='Escape'){state.pending=null;state.preview=null;polylinePoints=[];state.drag=null;state.drawGesture=null;renderPreview();setTool('select');}if(e.key==='Enter'&&polylinePoints.length>=2){addObject({type:state.tool==='spline'?'spline':state.tool==='curvedArrow'?'curvedArrow':'polyline',points:polylinePoints,...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if(e.key==='F8'){$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if(e.key==='Delete'||e.key==='Backspace')deleteSelected();if(e.key===' '&&!e.repeat){drawing.dataset.space='1';}});document.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;drawing.classList.remove('pan-ready');}});
+ document.addEventListener('keydown',e=>{if(e.key===' '&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)){spaceDown=true;drawing.classList.add('pan-ready');e.preventDefault();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;if(e.key==='Escape'){state.pending=null;state.preview=null;polylinePoints=[];state.drag=null;state.drawGesture=null;renderPreview();setTool('select');}if(e.key==='Enter'&&polylinePoints.length>=2){addObject({type:state.tool==='spline'?'spline':state.tool==='curvedArrow'?'curvedArrow':'polyline',points:polylinePoints,...(state.tool==='curvedArrow'?{arrowSize:3.2}:{}),...currentStyle()});polylinePoints=[];state.preview=null;setTool('select');}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();}if(e.key==='F8'){$('orthoToggle').checked=!checked('orthoToggle');state.ortho=checked('orthoToggle');$('orthoStatus').textContent=state.ortho?'Вкл.':'Выкл.';}if(e.key==='Delete'||e.key==='Backspace')deleteSelected();if(e.key===' '&&!e.repeat){drawing.dataset.space='1';}});document.addEventListener('keyup',e=>{if(e.key===' '){spaceDown=false;drawing.classList.remove('pan-ready');}});
  window.addEventListener('resize',()=>fitSheet());
  document.querySelectorAll('.modal-backdrop').forEach(m=>m.addEventListener('mousedown',e=>{if(e.target===m)m.classList.add('hidden');}));
 }

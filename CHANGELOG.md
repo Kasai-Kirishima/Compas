@@ -1,3 +1,12 @@
+## 1.5.58-restored.19 — independent arrowhead and dimension number sizing
+
+- Reduced standalone and curved-arrow head defaults to 3.2 mm.
+- Added independent 0.5–20 mm arrowhead size fields to selected straight and curved arrow objects.
+- Added independent numeric and slider controls (0.5–30 mm) for the number height of an already-created dimension.
+- Added a separate default dimension-number height setting for newly created dimensions.
+- Kept dimension arrow size independent from dimension text height; both values are preserved by `.kcad` export/import.
+- Added regression checks for the new controls and export/import round-trip values.
+
 ## 1.5.58-restored.12 — 2026-11-20
 - Повторно увеличена читаемость надписей отдельного шаблона А3 альбомного: верхнее обозначение, индекс документа, подписи таблицы, названия изделия, вариант, числовые поля и левая вертикальная колонка.
 - Для верхнего индекса и подписей внутри узких ячеек заданы ограничения ширины SVG-текста, чтобы увеличенный шрифт не выходил за линии таблицы.

@@ -76,9 +76,10 @@ const mixed = {
   title: {title:'Корпус',developer:'Кушвид О.',checker:'Базиль Б.',customText:'Текстовий реквізит'},
   objects: [
     {id:'ln',type:'line',a:{x:1,y:2},b:{x:30,y:40},color:'#000',width:.5,dash:'2 1'},
-    {id:'ar',type:'arrowLine',a:{x:3,y:4},b:{x:40,y:50},arrowSize:4},
+    {id:'ar',type:'arrowLine',a:{x:3,y:4},b:{x:40,y:50},arrowSize:3.2},
     {id:'sp',type:'spline',points:[{x:0,y:0},{x:10,y:15},{x:20,y:0}],smooth:true},
-    {id:'dm',type:'dimension',kind:'dimDia',a:{x:5,y:5},b:{x:15,y:15},offset:7,textSize:2.5,label:'⌀14.14',arrowSize:3,labelDx:1,labelDy:2},
+    {id:'ca',type:'curvedArrow',points:[{x:0,y:4},{x:12,y:15},{x:25,y:4}],arrowSize:4.1},
+    {id:'dm',type:'dimension',kind:'dimDia',a:{x:5,y:5},b:{x:15,y:15},offset:7,textSize:4.8,label:'⌀14.14',arrowSize:1.7,labelDx:1,labelDy:2},
     {id:'tx',type:'text',x:12,y:22,text:'Ø20 — Кушвид О.',size:4,font:'ISO',italic:true,widthFactor:.8},
     {id:'future',type:'futureEntity',payload:{anything:'keep me'}}
   ], settings:{grid:true,snapGrid:true,ortho:true}
@@ -87,6 +88,10 @@ const mixedAgain = parseProject(JSON.stringify(createProject(mixed)));
 assert.deepEqual(mixedAgain.objects,mixed.objects);
 assert.deepEqual(mixedAgain.title,mixed.title);
 assert.equal(mixedAgain.objects.find(o=>o.id==='dm').label,'⌀14.14');
+assert.equal(mixedAgain.objects.find(o=>o.id==='ar').arrowSize,3.2,'standalone arrowhead size survives project export/import');
+assert.equal(mixedAgain.objects.find(o=>o.id==='ca').arrowSize,4.1,'curved arrowhead size survives project export/import');
+assert.equal(mixedAgain.objects.find(o=>o.id==='dm').textSize,4.8,'dimension number height survives independently');
+assert.equal(mixedAgain.objects.find(o=>o.id==='dm').arrowSize,1.7,'dimension arrowhead size survives independently of its number height');
 assert.equal(mixedAgain.objects.find(o=>o.id==='tx').text,'Ø20 — Кушвид О.');
 assert.deepEqual(mixedAgain.objects.find(o=>o.id==='future').payload,{anything:'keep me'});
 console.log('project-file: lossless export/import round-trip (32 source objects + mixed object types)');

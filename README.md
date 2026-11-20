@@ -92,3 +92,11 @@ The standalone arrow uses a proportional filled triangular head. Its length is m
 ## Workspace tabs and object editing (restored.18)
 
 The left tool area is separated into Tools, Document, Properties, References and Settings. Tool categories and settings subtabs keep controls from appearing in one long list. Select an existing object to edit its geometry from the Properties panel (for example, enter a new circle radius/diameter or line length/angle). Rotate with the angle input, quick-angle buttons, slider or the circular handle above the selection; Shift snaps mouse rotation to 15°. Undo/redo retain the current viewport. Curved arrows are smooth splines with a compact triangular tip. Selection grips are visually small with larger transparent hit areas.
+
+
+## Arrowhead and dimension text sizing (restored.19)
+
+- Straight and curved arrow objects use a smaller 3.2 mm default arrowhead. Select an arrow and change **Размер наконечника** (0.5–20 mm) in object properties to enlarge or reduce it independently of line thickness.
+- Existing dimension labels can be resized separately from their arrowheads using the numeric **Размер цифры этого размера** field or its slider (0.5–30 mm).
+- The default height for newly created dimension numbers is independently configurable in Drawing Settings.
+- Arrowhead size, dimension number height, and dimension arrow size are stored independently in `.kcad` files.

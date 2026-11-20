@@ -257,7 +257,7 @@ R17
         <label class="field-label">Шаг фиксации угла при Shift, °<input id="angleStep" type="number" min="1" max="90" step="1" value="15"></label>
         <button class="secondary-btn" id="clearRulerBtn">Убрать линейку</button>
         <div class="two-fields"><label class="field-label">Отступ от контура, мм (по умолчанию 10)<input id="dimensionOffset" type="number" min="0.01" step="0.01" value="2"></label><label class="field-label">Размер текста, мм<input id="defaultTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label></div>
-        <label class="field-label">Высота цифр новых размеров — ГОСТ 2.304, тип Б<select id="defaultDimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5" selected>2,5 мм — компактно</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7">7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select></label>
+        <label class="field-label">Высота цифр новых размеров — независимо от стрелок, мм<input id="defaultDimensionTextHeight" type="number" min="0.5" max="30" step="0.1" value="2.5"></label>
         <div class="muted-hint">Высота цифр размерных чисел выбирается из стандартного ряда шрифта типа Б. Для компактных учебных чертежей по умолчанию используется 2,5 мм. При необходимости можно выбрать 3,5 мм и больше.</div>
         <div class="two-fields"><label class="field-label">Толщина свободной линии, мм<input id="freehandWidth" type="number" min="0.05" max="3" step="0.05" value="0.25"></label><label class="field-label">Сглаживание<input id="freehandSmooth" type="range" min="0" max="100" step="5" value="65"></label></div>
         <div class="panel-heading">ШТРИХОВКА</div>
@@ -425,9 +425,11 @@ R17
           <label class="field-label" id="objectTextSizeField">Размер текста / обозначения, мм<input id="objectTextSize" type="number" min="0.5" max="50" step="0.5" value="5"></label>
           <div id="dimensionSelectionFields" class="dimension-selection-fields hidden">
             <div class="panel-heading spaced">ПАРАМЕТРЫ РАЗМЕРА</div>
-            <label class="field-label">Высота размерного числа — ГОСТ 2.304, тип Б
-              <select id="dimensionTextHeight"><option value="1.8">1,8 мм</option><option value="2.5" selected>2,5 мм — компактно</option><option value="3.5">3,5 мм</option><option value="5">5 мм</option><option value="7">7 мм — крупнее</option><option value="10">10 мм — крупные</option><option value="14">14 мм</option><option value="20">20 мм</option></select>
+            <label class="field-label">Размер цифры этого размера, мм
+              <input id="dimensionTextHeight" type="number" min="0.5" max="30" step="0.1" value="2.5">
             </label>
+            <input class="dimension-fine-slider" id="dimensionTextHeightSlider" type="range" min="0.5" max="30" step="0.1" value="2.5" aria-label="Независимая высота цифры размера">
+            <div class="muted-hint">Меняется только цифра/надпись размера. Размер наконечников и длина выносных линий остаются прежними.</div>
             <label class="check-row"><input type="checkbox" id="dimensionShowValue" checked> Показывать числовое значение размера</label>
             <label class="field-label">Размещение стрелок
               <select id="dimensionArrowPlacement"><option value="auto">Авто — внутри, если хватает места</option><option value="inside">Внутри</option><option value="outside">Снаружи</option></select>
@@ -444,7 +446,7 @@ R17
                 <select id="dimensionArrowEndStyle"><option value="inherit">Как общий стиль</option><option value="filled">Треугольник</option><option value="open">Открытая V</option><option value="tick">Засечка</option><option value="dot">Точка</option><option value="none">Нет</option></select>
               </label>
             </div>
-            <label class="field-label">Размер стрелок, мм<input id="dimensionArrowSize" type="number" min="0.8" max="12" step="0.1" value="3.5"></label>
+            <label class="field-label">Размер стрелок размера, мм<input id="dimensionArrowSize" type="number" min="0.5" max="12" step="0.1" value="2.5"></label>
             <label class="field-label">Положение размерного числа
               <select id="dimensionTextOrientation"><option value="horizontal">Горизонтально</option><option value="aligned">Параллельно размерной линии</option></select>
             </label>

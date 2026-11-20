@@ -124,7 +124,11 @@ assert.match(js, /arrowHeadPoints/, 'rendered arrowheads use the proportional ge
 assert.doesNotMatch(js, /half=size\*Math\.tan\(14\*Math\.PI\/180\)/, 'arrowhead length must not be incorrectly reused as a radians angle');
 assert.match(html, /data-panel="references"/, 'reference management is exposed as its own panel tab');
 
-assert.match(js, /drawArrow\(wrap,b,a,Math\.max\(5\.0,\(o\.width\|\|\.5\)\*9\.2\),o\.color\|\|'#20252a',18\)/, 'standalone arrow tool uses a wider, proportionate arrowhead rather than a flattened tip');
+assert.match(js, /drawArrow\(wrap,b,a,Math\.max\(\.5,Number\(o\.arrowSize\?\?3\.2\)\),o\.color\|\|'#20252a',15\)/, 'standalone arrow tool uses a smaller default proportionate arrowhead');
+assert.match(js, /addArrowHeadSize\(o\.arrowSize\?\?3\.2\)/, 'arrow object exposes an independent numeric and slider arrowhead size');
+assert.match(js, /slider\.addEventListener\('input',\(\)=>\{input\.value=slider\.value;\}/, 'arrowhead slider synchronizes its numeric field');
+assert.match(js, /if\(o\.type==='arrowLine'\)o\.arrowSize=values\.arrowSize/, 'standalone arrowhead size is applied to the selected arrow object');
+assert.match(js, /if\(o\.type==='curvedArrow'\)o\.arrowSize=values\.arrowSize/, 'curved arrowhead size is independently applied');
 
 assert.match(html, /data-panel=\"properties\"/, 'selected object editing has a dedicated properties tab');
 assert.match(html, /id=\"objectSpecificFields\"/, 'the properties panel exposes object-specific editable dimensions');
@@ -141,15 +145,18 @@ assert.match(js, /'paint-order':'normal','stroke':'none'/, 'dimension numerals a
 assert.match(html, /id=\"dimensionOffset\" type=\"number\" min=\"0\.01\"/, 'dimension extension minimum is reduced');
 
 assert.match(js, /function updateSelectedDimensionProps\(/, 'selected dimension parameters can be edited after creation');
+assert.match(html, /id=\"dimensionTextHeight\" type=\"number\" min=\"0\.5\" max=\"30\"/, 'dimension number height is independently editable as a numeric value');
+assert.match(html, /id=\"dimensionTextHeightSlider\" type=\"range\" min=\"0\.5\" max=\"30\"/, 'dimension number height also has a separate slider');
+assert.match(js, /put\('dimensionTextHeightSlider',o\.textSize/, 'selected dimension loads its own number height into the slider');
+assert.match(js, /o\.textSize=Math\.max\(\.5,getNum\('dimensionTextHeight'/, 'dimension number resizing is stored independently from arrow size');
 assert.match(js, /dimensionSelectedOffsetSlider.*addEventListener\('change',updateSelectedDimensionProps\)/s, 'dimension extension/offset slider applies its value');
-assert.match(js, /Math\.max\(5\.0,\(o\.width\|\|\.5\)\*9\.2\)/, 'standalone arrow head is slightly smaller');
-assert.match(js, /Math\.max\(4\.35,\(o\.width\|\|\.5\)\*8\.6\)/, 'curved arrow head is slightly smaller');
+assert.match(js, /Math\.max\(\.5,Number\(o\.arrowSize\?\?3\.2\)\),o\.color\|\|'#20252a',15\)/, 'curved arrow head uses an independently adjustable smaller size');
 assert.match(js, /visible=\.28\/Math\.max/, 'vertex grips are reduced to compact dots');
 assert.match(html, /id="dimensionSelectedOffset" type="number" min="0\.01"/, 'dimension offset supports very short extension legs');
-console.log('restored.18 UX contract: tabs, object editing, compact points, smaller arrows and undo camera preservation');
+console.log('restored.19 UX contract: tabs, object editing, compact points, smaller arrows and undo camera preservation');
 
 assert.match(js, /data-object-rotate-handle/, 'selected objects expose a mouse rotation grip');
 assert.match(js, /rotateGeometryObject\(state.drag.original,delta,state.drag.pivot\)/, 'mouse rotation operates from original geometry and stable pivot');
 assert.match(js, /document.querySelectorAll\('\[data-rotate-step\]'\)/, 'quick angle buttons are wired');
 assert.match(js, /objectRotationSlider'\)\.onchange/, 'rotation slider applies its selected angle');
-console.log('restored.18 rotation interaction contract: ok');
+console.log('restored.19 rotation interaction contract: ok');
