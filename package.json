@@ -1,9 +1,9 @@
 {
   "name": "cad-geometry-core",
-  "version": "1.5.58-restored.11",
+  "version": "1.5.58-restored.13",
   "private": true,
   "type": "module",
-  "description": "Browser-based 2D CAD editor with measured monochrome A3 landscape Lab 8 frame reconstruction.",
+  "description": "Browser-based 2D CAD editor with monochrome A3 landscape Lab 8 frame with fitted technical lettering.",
   "exports": {
     ".": "./src/index.mjs",
     "./geometry": "./src/geometry.mjs",

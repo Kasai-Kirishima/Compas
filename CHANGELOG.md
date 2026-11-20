@@ -1,3 +1,8 @@
+## 1.5.58-restored.12 — 2026-11-20
+- Повторно увеличена читаемость надписей отдельного шаблона А3 альбомного: верхнее обозначение, индекс документа, подписи таблицы, названия изделия, вариант, числовые поля и левая вертикальная колонка.
+- Для верхнего индекса и подписей внутри узких ячеек заданы ограничения ширины SVG-текста, чтобы увеличенный шрифт не выходил за линии таблицы.
+- Проверки контракта шаблона обновлены под новые размеры шрифта.
+
 ## 1.5.58-restored.10 — дотошна реконструкція чорної рамки А3
 - Перемальовано рамку ЛР №8 за пропорціями наданого зображення у форматі А3 альбомний 420×297 мм.
 - Додано тонкий зовнішній контур аркуша та внутрішню рамку з окремими вертикалями лівої реєстраційної смуги.
@@ -202,3 +207,11 @@
 ## 1.5.58-restored.11
 - Moved `Кушвид О.` and `Базиль Б.` from the document-number column to the signature column in the A3 Lab 8 approval table.
 - Increased document-code and numerical field sizes for better legibility.
+
+
+## restored.13 — fit title-block lettering
+- Reduced only the labels most likely to touch or cross the title-block cell dividers.
+- Kept the A3-LR8 frame geometry and cell widths unchanged to preserve the reference layout.
+- Developer/checker names are now constrained to 12.2 mm in the 15 mm signature cell.
+- Reduced narrow role labels to 5.35 mm in the 7 mm first column.
+- Slightly reduced the long index/code/header strings and footer captions for safer cell margins.

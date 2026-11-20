@@ -48,7 +48,10 @@ assert.match(js, /\[7,17,40,55,65\]\.forEach\(dx=>line\(x\+dx,y,x\+dx,y\+bh/, 's
 assert.match(js, /\[7,17,40,55,65\]\.forEach\(dx=>line\(x\+dx,y,x\+dx,y\+bh/, 'sample change-register columns span the full 55 mm title-block height');
 assert.match(js, /\[5,10,15,20,27,34,41,48\]\.forEach\(dy=>line\(x,y\+dy,x\+65,y\+dy/, 'sample title block includes three blank upper rows and header/data rows');
 assert.match(js, /rect\(16\.3,4,70\.5,14,\.30\)/, 'top-left document label box matches the reference proportions');
-assert.match(js, /tx\(51\.55,13\.9,title\.leftHeader\|\|'10 ХХ ХХ д\/ 02206018',5\.8/, 'top-left document label is enlarged for readability');
+assert.match(js, /tx\(51\.55,13\.9,title\.leftHeader\|\|'10 ХХ ХХ д\/ 02206018',5\.6/, 'top-left document label is enlarged for readability');
+assert.match(js, /headerText\.setAttribute\('textLength','65\.5'\)/, 'the enlarged upper-left text stays inside its cell');
+assert.match(js, /roleLabel\.setAttribute\('textLength','5\.2'\)/, 'enlarged left role labels remain within the narrow signature register');
+assert.match(js, /nameText\.setAttribute\('textLength','11\.8'\)/, 'developer and checker names remain inside their signature cell');
 assert.equal((js.match(/line\(x\+65,y\+15,x\+185,y\+15,\.27\)/g)||[]).length,1,'document code divider must appear exactly once (no duplicate/extra divider)');
 assert.match(js, /function renderLab8SampleTemplate\(/, 'the sample template must be a full page template');
 assert.match(js, /lab8-a3-landscape-template/, 'the user sample must be available as a separate A3 landscape template');
@@ -59,10 +62,10 @@ assert.match(js, /function renderLab8SampleTemplate\([\s\S]*?const ink='#000000'
 assert.match(js, /rect\(\.6,\.6,418\.8,295\.8,\.18\)/, 'sample includes the thin page perimeter');
 assert.match(js, /rect\(4\.5,4,409,285,\.30\)/, 'sample frame has the measured A3 landscape inset');
 assert.match(js, /const x=228\.5,y=234\.0,bw=185,bh=55/, 'sample title block is 185×55 mm at the reference bottom-right location');
-assert.match(js, /tx\(x\+47\.5,yy,r\[1\],2\.25,'middle'/, 'author and teacher names are placed in the signature column, not the document-number column');
-assert.match(js, /title\.code\|\|'8\.090220 ЛР XX XX 01',6\.2/, 'document code is enlarged for readability');
-assert.match(js, /title\.sheet\|\|'1',3\.0/, 'sheet numerals are enlarged for readability');
-assert.match(js, /title\.scale\|\|'1:1',3\.0/, 'scale numerals are enlarged for readability');
+assert.match(js, /tx\(x\+47\.5,yy,r\[1\],2\.3,'middle'/, 'author and teacher names are placed in the signature column, not the document-number column');
+assert.match(js, /title\.code\|\|'8\.090220 ЛР XX XX 01',8\.0/, 'document code is enlarged for readability');
+assert.match(js, /title\.sheet\|\|'1',4\.2/, 'sheet numerals are enlarged for readability');
+assert.match(js, /title\.scale\|\|'1:1',4\.2/, 'scale numerals are enlarged for readability');
 assert.match(js, /function renderKompasLab5Template\(/, 'uploaded Kompas Online frame must be available as a reusable template');
 assert.match(js, /kompas-lab5-a4-template/, 'Kompas Online KCAD template must be selectable');
 assert.doesNotMatch(js, /#1837ff|#1837FF/, 'no blue template linework remains');
@@ -91,3 +94,5 @@ for (const match of js.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
   if (spec.startsWith('.')) assert.ok(existsSync(resolve(root, 'js', spec)), `Missing JavaScript module: ${spec}`);
 }
 console.log(`app contract: ok (${ids.length} unique HTML ids, ${referencedIds.size} static JS references)`);
+
+assert.match(js, /nameText\.setAttribute\('textLength','11\.8'\)/, 'signature names keep safe inner margins');
